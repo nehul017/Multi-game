@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.next/
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+.nyc_output/
+*.tsbuildinfo
+.turbo/
+redis-data/
+mongo-data/
+uploads/

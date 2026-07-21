@@ -70,6 +70,9 @@ export const SOCKET_EVENTS = {
     SPECTATOR_JOINED: 'game:spectatorJoined',
     COUNTDOWN: 'game:countdown',
     RECONNECTED: 'game:reconnected',
+    MATCHMAKING: 'game:matchmaking',
+    CANCEL_MATCHMAKING: 'game:cancelMatchmaking',
+    MATCH_FOUND: 'game:matchFound',
   },
 
   NOTIFICATION: {

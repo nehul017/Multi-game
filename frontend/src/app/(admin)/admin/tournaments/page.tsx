@@ -47,7 +47,10 @@ export default function AdminTournamentsPage() {
     onError: () => toast.error('Failed to delete tournament'),
   });
 
-  const tournaments: any[] = tournamentsRes?.data ?? [];
+  const rawData = tournamentsRes?.data as unknown;
+  const tournaments: any[] = Array.isArray(rawData)
+    ? rawData
+    : ((rawData as Record<string, unknown>)?.data as any[]) ?? [];
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();

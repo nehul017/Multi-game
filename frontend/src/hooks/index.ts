@@ -9,6 +9,7 @@ import { chatService } from '@/services/chat.service';
 import { notificationService } from '@/services/notification.service';
 import { leaderboardService } from '@/services/leaderboard.service';
 import { adminService } from '@/services/admin.service';
+import { platformService } from '@/services/platform.service';
 import toast from 'react-hot-toast';
 
 // Auth Hooks
@@ -244,6 +245,14 @@ export function useUnreadNotificationCount() {
     queryKey: ['unreadNotifications'],
     queryFn: () => notificationService.getUnreadCount(),
     refetchInterval: 30000,
+  });
+}
+
+export function usePlatformStatus() {
+  return useQuery({
+    queryKey: ['platformStatus'],
+    queryFn: () => platformService.getStatus(),
+    refetchInterval: 60000,
   });
 }
 

@@ -23,6 +23,7 @@ import notificationRoutes from './routes/notification.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import achievementRoutes from './routes/achievement.routes';
 import adminRoutes from './routes/admin.routes';
+import platformRoutes from './routes/platform.routes';
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/platform', platformRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

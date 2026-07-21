@@ -3,7 +3,7 @@ import { adminController } from '../controllers/admin.controller';
 import { authenticate } from '../middleware/auth';
 import { adminOnly } from '../middleware/admin';
 import { validate } from '../middleware/validate';
-import { banUserValidator, resolveReportValidator, broadcastValidator, settingValidator } from '../validators/admin.validator';
+import { banUserValidator, resolveReportValidator, broadcastValidator, updateSettingsValidator } from '../validators/admin.validator';
 
 const router = Router();
 
@@ -34,6 +34,6 @@ router.post('/broadcast', broadcastValidator, validate, adminController.broadcas
 router.get('/health', adminController.getServerHealth);
 
 router.get('/settings', adminController.getSettings);
-router.put('/settings', settingValidator, validate, adminController.updateSetting);
+router.put('/settings', updateSettingsValidator, validate, adminController.updateSettings);
 
 export default router;

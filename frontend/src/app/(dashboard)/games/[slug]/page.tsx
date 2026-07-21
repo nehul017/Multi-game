@@ -28,10 +28,12 @@ const slugIcons: Record<string, string> = {
 interface RoomItem {
   _id?: string;
   id?: string;
-  name: string;
+  roomId?: string;
+  name?: string;
+  gameType?: string;
   host?: string;
   hostUsername?: string;
-  players?: unknown[];
+  players?: Array<{ userId?: { username?: string } | string; username?: string }>;
   maxPlayers?: number;
   status: string;
   elo?: string | number;
@@ -80,13 +82,26 @@ export default function GameDetailPage() {
   };
 
   const columns = [
-    { key: 'name', label: 'Room', render: (item: Record<string, unknown>) => <span className="font-medium text-white">{item.name as string}</span> },
-    { key: 'host', label: 'Host', render: (item: Record<string, unknown>) => (
+    { key: 'name', label: 'Room', render: (item: Record<string, unknown>) => {
+      const gameType = (item.gameType as string) || slug;
+      const name = (item.name as string) || `${gameType.replace(/-/g, ' ')} Room`;
+      return <span className="font-medium text-white">{name}</span>;
+    }},
+    { key: 'host', label: 'Host', render: (item: Record<string, unknown>) => {
+      const players = (item.players as RoomItem['players']) || [];
+      const hostPlayer = players[0];
+      const hostName =
+        (item.hostUsername as string) ||
+        (item.host as string) ||
+        (typeof hostPlayer?.userId === 'object' ? hostPlayer.userId?.username : undefined) ||
+        hostPlayer?.username ||
+        'Host';
+      return (
       <div className="flex items-center gap-2">
-        <Avatar name={(item.hostUsername || item.host || 'Host') as string} size="xs" />
-        <span>{(item.hostUsername || item.host || 'Host') as string}</span>
+        <Avatar name={hostName} size="xs" />
+        <span>{hostName}</span>
       </div>
-    )},
+    )}},
     { key: 'players', label: 'Players', render: (item: Record<string, unknown>) => {
       const playersList = (item.players as unknown[]) || [];
       const max = (item.maxPlayers as number) || 2;
@@ -98,7 +113,7 @@ export default function GameDetailPage() {
       </Badge>
     )},
     { key: 'action', label: '', render: (item: Record<string, unknown>) => {
-      const roomId = (item._id || item.id) as string;
+      const roomId = (item.roomId || item.id || item._id) as string;
       return (item.status as string) === 'waiting' ? (
         <Link href={`/games/${slug}/play?room=${roomId}`}>
           <Button size="sm" variant="primary">Join</Button>

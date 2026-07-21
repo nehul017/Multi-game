@@ -129,6 +129,13 @@ const seedDatabase = async (): Promise<void> => {
       { key: 'max_concurrent_games', value: 1000, category: 'game', description: 'Maximum concurrent games' },
       { key: 'default_elo', value: 1000, category: 'ranking', description: 'Default ELO for new players' },
       { key: 'registration_enabled', value: true, category: 'auth', description: 'Allow new registrations' },
+      { key: 'email_verification', value: true, category: 'auth', description: 'Require email verification' },
+      { key: 'rate_limit', value: 100, category: 'system', description: 'API rate limit per minute' },
+      { key: 'login_attempts', value: 5, category: 'auth', description: 'Max login attempts' },
+      { key: 'lockout_duration', value: 15, category: 'auth', description: 'Lockout duration in minutes' },
+      { key: 'smtp_host', value: '', category: 'email', description: 'SMTP host' },
+      { key: 'smtp_port', value: 587, category: 'email', description: 'SMTP port' },
+      { key: 'from_email', value: '', category: 'email', description: 'From email address' },
       { key: 'chat_enabled', value: true, category: 'chat', description: 'Enable chat feature' },
       { key: 'tournament_enabled', value: true, category: 'tournament', description: 'Enable tournaments' },
     ];

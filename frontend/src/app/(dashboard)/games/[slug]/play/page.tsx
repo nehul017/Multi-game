@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -19,18 +19,19 @@ import { useGameSocket, useChatSocket } from '@/socket/hooks';
 
 export default function PlayPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const roomParam = searchParams.get('room');
   const { user } = useAuthStore();
   const {
     gameState,
     players,
     spectators,
-    isPlaying,
     countdown,
     isMatchmaking,
     currentRoom,
   } = useGameStore();
-  const { joinRoom, leaveRoom, makeMove, surrender, startMatchmaking, cancelMatchmaking } = useGameSocket();
+  const { joinRoom, leaveRoom, makeMove, surrender, startMatchmaking, cancelMatchmaking, isGameConnected } = useGameSocket();
   const { sendMessage: sendChatMessage } = useChatSocket();
 
   const [chatMessages, setChatMessages] = useState<Array<{ user: string; text: string }>>([]);
@@ -43,13 +44,29 @@ export default function PlayPage() {
   const opponent = players.find((p) => p.userId !== user?.id);
 
   useEffect(() => {
-    startMatchmaking(slug);
+    if (!isGameConnected) return;
+
+    const storedRoom =
+      typeof window !== 'undefined' ? sessionStorage.getItem('activeGameRoom') : null;
+    const roomToJoin = roomParam || storedRoom || useGameStore.getState().currentRoom?.id;
+
+    if (roomToJoin) {
+      joinRoom(roomToJoin);
+    } else {
+      startMatchmaking(slug);
+    }
+  }, [slug, roomParam, isGameConnected, joinRoom, startMatchmaking]);
+
+  useEffect(() => {
     return () => {
-      if (roomId) leaveRoom(roomId);
+      const activeRoomId = useGameStore.getState().currentRoom?.id;
+      if (activeRoomId) leaveRoom(activeRoomId);
       else cancelMatchmaking();
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('activeGameRoom');
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [leaveRoom, cancelMatchmaking]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,7 +116,7 @@ export default function PlayPage() {
 
   const eloChange = gameState?.winner === user?.id ? 15 : gameState?.winner ? -10 : 0;
 
-  if (isMatchmaking && !currentRoom) {
+  if ((!isGameConnected || isMatchmaking) && !currentRoom) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
@@ -110,10 +127,18 @@ export default function PlayPage() {
             <Loader2 className="w-12 h-12 text-primary-400" />
           </motion.div>
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-white mb-2">Finding a match...</h2>
-            <p className="text-gray-400">Looking for an opponent for {slug.replace(/-/g, ' ')}</p>
+            <h2 className="text-xl font-semibold text-white mb-2">
+              {!isGameConnected ? 'Connecting...' : 'Finding a match...'}
+            </h2>
+            <p className="text-gray-400">
+              {!isGameConnected
+                ? 'Establishing game connection'
+                : `Looking for an opponent for ${slug.replace(/-/g, ' ')}`}
+            </p>
           </div>
-          <Button variant="outline" onClick={cancelMatchmaking}>Cancel</Button>
+          {isGameConnected && (
+            <Button variant="outline" onClick={cancelMatchmaking}>Cancel</Button>
+          )}
         </div>
       </DashboardLayout>
     );

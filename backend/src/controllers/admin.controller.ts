@@ -119,11 +119,10 @@ class AdminController {
     }
   }
 
-  async updateSetting(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async updateSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { key, value, category, description } = req.body;
-      const setting = await adminService.updateSetting(key, value, category, description);
-      res.json({ success: true, data: setting });
+      const settings = await adminService.updateSettings(req.body);
+      res.json({ success: true, data: settings, message: 'Settings updated successfully' });
     } catch (error) {
       next(error);
     }

@@ -2,6 +2,7 @@ import { userRepository } from '../repositories/user.repository';
 import { matchRepository } from '../repositories/match.repository';
 import { reportRepository } from '../repositories/report.repository';
 import { settingsRepository } from '../repositories/settings.repository';
+import { SETTING_DEFINITIONS } from '../utils/settings.constants';
 import { sessionRepository } from '../repositories/session.repository';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/AppError';
@@ -155,12 +156,65 @@ class AdminService {
     };
   }
 
-  async getSettings() {
-    return settingsRepository.getAll();
+  async getSettings(): Promise<Record<string, unknown>> {
+    const records = await settingsRepository.getAll();
+    const byDbKey = Object.fromEntries(records.map((record) => [record.key, record.value]));
+
+    const settings: Record<string, unknown> = {};
+    for (const [apiKey, definition] of Object.entries(SETTING_DEFINITIONS)) {
+      settings[apiKey] = byDbKey[definition.dbKey] ?? definition.defaultValue;
+    }
+
+    return settings;
   }
 
-  async updateSetting(key: string, value: unknown, category: string, description?: string) {
-    return settingsRepository.upsert(key, value, category, description);
+  async updateSettings(updates: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const previousMaintenance = await settingsRepository.getByKey('maintenance_mode');
+    const wasMaintenanceEnabled = previousMaintenance?.value === true;
+
+    const entries = Object.entries(updates).filter(([apiKey]) => SETTING_DEFINITIONS[apiKey]);
+
+    if (entries.length === 0) {
+      throw new AppError('No valid settings provided', 400);
+    }
+
+    await Promise.all(
+      entries.map(([apiKey, value]) => {
+        const definition = SETTING_DEFINITIONS[apiKey];
+        return settingsRepository.upsert(
+          definition.dbKey,
+          value,
+          definition.category,
+          definition.description
+        );
+      })
+    );
+
+    if (updates.maintenanceMode === true && !wasMaintenanceEnabled) {
+      await this.notifyMaintenancePeriod(true);
+    } else if (updates.maintenanceMode === false && wasMaintenanceEnabled) {
+      await this.notifyMaintenancePeriod(false);
+    }
+
+    return this.getSettings();
+  }
+
+  private async notifyMaintenancePeriod(enabled: boolean): Promise<void> {
+    const users = await userRepository.findMany({}, { limit: 10000 });
+
+    await Promise.allSettled(
+      users.data.map((user) =>
+        notificationService.create(
+          user._id.toString(),
+          'system',
+          enabled ? 'Maintenance Mode Active' : 'Maintenance Complete',
+          enabled
+            ? 'The platform is currently under maintenance. Some features may be temporarily unavailable.'
+            : 'Maintenance has ended. All platform features are available again.',
+          { maintenanceMode: enabled }
+        )
+      )
+    );
   }
 }
 

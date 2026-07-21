@@ -33,7 +33,10 @@ export default function AdminReportsPage() {
     onError: () => toast.error('Failed to resolve report'),
   });
 
-  const reports: any[] = reportsRes?.data ?? [];
+  const rawData = reportsRes?.data as unknown;
+  const reports: any[] = Array.isArray(rawData)
+    ? rawData
+    : ((rawData as Record<string, unknown>)?.data as any[]) ?? [];
 
   const tabs = [
     { id: 'pending', label: 'Pending', count: reports.filter((r: any) => r.status === 'pending').length },

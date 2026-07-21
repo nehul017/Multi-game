@@ -46,10 +46,11 @@ class MatchService {
   async joinMatch(matchId: string, userId: string): Promise<IMatchDocument> {
     const match = await matchRepository.findById(matchId);
     if (!match) throw new AppError('Match not found', 404);
-    if (match.status !== 'waiting') throw new AppError('Match is not accepting players', 400);
 
     const alreadyJoined = match.players.some((p) => p.userId.toString() === userId);
-    if (alreadyJoined) throw new AppError('Already in this match', 400);
+    if (alreadyJoined) return match;
+
+    if (match.status !== 'waiting') throw new AppError('Match is not accepting players', 400);
 
     const user = await userRepository.findById(userId);
     if (!user) throw new AppError('User not found', 404);

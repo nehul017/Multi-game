@@ -23,14 +23,19 @@ const startServer = async (): Promise<void> => {
     console.log('Socket.IO initialized');
 
     httpServer.listen(env.port, () => {
-      console.log(`
-╔═══════════════════════════════════════════════════════╗
-║       MultiGame Platform Backend                      ║
-║       Running on port ${env.port}                            ║
-║       Environment: ${env.nodeEnv.padEnd(25)}.         ║
-║       API Docs: http://localhost:${env.port}/api-docs        ║
-╚═══════════════════════════════════════════════════════╝
-      `);
+      const lines = [
+        'MultiGame Platform Backend',
+        `Running on port ${env.port}`,
+        `Environment: ${env.nodeEnv}`,
+        `API Docs: http://localhost:${env.port}/api-docs`,
+      ];
+      const innerWidth = Math.max(...lines.map((l) => l.length)) + 6;
+      const top = `╔${'═'.repeat(innerWidth)}╗`;
+      const bottom = `╚${'═'.repeat(innerWidth)}╝`;
+      const body = lines
+        .map((l) => `║   ${l.padEnd(innerWidth - 3)}║`)
+        .join('\n');
+      console.log(`\n${top}\n${body}\n${bottom}\n`);
     });
 
     process.on('unhandledRejection', (err: Error) => {

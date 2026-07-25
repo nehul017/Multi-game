@@ -3,7 +3,8 @@ import { userRepository } from '../repositories/user.repository';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/AppError';
 import { gameEvents, EVENTS } from '../events';
-import { XP_REWARDS } from '../utils/constants';
+import { economyService } from './economy.service';
+import { COIN_REWARDS } from '../utils/constants';
 
 interface AchievementEvent {
   type: string;
@@ -70,12 +71,24 @@ class AchievementService {
     await userRepository.addAchievement(userId, achievementId);
     await userRepository.addXp(userId, achievement.xpReward);
 
+    const coinReward =
+      (achievement as { coinReward?: number }).coinReward ?? COIN_REWARDS.ACHIEVEMENT_DEFAULT;
+    if (coinReward > 0) {
+      await economyService.creditCoins(
+        userId,
+        coinReward,
+        'achievement',
+        `Achievement reward: ${achievement.name}`,
+        { achievementId }
+      );
+    }
+
     await notificationService.create(
       userId,
       'achievement',
       'Achievement Unlocked!',
       `You earned "${achievement.name}" - ${achievement.description}`,
-      { achievementId, xpReward: achievement.xpReward }
+      { achievementId, xpReward: achievement.xpReward, coinReward }
     );
 
     gameEvents.emit(EVENTS.ACHIEVEMENT_UNLOCKED, { userId, achievementId });

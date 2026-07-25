@@ -17,8 +17,8 @@ export function ErrorState({ title = 'Something went wrong', message = 'An unexp
       <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
         <AlertTriangle className="w-8 h-8 text-red-400" />
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-      <p className="text-sm text-gray-400 max-w-sm mb-6">{message}</p>
+      <h3 className="text-lg font-semibold text-theme-primary mb-2">{title}</h3>
+      <p className="text-sm text-theme-muted max-w-sm mb-6">{message}</p>
       {onRetry && (
         <Button variant="outline" onClick={onRetry} leftIcon={<RefreshCw className="w-4 h-4" />}>
           Try Again

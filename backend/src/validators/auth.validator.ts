@@ -15,6 +15,10 @@ export const registerValidator = [
     .notEmpty().withMessage('Password is required')
     .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
     .matches(/\d/).withMessage('Password must contain at least one number'),
+  body('referralCode')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 4, max: 20 }).withMessage('Invalid referral code'),
 ];
 
 export const loginValidator = [

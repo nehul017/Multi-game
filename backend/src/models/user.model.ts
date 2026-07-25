@@ -38,10 +38,13 @@ const userSchema = new Schema<IUserDocument>(
     elo: { type: Number, default: 1000 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
+    coins: { type: Number, default: 0, min: 0 },
     wins: { type: Number, default: 0 },
     losses: { type: Number, default: 0 },
     draws: { type: Number, default: 0 },
     gamesPlayed: { type: Number, default: 0 },
+    winStreak: { type: Number, default: 0 },
+    bestWinStreak: { type: Number, default: 0 },
     friends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     friendRequests: [
       {
@@ -50,6 +53,24 @@ const userSchema = new Schema<IUserDocument>(
       },
     ],
     achievements: [{ type: Schema.Types.ObjectId, ref: 'Achievement' }],
+    inventory: [
+      {
+        itemId: { type: Schema.Types.ObjectId, ref: 'StoreItem', required: true },
+        purchasedAt: { type: Date, default: Date.now },
+        equipped: { type: Boolean, default: false },
+      },
+    ],
+    equipped: {
+      avatar: { type: Schema.Types.ObjectId, ref: 'StoreItem' },
+      theme: { type: Schema.Types.ObjectId, ref: 'StoreItem' },
+      frame: { type: Schema.Types.ObjectId, ref: 'StoreItem' },
+      badge: { type: Schema.Types.ObjectId, ref: 'StoreItem' },
+    },
+    referralCode: { type: String, unique: true, sparse: true, uppercase: true },
+    referredBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    referralCount: { type: Number, default: 0 },
+    loginStreak: { type: Number, default: 0 },
+    lastLoginRewardAt: { type: Date },
     lastSeen: { type: Date, default: Date.now },
     refreshToken: { type: String, select: false },
     verificationToken: { type: String, select: false },
@@ -63,10 +84,9 @@ const userSchema = new Schema<IUserDocument>(
   }
 );
 
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
 userSchema.index({ elo: -1 });
 userSchema.index({ level: -1 });
+userSchema.index({ coins: -1 });
 userSchema.index({ isOnline: 1 });
 
 userSchema.pre<IUserDocument>('save', async function (next) {

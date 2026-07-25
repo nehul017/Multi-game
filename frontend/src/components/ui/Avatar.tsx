@@ -8,10 +8,19 @@ interface AvatarProps {
   name?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   online?: boolean;
+  floating?: boolean;
   className?: string;
 }
 
-export function Avatar({ src, alt, name, size = 'md', online, className }: AvatarProps) {
+export function Avatar({
+  src,
+  alt,
+  name,
+  size = 'md',
+  online,
+  floating = false,
+  className,
+}: AvatarProps) {
   const sizes = {
     xs: 'w-6 h-6 text-[10px]',
     sm: 'w-8 h-8 text-xs',
@@ -29,20 +38,26 @@ export function Avatar({ src, alt, name, size = 'md', online, className }: Avata
   };
 
   return (
-    <div className={cn('relative inline-flex shrink-0', className)}>
+    <div
+      className={cn(
+        'relative inline-flex shrink-0',
+        floating && 'animate-avatar-float',
+        className
+      )}
+    >
       {src ? (
         <img
           src={src}
           alt={alt || name || 'Avatar'}
           className={cn(
-            'rounded-full object-cover border-2 border-surface-lighter',
+            'rounded-full object-cover border-2 border-theme shadow-card',
             sizes[size]
           )}
         />
       ) : (
         <div
           className={cn(
-            'rounded-full flex items-center justify-center bg-gradient-to-br from-primary-600 to-secondary-600 text-white font-semibold border-2 border-surface-lighter',
+            'rounded-full flex items-center justify-center bg-gradient-primary text-white font-semibold border-2 border-theme shadow-glow-purple',
             sizes[size]
           )}
         >
@@ -52,9 +67,9 @@ export function Avatar({ src, alt, name, size = 'md', online, className }: Avata
       {online !== undefined && (
         <span
           className={cn(
-            'absolute bottom-0 right-0 rounded-full border-2 border-surface',
+            'absolute bottom-0 right-0 rounded-full border-2 border-[var(--bg-card)]',
             statusSizes[size],
-            online ? 'bg-accent-green' : 'bg-gray-500'
+            online ? 'bg-theme-success' : 'bg-theme-muted'
           )}
         />
       )}

@@ -32,7 +32,7 @@ const typeIcons: Record<string, React.ReactNode> = {
   tournament_result: <Trophy className="w-5 h-5 text-yellow-400" />,
   level_up: <Star className="w-5 h-5 text-purple-400" />,
   message: <MessageSquare className="w-5 h-5 text-secondary-400" />,
-  system: <Bell className="w-5 h-5 text-gray-400" />,
+  system: <Bell className="w-5 h-5 text-theme-muted" />,
 };
 
 export default function NotificationsPage() {
@@ -47,14 +47,14 @@ export default function NotificationsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
-                <Bell className="w-7 h-7 text-primary-400" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl md:text-3xl font-bold text-theme-primary flex items-center gap-3">
+                <Bell className="w-7 h-7 text-primary-400 shrink-0" />
                 Notifications
               </h1>
               {unreadCount > 0 && (
-                <p className="text-gray-400 mt-1">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
+                <p className="text-theme-muted mt-1">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
               )}
             </div>
             {unreadCount > 0 && (
@@ -64,6 +64,7 @@ export default function NotificationsPage() {
                 leftIcon={<CheckCheck className="w-4 h-4" />}
                 onClick={() => markAllRead.mutate()}
                 disabled={markAllRead.isPending}
+                className="w-full sm:w-auto shrink-0"
               >
                 Mark All Read
               </Button>
@@ -73,7 +74,7 @@ export default function NotificationsPage() {
 
         {isError && (
           <div className="text-center py-12">
-            <p className="text-gray-400 mb-4">Failed to load notifications</p>
+            <p className="text-theme-muted mb-4">Failed to load notifications</p>
             <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="w-4 h-4" />}>
               Retry
             </Button>
@@ -111,21 +112,21 @@ export default function NotificationsPage() {
                     !notif.isRead && 'border-primary-500/20 bg-primary-500/5'
                   )}>
                     <div className="w-10 h-10 rounded-full bg-surface-light flex items-center justify-center shrink-0">
-                      {typeIcons[notif.type] || <Bell className="w-5 h-5 text-gray-400" />}
+                      {typeIcons[notif.type] || <Bell className="w-5 h-5 text-theme-muted" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{notif.title}</p>
+                        <p className="text-sm font-semibold text-theme-primary">{notif.title}</p>
                         {!notif.isRead && <span className="w-2 h-2 bg-primary-400 rounded-full" />}
                       </div>
-                      <p className="text-xs text-gray-400 truncate">{notif.message}</p>
+                      <p className="text-xs text-theme-muted truncate">{notif.message}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-gray-500">{formatRelativeTime(notif.createdAt)}</span>
+                      <span className="text-xs text-theme-muted">{formatRelativeTime(notif.createdAt)}</span>
                       {!notif.isRead && (
                         <button
                           onClick={() => markRead.mutate(notifId)}
-                          className="p-1 rounded hover:bg-surface-lighter text-gray-400 hover:text-white"
+                          className="p-1 rounded hover:bg-surface-lighter text-theme-muted hover:text-theme-primary"
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -140,7 +141,7 @@ export default function NotificationsPage() {
 
         {!isLoading && !isError && notifications.length === 0 && (
           <EmptyState
-            icon={<Bell className="w-8 h-8 text-gray-500" />}
+            icon={<Bell className="w-8 h-8 text-theme-muted" />}
             title="No notifications"
             description="You're all caught up! Check back later."
           />

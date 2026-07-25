@@ -27,7 +27,7 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
           />
         ))}
       </div>
-      <span className="text-xs text-gray-400">{text}</span>
+      <span className="text-xs text-theme-muted">{text}</span>
     </div>
   );
 }

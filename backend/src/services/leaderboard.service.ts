@@ -49,7 +49,8 @@ class LeaderboardService {
         level: newLevel,
       } as any);
 
-      if (period === 'all_time') {
+      // Sync global profile from the general leaderboard only (avoids double XP/ELO)
+      if (period === 'all_time' && gameType === 'general') {
         await userRepository.updateById(userId, {
           elo: newElo,
           xp: newXp,

@@ -39,18 +39,18 @@ export function SearchInput({ value: externalValue, onChange, placeholder = 'Sea
 
   return (
     <div className={cn('relative', className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
       <input
         type="text"
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-surface border border-surface-lighter rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+        className="input-glass w-full pl-10 pr-10 py-2.5 text-sm"
       />
       {localValue && (
         <button
           onClick={() => handleChange('')}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary transition-colors"
         >
           <X className="w-4 h-4" />
         </button>

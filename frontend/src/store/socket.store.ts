@@ -19,6 +19,7 @@ interface SocketActions {
   emit: (event: string, data?: unknown) => void;
   gameEmit: (event: string, data?: unknown) => void;
   chatEmit: (event: string, data?: unknown) => void;
+  notificationEmit: (event: string, data?: unknown) => void;
   notificationOn: (event: string, callback: SocketCallback) => void;
   notificationOff: (event: string, callback?: SocketCallback) => void;
   on: (event: string, callback: SocketCallback) => void;
@@ -182,6 +183,11 @@ export const useSocketStore = create<SocketState & SocketActions>()((set, get) =
     chatEmit: (event: string, data?: unknown) => {
       const chatSocket = get().chatSocket;
       if (chatSocket?.connected) chatSocket.emit(event, data);
+    },
+
+    notificationEmit: (event: string, data?: unknown) => {
+      const notificationSocket = get().notificationSocket;
+      if (notificationSocket?.connected) notificationSocket.emit(event, data);
     },
 
     on: (event, callback) => {

@@ -12,8 +12,20 @@ import { Tabs } from '@/components/ui/Tabs';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { useFriends, useFriendRequests, useSearchUsers, useAcceptFriend, useSendFriendRequest } from '@/hooks';
-import { usePresence } from '@/socket/hooks';
+import {
+  useFriends,
+  useFriendRequests,
+  useSearchUsers,
+  useAcceptFriend,
+  useRejectFriend,
+  useSendFriendRequest,
+} from '@/hooks';
+import { usePresence, useGameSocket } from '@/socket/hooks';
+import { useSocketStore } from '@/store/socket.store';
+import { SOCKET_EVENTS } from '@/constants/socket';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { toId } from '@/lib/id';
 
 interface FriendItem {
   _id?: string;
@@ -53,8 +65,27 @@ export default function FriendsPage() {
   const { data: requestsData, isLoading: requestsLoading } = useFriendRequests();
   const { data: searchData, isLoading: searchLoading } = useSearchUsers(findQuery);
   const acceptFriend = useAcceptFriend();
+  const rejectFriend = useRejectFriend();
   const sendRequest = useSendFriendRequest();
   const { isUserOnline } = usePresence();
+  const { inviteFriend } = useGameSocket();
+  const gameEmit = useSocketStore((s) => s.gameEmit);
+  const router = useRouter();
+
+  const handleInviteToPlay = (friendId: string) => {
+    if (!friendId) return;
+    const gameType = 'tic-tac-toe';
+    gameEmit(SOCKET_EVENTS.GAME.CREATE_ROOM, { gameType });
+
+    const onCreated = (data: unknown) => {
+      const { roomId } = data as { roomId: string };
+      inviteFriend(toId(friendId), roomId, gameType);
+      toast.success('Invite sent!');
+      router.push(`/games/${gameType}/play?room=${roomId}`);
+      useSocketStore.getState().gameOff(SOCKET_EVENTS.GAME.ROOM_CREATED, onCreated);
+    };
+    useSocketStore.getState().gameOn(SOCKET_EVENTS.GAME.ROOM_CREATED, onCreated);
+  };
 
   const friendPayload = friendsData?.data as unknown;
   const friends: FriendItem[] = (Array.isArray(friendPayload) ? friendPayload : (friendPayload as Record<string, unknown>)?.data ?? []) as FriendItem[];
@@ -91,8 +122,8 @@ export default function FriendsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Friends</h1>
-          <p className="text-gray-400 mt-1">Manage your friends and connections</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-theme-primary">Friends</h1>
+          <p className="text-theme-muted mt-1">Manage your friends and connections</p>
         </motion.div>
 
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -103,7 +134,7 @@ export default function FriendsPage() {
 
             {friendsError && (
               <div className="text-center py-8">
-                <p className="text-gray-400 mb-4">Failed to load friends</p>
+                <p className="text-theme-muted mb-4">Failed to load friends</p>
                 <Button variant="outline" size="sm" onClick={() => refetchFriends()} leftIcon={<RefreshCw className="w-4 h-4" />}>Retry</Button>
               </div>
             )}
@@ -132,14 +163,28 @@ export default function FriendsPage() {
                       <Avatar name={friend.username} size="md" online={status === 'online'} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-white">{friend.username}</span>
+                          <span className="text-sm font-semibold text-theme-primary">{friend.username}</span>
                           <StatusBadge status={status} />
                         </div>
-                        <p className="text-xs text-gray-400">{friend.elo} ELO</p>
+                        <p className="text-xs text-theme-muted">{friend.elo} ELO</p>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm"><MessageSquare className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="sm"><Gamepad2 className="w-4 h-4" /></Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push('/chat')}
+                          aria-label="Message"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInviteToPlay(friendId)}
+                          aria-label="Invite to play"
+                        >
+                          <Gamepad2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </Card>
                   );
@@ -170,8 +215,8 @@ export default function FriendsPage() {
               </div>
             ) : (
               <>
-                <h3 className="text-sm font-semibold text-gray-400 uppercase">Incoming Requests</h3>
-                {incomingRequests.length === 0 && <p className="text-sm text-gray-500">No incoming requests</p>}
+                <h3 className="text-sm font-semibold text-theme-muted uppercase">Incoming Requests</h3>
+                {incomingRequests.length === 0 && <p className="text-sm text-theme-muted">No incoming requests</p>}
                 {incomingRequests.map((req) => {
                   const sender = req.from || req.fromUser;
                   const reqId = req._id || req.id || '';
@@ -179,8 +224,8 @@ export default function FriendsPage() {
                     <Card key={reqId} className="flex items-center gap-4">
                       <Avatar name={sender?.username} size="md" />
                       <div className="flex-1">
-                        <span className="text-sm font-semibold text-white">{sender?.username}</span>
-                        <p className="text-xs text-gray-400">{sender?.elo} ELO</p>
+                        <span className="text-sm font-semibold text-theme-primary">{sender?.username}</span>
+                        <p className="text-xs text-theme-muted">{sender?.elo} ELO</p>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -192,14 +237,22 @@ export default function FriendsPage() {
                         >
                           Accept
                         </Button>
-                        <Button variant="ghost" size="sm" leftIcon={<X className="w-4 h-4" />}>Decline</Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<X className="w-4 h-4" />}
+                          onClick={() => rejectFriend.mutate(reqId)}
+                          disabled={rejectFriend.isPending}
+                        >
+                          Decline
+                        </Button>
                       </div>
                     </Card>
                   );
                 })}
 
-                <h3 className="text-sm font-semibold text-gray-400 uppercase mt-6">Outgoing Requests</h3>
-                {outgoingRequests.length === 0 && <p className="text-sm text-gray-500">No outgoing requests</p>}
+                <h3 className="text-sm font-semibold text-theme-muted uppercase mt-6">Outgoing Requests</h3>
+                {outgoingRequests.length === 0 && <p className="text-sm text-theme-muted">No outgoing requests</p>}
                 {outgoingRequests.map((req) => {
                   const target = req.to || req.toUser;
                   const reqId = req._id || req.id || '';
@@ -207,7 +260,7 @@ export default function FriendsPage() {
                     <Card key={reqId} className="flex items-center gap-4">
                       <Avatar name={target?.username} size="md" />
                       <div className="flex-1">
-                        <span className="text-sm font-semibold text-white">{target?.username}</span>
+                        <span className="text-sm font-semibold text-theme-primary">{target?.username}</span>
                       </div>
                       <Badge variant="warning"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>
                     </Card>
@@ -245,8 +298,8 @@ export default function FriendsPage() {
                     <Card key={uid} className="flex items-center gap-4">
                       <Avatar name={u.username} size="md" />
                       <div className="flex-1">
-                        <span className="text-sm font-semibold text-white">{u.username}</span>
-                        <p className="text-xs text-gray-400">{u.elo} ELO</p>
+                        <span className="text-sm font-semibold text-theme-primary">{u.username}</span>
+                        <p className="text-xs text-theme-muted">{u.elo} ELO</p>
                       </div>
                       <Button
                         size="sm"
@@ -268,7 +321,7 @@ export default function FriendsPage() {
 
             {findQuery.length < 2 && (
               <EmptyState
-                icon={<UserPlus className="w-8 h-8 text-gray-500" />}
+                icon={<UserPlus className="w-8 h-8 text-theme-muted" />}
                 title="Find Players"
                 description="Search for players by username to send friend requests"
               />

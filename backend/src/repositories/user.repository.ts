@@ -1,6 +1,7 @@
 import { BaseRepository } from './base.repository';
 import { User } from '../models/user.model';
 import { IUserDocument } from '../interfaces/user.interface';
+import { fillDailyCounts, getDateRange } from '../utils/helpers';
 
 class UserRepository extends BaseRepository<IUserDocument> {
   constructor() {
@@ -84,6 +85,26 @@ class UserRepository extends BaseRepository<IUserDocument> {
 
   async addXp(userId: string, xp: number): Promise<IUserDocument | null> {
     return this.model.findByIdAndUpdate(userId, { $inc: { xp } }, { new: true }).exec();
+  }
+
+  async getDailySignups(days: number = 30): Promise<{ date: string; count: number }[]> {
+    const { since } = getDateRange(days);
+
+    const raw = await this.model.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    return fillDailyCounts(
+      raw.map((entry) => ({ _id: entry._id as string, count: entry.count as number })),
+      days
+    );
   }
 }
 

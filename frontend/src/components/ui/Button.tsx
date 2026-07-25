@@ -13,26 +13,43 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, children, disabled, ...props }, ref) => {
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      isLoading,
+      leftIcon,
+      rightIcon,
+      children,
+      disabled,
+      ...props
+    },
+    ref
+  ) => {
     const variants = {
-      primary: 'bg-primary-600 hover:bg-primary-700 text-white shadow-glow-purple hover:shadow-lg active:scale-95',
-      secondary: 'bg-secondary-600 hover:bg-secondary-700 text-white shadow-glow-cyan hover:shadow-lg active:scale-95',
-      outline: 'border border-primary-500/50 text-primary-400 hover:bg-primary-500/10 hover:border-primary-400 active:scale-95',
-      ghost: 'text-gray-300 hover:bg-surface-light hover:text-white active:scale-95',
-      danger: 'bg-red-600 hover:bg-red-700 text-white active:scale-95',
+      primary: 'btn-primary-gradient font-semibold',
+      secondary: 'btn-secondary-glass font-medium',
+      outline:
+        'border border-theme text-theme-primary hover:border-primary-500 hover:bg-primary-500/10 font-medium',
+      ghost: 'text-theme-muted hover:bg-primary-500/8 hover:text-theme-primary font-medium',
+      danger: 'bg-theme-danger text-white hover:opacity-90 font-medium',
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-xs rounded-lg',
-      md: 'px-4 py-2 text-sm rounded-xl',
-      lg: 'px-6 py-3 text-base rounded-xl',
+      sm: 'px-3.5 py-1.5 text-xs rounded-xl',
+      md: 'px-5 py-2.5 text-sm rounded-2xl',
+      lg: 'px-7 py-3.5 text-base rounded-2xl',
     };
 
     return (
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
+          'inline-flex items-center justify-center gap-2 transition-transform duration-200 will-change-transform',
+          'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]',
+          !disabled && !isLoading && 'hover:scale-[1.03] active:scale-[0.97]',
           variants[variant],
           sizes[size],
           className

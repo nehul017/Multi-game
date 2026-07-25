@@ -1,8 +1,20 @@
 import { Server, Socket } from 'socket.io';
 import { SOCKET_EVENTS } from '../../utils/constants';
 import { gameEvents, EVENTS } from '../../events';
+import { notificationRepository } from '../../repositories/notification.repository';
+import { settingsRepository } from '../../repositories/settings.repository';
+import { SETTING_DEFINITIONS } from '../../utils/settings.constants';
 
 const userSockets = new Map<string, Set<string>>();
+
+async function getPlatformStatusPayload(): Promise<{ maintenanceMode: boolean }> {
+  const maintenance = await settingsRepository.getByKey('maintenance_mode');
+  return {
+    maintenanceMode: Boolean(
+      maintenance?.value ?? SETTING_DEFINITIONS.maintenanceMode.defaultValue
+    ),
+  };
+}
 
 export const setupNotificationNamespace = (io: Server): void => {
   const notifNs = io.of('/notifications');
@@ -18,6 +30,32 @@ export const setupNotificationNamespace = (io: Server): void => {
     socket.join(`user:${userId}`);
 
     console.log(`Notifications: ${socket.user.username} subscribed`);
+
+    const sendUnreadCount = () => {
+      void notificationRepository
+        .getUnreadCount(userId)
+        .then((count) => {
+          socket.emit(SOCKET_EVENTS.NOTIFICATION.UNREAD_COUNT, { count });
+        })
+        .catch(() => {
+          // Ignore count sync failures
+        });
+    };
+
+    const sendPlatformStatus = () => {
+      void getPlatformStatusPayload()
+        .then((status) => {
+          socket.emit(SOCKET_EVENTS.PLATFORM.STATUS, status);
+        })
+        .catch(() => {
+          // Ignore status sync failures
+        });
+    };
+
+    sendUnreadCount();
+    sendPlatformStatus();
+    socket.on(SOCKET_EVENTS.NOTIFICATION.SUBSCRIBE, sendUnreadCount);
+    socket.on(SOCKET_EVENTS.PLATFORM.SUBSCRIBE, sendPlatformStatus);
 
     socket.on('disconnect', () => {
       const sockets = userSockets.get(userId);
@@ -72,4 +110,11 @@ export const setupNotificationNamespace = (io: Server): void => {
 
 export const emitToUser = (io: Server, userId: string, event: string, data: unknown): void => {
   io.of('/notifications').to(`user:${userId}`).emit(event, data);
+};
+
+export const broadcastPlatformStatus = (
+  io: Server,
+  status: { maintenanceMode: boolean }
+): void => {
+  io.of('/notifications').emit(SOCKET_EVENTS.PLATFORM.STATUS, status);
 };

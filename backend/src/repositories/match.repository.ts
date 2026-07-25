@@ -1,6 +1,7 @@
 import { BaseRepository } from './base.repository';
 import { Match } from '../models/match.model';
 import { IMatchDocument } from '../interfaces/match.interface';
+import { fillDailyCounts, getDateRange } from '../utils/helpers';
 
 class MatchRepository extends BaseRepository<IMatchDocument> {
   constructor() {
@@ -51,6 +52,72 @@ class MatchRepository extends BaseRepository<IMatchDocument> {
       .limit(limit)
       .populate('players.userId winner', 'username avatar')
       .exec();
+  }
+
+  async getDailyMatchCounts(days: number = 30): Promise<{ date: string; count: number }[]> {
+    const { since } = getDateRange(days);
+
+    const raw = await this.model.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    return fillDailyCounts(
+      raw.map((entry) => ({ _id: entry._id as string, count: entry.count as number })),
+      days
+    );
+  }
+
+  async getDailyActiveUsers(days: number = 30): Promise<{ date: string; count: number }[]> {
+    const { since } = getDateRange(days);
+
+    const raw = await this.model.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      { $unwind: '$players' },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            userId: '$players.userId',
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.date',
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    return fillDailyCounts(
+      raw.map((entry) => ({ _id: entry._id as string, count: entry.count as number })),
+      days
+    );
+  }
+
+  async getGamesDistribution(): Promise<{ name: string; value: number }[]> {
+    const raw = await this.model.aggregate([
+      {
+        $group: {
+          _id: '$gameType',
+          value: { $sum: 1 },
+        },
+      },
+      { $sort: { value: -1 } },
+    ]);
+
+    return raw.map((entry) => ({
+      name: entry._id as string,
+      value: entry.value as number,
+    }));
   }
 }
 

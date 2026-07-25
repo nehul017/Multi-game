@@ -16,7 +16,7 @@ interface RoomBrowserProps {
 export function RoomBrowser({ rooms, onJoinRoom, onSpectate }: RoomBrowserProps) {
   if (rooms.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="text-center py-12 text-theme-muted">
         <p>No rooms available. Create one!</p>
       </div>
     );
@@ -28,15 +28,15 @@ export function RoomBrowser({ rooms, onJoinRoom, onSpectate }: RoomBrowserProps)
         <Card key={room.id} className="flex items-center gap-4 !p-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-white">{room.name}</span>
+              <span className="text-sm font-semibold text-theme-primary">{room.name}</span>
               {room.isPrivate && <Lock className="w-3 h-3 text-yellow-400" />}
             </div>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs text-theme-muted flex items-center gap-1">
                 <Avatar name={room.hostUsername} size="xs" />
                 {room.hostUsername}
               </span>
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs text-theme-muted flex items-center gap-1">
                 <Users className="w-3 h-3" />
                 {room.players.length}/{room.maxPlayers}
               </span>

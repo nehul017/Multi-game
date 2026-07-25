@@ -132,6 +132,21 @@ class UserController {
       next(error);
     }
   }
+
+  async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, message: 'Avatar file is required' });
+        return;
+      }
+
+      const url = `/public/uploads/avatars/${req.file.filename}`;
+      const user = await userService.updateProfile(req.user!._id.toString(), { avatar: url });
+      res.json({ success: true, data: { url, user }, message: 'Avatar uploaded' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const userController = new UserController();

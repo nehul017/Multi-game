@@ -99,11 +99,11 @@ export default function AdminSettingsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-theme-primary flex items-center gap-3">
             <Settings className="w-7 h-7 text-primary-400" />
             System Settings
           </h1>
-          <p className="text-gray-400 mt-1">Configure platform settings</p>
+          <p className="text-theme-muted mt-1">Configure platform settings</p>
         </motion.div>
 
         {isLoading ? (
@@ -121,29 +121,29 @@ export default function AdminSettingsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* General Settings */}
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-theme-primary mb-6 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-primary-400" />
                 General Settings
               </h3>
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-white">Maintenance Mode</p>
-                    <p className="text-xs text-gray-400">Temporarily disable the platform</p>
+                    <p className="text-sm font-medium text-theme-primary">Maintenance Mode</p>
+                    <p className="text-xs text-theme-muted">Temporarily disable the platform</p>
                   </div>
                   <Switch checked={maintenanceMode} onChange={setMaintenanceMode} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-white">Open Registration</p>
-                    <p className="text-xs text-gray-400">Allow new users to register</p>
+                    <p className="text-sm font-medium text-theme-primary">Open Registration</p>
+                    <p className="text-xs text-theme-muted">Allow new users to register</p>
                   </div>
                   <Switch checked={registrationOpen} onChange={setRegistrationOpen} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-white">Email Verification</p>
-                    <p className="text-xs text-gray-400">Require email verification</p>
+                    <p className="text-sm font-medium text-theme-primary">Email Verification</p>
+                    <p className="text-xs text-theme-muted">Require email verification</p>
                   </div>
                   <Switch checked={emailVerification} onChange={setEmailVerification} />
                 </div>
@@ -159,7 +159,7 @@ export default function AdminSettingsPage() {
 
             {/* Rate Limiting */}
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-theme-primary mb-6 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-secondary-400" />
                 Rate Limiting
               </h3>
@@ -194,7 +194,7 @@ export default function AdminSettingsPage() {
 
             {/* Email Settings */}
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-theme-primary mb-6 flex items-center gap-2">
                 <Mail className="w-5 h-5 text-yellow-400" />
                 Email Settings
               </h3>
@@ -226,18 +226,18 @@ export default function AdminSettingsPage() {
 
             {/* Broadcast */}
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-theme-primary mb-6 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-green-400" />
                 Broadcast Announcement
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Message</label>
+                  <label className="block text-sm font-medium text-theme-muted mb-1.5">Message</label>
                   <textarea
                     value={announcement}
                     onChange={(e) => setAnnouncement(e.target.value)}
                     rows={4}
-                    className="w-full bg-surface border border-surface-lighter rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 resize-none"
+                    className="w-full bg-surface border border-surface-lighter rounded-xl px-4 py-2.5 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 resize-none"
                     placeholder="Type announcement to broadcast to all users..."
                   />
                 </div>

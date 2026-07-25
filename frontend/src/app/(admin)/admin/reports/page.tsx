@@ -56,11 +56,11 @@ export default function AdminReportsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-theme-primary flex items-center gap-3">
             <Flag className="w-7 h-7 text-red-400" />
             Reports
           </h1>
-          <p className="text-gray-400 mt-1">Review and manage user reports</p>
+          <p className="text-theme-muted mt-1">Review and manage user reports</p>
         </motion.div>
 
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -94,7 +94,7 @@ export default function AdminReportsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-white">Report against</span>
+                      <span className="text-sm font-medium text-theme-primary">Report against</span>
                       <span className="text-sm font-semibold text-red-400">
                         {report.reportedUser?.username || report.reported || '—'}
                       </span>
@@ -102,9 +102,9 @@ export default function AdminReportsPage() {
                         {report.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-400 mb-1">{report.reason}</p>
-                    <p className="text-xs text-gray-500">
-                      Reported by <span className="text-gray-300">{report.reporter?.username || report.reporter || '—'}</span>
+                    <p className="text-xs text-theme-muted mb-1">{report.reason}</p>
+                    <p className="text-xs text-theme-muted">
+                      Reported by <span className="text-theme-muted">{report.reporter?.username || report.reporter || '—'}</span>
                       {' '}on {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : '—'}
                     </p>
                   </div>

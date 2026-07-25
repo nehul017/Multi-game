@@ -17,7 +17,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light transition-colors"
+        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-surface-light transition-colors"
       >
         <Smile className="w-5 h-5" />
       </button>

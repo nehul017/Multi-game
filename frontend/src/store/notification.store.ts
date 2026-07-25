@@ -28,7 +28,7 @@ export const useNotificationStore = create<NotificationState & NotificationActio
   addNotification: (notification) =>
     set((state) => ({
       notifications: [notification, ...state.notifications],
-      unreadCount: state.unreadCount + (notification.isRead ? 0 : 1),
+      // unreadCount is synced via notification:unreadCount socket events
     })),
 
   markRead: (id) =>

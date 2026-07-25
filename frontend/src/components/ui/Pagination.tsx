@@ -20,7 +20,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-surface-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         aria-label="Previous page"
       >
         <ChevronLeft className="w-4 h-4" />
@@ -28,7 +28,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
 
       {pages.map((page, idx) =>
         page === '...' ? (
-          <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">...</span>
+          <span key={`ellipsis-${idx}`} className="px-2 text-theme-muted">...</span>
         ) : (
           <button
             key={page}
@@ -37,7 +37,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
               'w-8 h-8 rounded-lg text-sm font-medium transition-colors',
               currentPage === page
                 ? 'bg-primary-600 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-surface-light'
+                : 'text-theme-muted hover:text-theme-primary hover:bg-surface-light'
             )}
           >
             {page}
@@ -48,7 +48,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, className }:
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-surface-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         aria-label="Next page"
       >
         <ChevronRight className="w-4 h-4" />

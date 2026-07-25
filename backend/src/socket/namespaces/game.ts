@@ -1,7 +1,10 @@
 import { Server, Socket } from 'socket.io';
 import { matchService } from '../../services/match.service';
-import { leaderboardService } from '../../services/leaderboard.service';
+import { rewardService } from '../../services/reward.service';
+import { notificationService } from '../../services/notification.service';
 import { SOCKET_EVENTS } from '../../utils/constants';
+import { createGameEngine, serializeGameState } from '../../games/factory';
+import { GameEngine } from '../../games/engine';
 
 interface GameRoom {
   matchId: string;
@@ -10,6 +13,9 @@ interface GameRoom {
   players: Map<string, { socketId: string; ready: boolean; connected: boolean }>;
   gameState: Record<string, unknown>;
   spectators: Set<string>;
+  engine: GameEngine | null;
+  drawOfferFrom?: string;
+  tickTimer?: ReturnType<typeof setInterval>;
 }
 
 const activeRooms = new Map<string, GameRoom>();
@@ -23,6 +29,25 @@ const toPlayerId = (userId: unknown): string => {
   return String(userId);
 };
 
+const replayMatchMoves = (engine: GameEngine, moves: Array<{ player: unknown; action: string; data?: Record<string, unknown> }>): void => {
+  for (const move of moves) {
+    const playerId = toPlayerId(move.player);
+    const data: Record<string, unknown> = { ...(move.data || {}) };
+
+    // Engines that key off `action` (Ludo/Quiz) need it on the payload
+    if (!data.action && ['roll', 'move', 'answer', 'direction'].includes(move.action)) {
+      data.action = move.action;
+    }
+
+    // Replay Ludo rolls with the recorded dice so board state matches history
+    if ((data.action === 'roll' || move.action === 'roll') && typeof data.dice === 'number') {
+      data._forcedDice = data.dice;
+    }
+
+    engine.makeMove(playerId, data);
+  }
+};
+
 const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
   const existing = activeRooms.get(roomId);
   if (existing) return existing;
@@ -30,13 +55,24 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
   const match = await matchService.getMatchByRoom(roomId);
   if (!['waiting', 'playing'].includes(match.status)) return null;
 
+  const playerIds = match.players.map((p) => toPlayerId(p.userId));
+  const engine =
+    match.status === 'playing' && playerIds.length >= 2
+      ? createGameEngine(match.gameType, playerIds)
+      : null;
+
+  if (engine && match.moves?.length) {
+    replayMatchMoves(engine, match.moves);
+  }
+
   const room: GameRoom = {
     matchId: match._id.toString(),
     roomId: match.roomId,
     gameType: match.gameType,
     players: new Map(),
-    gameState: {},
+    gameState: engine ? serializeGameState(engine) : {},
     spectators: new Set(match.spectators?.map((id) => toPlayerId(id)) || []),
+    engine,
   };
 
   for (const player of match.players) {
@@ -80,7 +116,7 @@ const buildMatchPayload = (
     status: match.status,
     players,
     moves: match.moves,
-    gameState: room.gameState,
+    gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
   };
 };
 
@@ -97,17 +133,83 @@ const emitRoomState = (
   );
 };
 
+const clearRoomTimers = (room: GameRoom): void => {
+  if (room.tickTimer) {
+    clearInterval(room.tickTimer);
+    room.tickTimer = undefined;
+  }
+};
+
+const finishMatch = async (
+  gameNs: ReturnType<Server['of']>,
+  room: GameRoom,
+  winnerId: string | null,
+  reason: 'finished' | 'draw' | 'surrender'
+): Promise<void> => {
+  clearRoomTimers(room);
+  const rewards = await rewardService.settleMatch(room.matchId, winnerId, reason);
+
+  gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_OVER, {
+    winner: winnerId,
+    reason,
+    rewards,
+    gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
+  });
+
+  activeRooms.delete(room.roomId);
+};
+
+const startSnakeLoop = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
+  if (room.gameType !== 'snake-multiplayer' || !room.engine) return;
+  clearRoomTimers(room);
+
+  const engine = room.engine as GameEngine & { tick?: () => void };
+  room.tickTimer = setInterval(async () => {
+    if (!room.engine || typeof engine.tick !== 'function') return;
+    engine.tick();
+    room.gameState = serializeGameState(room.engine);
+    gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+      playerId: null,
+      action: 'tick',
+      data: {},
+      gameState: room.gameState,
+      timestamp: new Date(),
+    });
+
+    if (room.engine.isGameOver()) {
+      const state = room.engine.getGameState();
+      await finishMatch(
+        gameNs,
+        room,
+        state.winner,
+        state.status === 'draw' ? 'draw' : 'finished'
+      );
+    }
+  }, 150);
+};
+
 const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
+  const playerIds = Array.from(room.players.keys());
+  room.engine = createGameEngine(room.gameType, playerIds);
+  if (room.engine) {
+    room.gameState = serializeGameState(room.engine);
+  }
+
   let countdown = 3;
   const countdownInterval = setInterval(() => {
     gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.COUNTDOWN, { count: countdown });
     countdown--;
     if (countdown < 0) {
       clearInterval(countdownInterval);
+      if (room.engine) {
+        room.gameState = serializeGameState(room.engine);
+      }
       gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_START, {
         matchId: room.matchId,
-        players: Array.from(room.players.keys()),
+        players: playerIds,
+        gameState: room.gameState,
       });
+      startSnakeLoop(gameNs, room);
     }
   }, 1000);
 };
@@ -202,6 +304,7 @@ export const setupGameNamespace = (io: Server): void => {
           players: new Map([[userId, { socketId: socket.id, ready: false, connected: true }]]),
           gameState: {},
           spectators: new Set(),
+          engine: null,
         };
 
         activeRooms.set(roomId, room);
@@ -258,6 +361,7 @@ export const setupGameNamespace = (io: Server): void => {
           players: new Map([[socket.user._id.toString(), { socketId: socket.id, ready: false, connected: true }]]),
           gameState: {},
           spectators: new Set(),
+          engine: null,
         };
 
         activeRooms.set(roomId, room);
@@ -300,26 +404,17 @@ export const setupGameNamespace = (io: Server): void => {
         }
 
         socket.join(data.roomId);
-        emitRoomState(socket, room, match, isExistingPlayer);
+        const refreshed = await matchService.getMatch(room.matchId);
+        emitRoomState(socket, room, refreshed, isExistingPlayer);
 
-        if (!isExistingPlayer) {
-          gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.PLAYER_JOINED, {
-            userId: socket.user._id,
-            username: socket.user.username,
-            avatar: socket.user.avatar,
-            elo: socket.user.elo,
-            playersCount: room.players.size,
-          });
-        } else {
-          gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.PLAYER_JOINED, {
-            userId: socket.user._id,
-            username: socket.user.username,
-            avatar: socket.user.avatar,
-            elo: socket.user.elo,
-            playersCount: room.players.size,
-            reconnected: true,
-          });
-        }
+        gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.PLAYER_JOINED, {
+          userId: socket.user._id,
+          username: socket.user.username,
+          avatar: socket.user.avatar,
+          elo: socket.user.elo,
+          playersCount: room.players.size,
+          reconnected: isExistingPlayer,
+        });
       } catch (error) {
         console.error('Join room error:', error);
         socket.emit('error', { message: 'Failed to join room' });
@@ -352,13 +447,68 @@ export const setupGameNamespace = (io: Server): void => {
         const room = activeRooms.get(data.roomId);
         if (!room) return;
 
-        await matchService.addMove(room.matchId, socket.user._id.toString(), data.action, data.moveData);
+        const userId = socket.user._id.toString();
+        // Never trust client-forced dice / replay flags
+        const movePayload: Record<string, unknown> = { ...(data.moveData || {}) };
+        delete movePayload._forcedDice;
 
+        if (room.engine) {
+          const accepted = room.engine.makeMove(userId, movePayload);
+          if (!accepted) {
+            socket.emit('error', { message: 'Invalid move' });
+            return;
+          }
+
+          // Snapshot after the move — server is the single source of truth
+          const snapshot = serializeGameState(room.engine);
+          room.gameState = snapshot;
+
+          // Persist applied move details (includes dice for Ludo rolls)
+          const lastApplied = room.engine.getGameState().moveHistory.slice(-1)[0];
+          const persistData: Record<string, unknown> = {
+            ...movePayload,
+            ...(lastApplied?.data || {}),
+          };
+          if (lastApplied?.action && !persistData.action) {
+            persistData.action = lastApplied.action;
+          }
+
+          await matchService.addMove(
+            room.matchId,
+            userId,
+            data.action || lastApplied?.action || 'move',
+            persistData
+          );
+
+          // Broadcast full authoritative state to every client in the room
+          gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+            playerId: userId,
+            username: socket.user.username,
+            action: data.action || lastApplied?.action || 'move',
+            data: persistData,
+            gameState: snapshot,
+            timestamp: new Date(),
+          });
+
+          if (room.engine.isGameOver()) {
+            const state = room.engine.getGameState();
+            await finishMatch(
+              gameNs,
+              room,
+              state.winner,
+              state.status === 'draw' ? 'draw' : 'finished'
+            );
+          }
+          return;
+        }
+
+        // Fallback for games without an engine instance
+        await matchService.addMove(room.matchId, userId, data.action, movePayload);
         gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
-          playerId: socket.user._id,
+          playerId: userId,
           username: socket.user.username,
           action: data.action,
-          data: data.moveData,
+          data: movePayload,
           timestamp: new Date(),
         });
       } catch (error) {
@@ -375,25 +525,17 @@ export const setupGameNamespace = (io: Server): void => {
         (id) => id !== socket.user!._id.toString()
       );
 
-      if (otherPlayers.length === 1) {
-        const winnerId = otherPlayers[0];
-        await matchService.setWinner(room.matchId, winnerId);
-
-        await leaderboardService.updateLeaderboard(winnerId, 'general', 'win', socket.user.elo);
-        await leaderboardService.updateLeaderboard(socket.user._id.toString(), 'general', 'loss', socket.user.elo);
-
-        gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.GAME_OVER, {
-          winner: winnerId,
-          reason: 'surrender',
-          surrenderedBy: socket.user._id,
-        });
-
-        activeRooms.delete(data.roomId);
+      if (otherPlayers.length >= 1) {
+        await finishMatch(gameNs, room, otherPlayers[0], 'surrender');
       }
     });
 
     socket.on(SOCKET_EVENTS.GAME.OFFER_DRAW, (data: { roomId: string }) => {
       if (!socket.user) return;
+      const room = activeRooms.get(data.roomId);
+      if (!room) return;
+
+      room.drawOfferFrom = socket.user._id.toString();
       socket.to(data.roomId).emit(SOCKET_EVENTS.GAME.DRAW_OFFERED, {
         offeredBy: socket.user._id,
         username: socket.user.username,
@@ -405,34 +547,70 @@ export const setupGameNamespace = (io: Server): void => {
       const room = activeRooms.get(data.roomId);
       if (!room) return;
 
-      await matchService.setDraw(room.matchId);
-
-      for (const playerId of room.players.keys()) {
-        await leaderboardService.updateLeaderboard(playerId, 'general', 'draw', 1000);
+      if (!room.drawOfferFrom || room.drawOfferFrom === socket.user._id.toString()) {
+        socket.emit('error', { message: 'No draw offer to accept' });
+        return;
       }
 
-      gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.GAME_OVER, {
-        winner: null,
-        reason: 'draw',
-        acceptedBy: socket.user._id,
-      });
-
-      activeRooms.delete(data.roomId);
+      await finishMatch(gameNs, room, null, 'draw');
     });
 
     socket.on(SOCKET_EVENTS.GAME.SPECTATE, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      let room = activeRooms.get(data.roomId);
+      if (!room) {
+        room = (await hydrateRoomFromDb(data.roomId)) || undefined;
+      }
       if (!room) return;
 
       room.spectators.add(socket.user._id.toString());
       socket.join(data.roomId);
+
+      try {
+        const match = await matchService.getMatch(room.matchId);
+        socket.emit(SOCKET_EVENTS.GAME.MATCH_FOUND, buildMatchPayload(room, match));
+      } catch {
+        // ignore
+      }
 
       gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.SPECTATOR_JOINED, {
         userId: socket.user._id,
         username: socket.user.username,
         spectatorCount: room.spectators.size,
       });
+    });
+
+    // Friend invite to private room
+    socket.on('game:inviteFriend', async (data: { friendId: string; roomId: string; gameType: string }) => {
+      try {
+        if (!socket.user) return;
+        await notificationService.create(
+          data.friendId,
+          'match_invite',
+          'Match Invite',
+          `${socket.user.username} invited you to play ${data.gameType}`,
+          {
+            roomId: data.roomId,
+            gameType: data.gameType,
+            fromUserId: socket.user._id.toString(),
+            fromUsername: socket.user.username,
+          }
+        );
+
+        gameNs.to(`user:${data.friendId}`).emit(SOCKET_EVENTS.NOTIFICATION.MATCH_INVITE, {
+          roomId: data.roomId,
+          gameType: data.gameType,
+          from: {
+            id: socket.user._id,
+            username: socket.user.username,
+            avatar: socket.user.avatar,
+          },
+        });
+
+        socket.emit('game:inviteSent', { friendId: data.friendId, roomId: data.roomId });
+      } catch (error) {
+        socket.emit('error', { message: 'Failed to send invite' });
+      }
     });
 
     socket.on('disconnect', async () => {

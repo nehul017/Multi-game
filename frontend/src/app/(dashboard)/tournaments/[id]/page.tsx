@@ -64,7 +64,7 @@ export default function TournamentDetailPage() {
     return (
       <DashboardLayout>
         <div className="text-center py-16">
-          <p className="text-gray-400 mb-4">Failed to load tournament</p>
+          <p className="text-theme-muted mb-4">Failed to load tournament</p>
           <Button variant="outline" onClick={() => refetch()}>Retry</Button>
         </div>
       </DashboardLayout>
@@ -77,7 +77,7 @@ export default function TournamentDetailPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Link href="/tournaments" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-4 transition-colors">
+          <Link href="/tournaments" className="inline-flex items-center gap-2 text-sm text-theme-muted hover:text-theme-primary mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Tournaments
           </Link>
 
@@ -87,11 +87,11 @@ export default function TournamentDetailPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                 </div>
-                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-theme-primary flex items-center gap-3">
                   <Trophy className="w-7 h-7 text-yellow-400" />
                   {tournament.name}
                 </h1>
-                <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                <div className="flex items-center gap-4 mt-2 text-sm text-theme-muted">
                   <span className="flex items-center gap-1">
                     <Users className="w-4 h-4" /> {tournament.participants?.length || 0}/{tournament.maxParticipants} players
                   </span>
@@ -124,12 +124,12 @@ export default function TournamentDetailPage() {
 
         {brackets.length > 0 && (
           <Card>
-            <h3 className="text-lg font-semibold text-white mb-6">Tournament Bracket</h3>
+            <h3 className="text-lg font-semibold text-theme-primary mb-6">Tournament Bracket</h3>
             <div className="overflow-x-auto">
               <div className="flex gap-8 min-w-[600px] pb-4">
                 {brackets.map((round) => (
                   <div key={round.round} className="flex-1 min-w-[180px]">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase mb-4 text-center">
+                    <h4 className="text-xs font-semibold text-theme-muted uppercase mb-4 text-center">
                       {round.round === brackets.length ? 'Final' : `Round ${round.round}`}
                     </h4>
                     <div className="space-y-4 flex flex-col justify-around h-full">
@@ -140,18 +140,18 @@ export default function TournamentDetailPage() {
                           <div key={match._id || match.id || idx} className="bg-surface-light/50 rounded-xl border border-surface-lighter/30 overflow-hidden">
                             <div className={`flex items-center gap-2 px-3 py-2 ${match.winner === p1Name ? 'bg-green-500/10' : ''}`}>
                               <Avatar name={p1Name} size="xs" />
-                              <span className="text-xs font-medium text-white flex-1">{p1Name}</span>
+                              <span className="text-xs font-medium text-theme-primary flex-1">{p1Name}</span>
                               {match.winner === p1Name && <span className="text-xs text-green-400">W</span>}
                             </div>
                             <div className="border-t border-surface-lighter/30" />
                             <div className={`flex items-center gap-2 px-3 py-2 ${match.winner === p2Name ? 'bg-green-500/10' : ''}`}>
                               <Avatar name={p2Name} size="xs" />
-                              <span className="text-xs font-medium text-white flex-1">{p2Name}</span>
+                              <span className="text-xs font-medium text-theme-primary flex-1">{p2Name}</span>
                               {match.winner === p2Name && <span className="text-xs text-green-400">W</span>}
                             </div>
                             {match.score && (
                               <div className="px-3 py-1 bg-surface-light text-center">
-                                <span className="text-[10px] text-gray-400">{match.score}</span>
+                                <span className="text-[10px] text-theme-muted">{match.score}</span>
                               </div>
                             )}
                           </div>
@@ -166,15 +166,15 @@ export default function TournamentDetailPage() {
         )}
 
         <Card>
-          <h3 className="text-lg font-semibold text-white mb-4">Participants</h3>
+          <h3 className="text-lg font-semibold text-theme-primary mb-4">Participants</h3>
           {tournament.participants?.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {tournament.participants.map((participant, i) => (
                 <div key={participant._id || participant.userId || i} className="flex items-center gap-2 p-2 rounded-lg bg-surface-light/30">
                   <Avatar name={participant.username} src={participant.avatar} size="sm" />
                   <div>
-                    <p className="text-xs font-medium text-white">{participant.username}</p>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-xs font-medium text-theme-primary">{participant.username}</p>
+                    <p className="text-[10px] text-theme-muted">
                       {participant.seed ? `Seed #${participant.seed}` : `${participant.elo || 1000} ELO`}
                     </p>
                   </div>
@@ -182,7 +182,7 @@ export default function TournamentDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-4">No participants yet</p>
+            <p className="text-sm text-theme-muted text-center py-4">No participants yet</p>
           )}
         </Card>
       </div>

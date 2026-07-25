@@ -1,37 +1,48 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { QueryProvider } from './query.provider';
 import { AuthProvider } from './auth.provider';
 import { SocketProvider } from './socket.provider';
 import { Toaster } from 'react-hot-toast';
+import { useUIStore } from '@/store/ui.store';
+
+function ThemeInit() {
+  const initTheme = useUIStore((s) => s.initTheme);
+  useEffect(() => {
+    initTheme();
+  }, [initTheme]);
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <AuthProvider>
         <SocketProvider>
+          <ThemeInit />
           {children}
           <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
               style: {
-                background: '#1e1e2e',
-                color: '#e2e8f0',
-                border: '1px solid #3a3a4e',
-                borderRadius: '12px',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                boxShadow: 'var(--shadow-card-hover)',
               },
               success: {
                 iconTheme: {
-                  primary: '#22c55e',
-                  secondary: '#1e1e2e',
+                  primary: 'var(--color-success)',
+                  secondary: 'var(--bg-card)',
                 },
               },
               error: {
                 iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#1e1e2e',
+                  primary: 'var(--color-danger)',
+                  secondary: 'var(--bg-card)',
                 },
               },
             }}

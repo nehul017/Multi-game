@@ -62,11 +62,11 @@ export default function TournamentsPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-theme-primary flex items-center gap-3">
                 <Trophy className="w-8 h-8 text-yellow-400" />
                 Tournaments
               </h1>
-              <p className="text-gray-400 mt-1">Compete in organized tournaments</p>
+              <p className="text-theme-muted mt-1">Compete in organized tournaments</p>
             </div>
           </div>
         </motion.div>
@@ -75,7 +75,7 @@ export default function TournamentsPage() {
 
         {isError && (
           <div className="text-center py-12">
-            <p className="text-gray-400 mb-4">Failed to load tournaments</p>
+            <p className="text-theme-muted mb-4">Failed to load tournaments</p>
             <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="w-4 h-4" />}>
               Retry
             </Button>
@@ -121,22 +121,22 @@ export default function TournamentsPage() {
                       <Badge variant={sConfig.variant}>
                         {sConfig.label}
                       </Badge>
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <span className="text-xs text-theme-muted flex items-center gap-1">
                         <Gamepad2 className="w-3 h-3" /> {tournament.gameType || tournament.gameName || 'Game'}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">{tournament.name}</h3>
+                    <h3 className="text-lg font-semibold text-theme-primary mb-2">{tournament.name}</h3>
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-theme-muted">
                         <Users className="w-4 h-4" />
                         <span>{participantCount}/{tournament.maxParticipants} players</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-theme-muted">
                         <Calendar className="w-4 h-4" />
                         <span>{new Date(tournament.startDate).toLocaleDateString()}</span>
                       </div>
                       {tournament.prize && (
-                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <div className="flex items-center gap-2 text-sm text-theme-muted">
                           <Trophy className="w-4 h-4 text-yellow-400" />
                           <span>{tournament.prize}</span>
                         </div>
@@ -167,7 +167,7 @@ export default function TournamentsPage() {
 
         {!isLoading && !isError && filtered.length === 0 && (
           <EmptyState
-            icon={<Trophy className="w-8 h-8 text-gray-500" />}
+            icon={<Trophy className="w-8 h-8 text-theme-muted" />}
             title="No tournaments"
             description="No tournaments found for this filter. Check back later!"
           />

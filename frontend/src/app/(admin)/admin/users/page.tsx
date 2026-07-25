@@ -105,8 +105,8 @@ export default function AdminUsersPage() {
     <AdminLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-white">User Management</h1>
-          <p className="text-gray-400 mt-1">Manage platform users</p>
+          <h1 className="text-2xl font-bold text-theme-primary">User Management</h1>
+          <p className="text-theme-muted mt-1">Manage platform users</p>
         </motion.div>
 
         <div className="flex items-center gap-4">
@@ -119,13 +119,13 @@ export default function AdminUsersPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-surface-light/50 border-b border-surface-lighter/30">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">User</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">ELO</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Games</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Joined</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">User</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">ELO</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Games</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Joined</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-theme-muted uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-lighter/20">
@@ -150,8 +150,8 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-3">
                           <Avatar name={user.username} size="sm" />
                           <div>
-                            <p className="text-sm font-medium text-white">{user.username}</p>
-                            <p className="text-xs text-gray-400">{user.email}</p>
+                            <p className="text-sm font-medium text-theme-primary">{user.username}</p>
+                            <p className="text-xs text-theme-muted">{user.email}</p>
                           </div>
                         </div>
                       </td>
@@ -169,15 +169,15 @@ export default function AdminUsersPage() {
                           </Badge>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-300">{user.elo ?? '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-300">{user.gamesPlayed ?? 0}</td>
-                      <td className="px-4 py-3 text-sm text-gray-400">
+                      <td className="px-4 py-3 text-sm text-theme-muted">{user.elo ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-theme-muted">{user.gamesPlayed ?? 0}</td>
+                      <td className="px-4 py-3 text-sm text-theme-muted">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Dropdown
                           trigger={
-                            <button className="p-1.5 rounded-lg hover:bg-surface-light text-gray-400 hover:text-white transition-colors">
+                            <button className="p-1.5 rounded-lg hover:bg-surface-light text-theme-muted hover:text-theme-primary transition-colors">
                               <MoreVertical className="w-4 h-4" />
                             </button>
                           }

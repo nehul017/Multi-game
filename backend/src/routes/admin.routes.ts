@@ -36,4 +36,21 @@ router.get('/health', adminController.getServerHealth);
 router.get('/settings', adminController.getSettings);
 router.put('/settings', updateSettingsValidator, validate, adminController.updateSettings);
 
+router.post('/users/:id/coins', adminController.adjustCoins);
+
+router.get('/store/items', adminController.getStoreItems);
+router.post('/store/items', adminController.createStoreItem);
+router.put('/store/items/:id', adminController.updateStoreItem);
+router.delete('/store/items/:id', adminController.deleteStoreItem);
+
+router.get('/store/packs', adminController.getCoinPacks);
+router.post('/store/packs', adminController.createCoinPack);
+router.put('/store/packs/:id', adminController.updateCoinPack);
+router.delete('/store/packs/:id', adminController.deleteCoinPack);
+
+router.get('/missions', adminController.getMissions);
+router.post('/missions', adminController.createMission);
+router.put('/missions/:id', adminController.updateMission);
+router.delete('/missions/:id', adminController.deleteMission);
+
 export default router;

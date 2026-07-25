@@ -21,16 +21,44 @@ const slugIcons: Record<string, string> = {
   'quiz-battle': '🧠',
 };
 
-const slugColors: Record<string, { color: string; borderColor: string }> = {
-  'tic-tac-toe': { color: 'from-purple-500/20 to-pink-500/20', borderColor: 'border-purple-500/30' },
-  'connect-four': { color: 'from-cyan-500/20 to-blue-500/20', borderColor: 'border-cyan-500/30' },
-  'chess': { color: 'from-amber-500/20 to-orange-500/20', borderColor: 'border-amber-500/30' },
-  'snake-multiplayer': { color: 'from-green-500/20 to-emerald-500/20', borderColor: 'border-green-500/30' },
-  'ludo': { color: 'from-red-500/20 to-rose-500/20', borderColor: 'border-red-500/30' },
-  'quiz-battle': { color: 'from-indigo-500/20 to-violet-500/20', borderColor: 'border-indigo-500/30' },
+const slugColors: Record<string, { color: string; borderColor: string; iconBg: string }> = {
+  'tic-tac-toe': {
+    color: 'from-purple-500/[0.12] to-pink-500/[0.06]',
+    borderColor: 'border-purple-500/25',
+    iconBg: 'bg-purple-500/15',
+  },
+  'connect-four': {
+    color: 'from-cyan-500/[0.12] to-blue-500/[0.06]',
+    borderColor: 'border-cyan-500/25',
+    iconBg: 'bg-cyan-500/15',
+  },
+  'chess': {
+    color: 'from-amber-500/[0.14] to-orange-500/[0.06]',
+    borderColor: 'border-amber-500/25',
+    iconBg: 'bg-amber-500/15',
+  },
+  'snake-multiplayer': {
+    color: 'from-green-500/[0.12] to-emerald-500/[0.06]',
+    borderColor: 'border-green-500/25',
+    iconBg: 'bg-green-500/15',
+  },
+  'ludo': {
+    color: 'from-rose-500/[0.12] to-red-500/[0.06]',
+    borderColor: 'border-rose-500/25',
+    iconBg: 'bg-rose-500/15',
+  },
+  'quiz-battle': {
+    color: 'from-indigo-500/[0.12] to-violet-500/[0.06]',
+    borderColor: 'border-indigo-500/25',
+    iconBg: 'bg-indigo-500/15',
+  },
 };
 
-const defaultStyle = { color: 'from-gray-500/20 to-slate-500/20', borderColor: 'border-gray-500/30' };
+const defaultStyle = {
+  color: 'from-slate-500/[0.1] to-slate-500/[0.04]',
+  borderColor: 'border-theme',
+  iconBg: 'bg-theme-secondary',
+};
 
 export default function GamesPage() {
   const [search, setSearch] = useState('');
@@ -48,8 +76,8 @@ export default function GamesPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">Games</h1>
-              <p className="text-gray-400 mt-1">Choose a game and start playing</p>
+              <h1 className="page-heading text-2xl md:text-3xl">Games</h1>
+              <p className="text-theme-muted mt-1">Choose a game and start playing</p>
             </div>
             <SearchInput
               value={search}
@@ -62,7 +90,7 @@ export default function GamesPage() {
 
         {isError && (
           <div className="text-center py-16">
-            <p className="text-gray-400 mb-4">Failed to load games</p>
+            <p className="text-theme-muted mb-4">Failed to load games</p>
             <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="w-4 h-4" />}>
               Retry
             </Button>
@@ -72,7 +100,7 @@ export default function GamesPage() {
         {isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-surface/80 border border-surface-lighter/50 rounded-2xl p-6 space-y-4">
+              <div key={i} className="bg-theme-card border border-theme rounded-2xl p-6 space-y-4">
                 <div className="text-center">
                   <Skeleton className="h-12 w-12 mx-auto rounded-full" />
                 </div>
@@ -103,15 +131,25 @@ export default function GamesPage() {
                 >
                   <Card hover className={`bg-gradient-to-br ${style.color} border ${style.borderColor}`}>
                     <div className="text-center mb-4">
-                      <span className="text-5xl">{icon}</span>
+                      <span
+                        className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl text-4xl ${style.iconBg}`}
+                      >
+                        {icon}
+                      </span>
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">{game.name as string}</h3>
-                    <p className="text-sm text-gray-400 mb-4">{game.description as string}</p>
+                    <h3 className="text-xl font-semibold text-theme-primary font-display mb-2">
+                      {game.name as string}
+                    </h3>
+                    <p className="text-sm text-theme-muted mb-4 line-clamp-2">
+                      {game.description as string}
+                    </p>
                     <div className="flex items-center justify-between mb-4">
                       <Badge variant="info">{(game.category as string) || 'Game'}</Badge>
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-1 text-xs text-theme-muted">
                         <Users className="w-3 h-3" />
-                        <span>{game.minPlayers as number || 2}-{game.maxPlayers as number || 2} Players</span>
+                        <span>
+                          {(game.minPlayers as number) || 2}-{(game.maxPlayers as number) || 2} Players
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -135,8 +173,8 @@ export default function GamesPage() {
 
         {!isLoading && !isError && filteredGames.length === 0 && (
           <div className="text-center py-16">
-            <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400">
+            <Search className="w-12 h-12 text-theme-muted mx-auto mb-4 opacity-50" />
+            <p className="text-theme-muted">
               {search ? `No games found matching "${search}"` : 'No games available'}
             </p>
           </div>

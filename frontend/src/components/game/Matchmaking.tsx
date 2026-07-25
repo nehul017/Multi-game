@@ -41,10 +41,10 @@ export function Matchmaking({ isSearching, onCancel, gameSlug }: MatchmakingProp
       />
       <div className="flex items-center justify-center gap-2 mb-2">
         <Search className="w-5 h-5 text-primary-400" />
-        <h3 className="text-lg font-semibold text-white">Finding Match...</h3>
+        <h3 className="text-lg font-semibold text-theme-primary">Finding Match...</h3>
       </div>
-      <p className="text-sm text-gray-400 mb-1">Searching for opponents in {gameSlug}</p>
-      <p className="text-xs text-gray-500 mb-6 font-mono">{formatTime(elapsed)}</p>
+      <p className="text-sm text-theme-muted mb-1">Searching for opponents in {gameSlug}</p>
+      <p className="text-xs text-theme-muted mb-6 font-mono">{formatTime(elapsed)}</p>
       <Button variant="outline" size="sm" leftIcon={<X className="w-4 h-4" />} onClick={onCancel}>
         Cancel
       </Button>

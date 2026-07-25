@@ -6,6 +6,16 @@ import { emitToUser } from '../socket/namespaces/notification';
 import { SOCKET_EVENTS } from '../utils/constants';
 
 class NotificationService {
+  private async emitUnreadCount(userId: string): Promise<void> {
+    try {
+      const io = getIO();
+      const count = await notificationRepository.getUnreadCount(userId);
+      emitToUser(io, userId, SOCKET_EVENTS.NOTIFICATION.UNREAD_COUNT, { count });
+    } catch {
+      // Socket may not be initialized during tests or startup
+    }
+  }
+
   async create(
     userId: string,
     type: NotificationType,
@@ -37,6 +47,8 @@ class NotificationService {
       // Socket may not be initialized during tests or startup
     }
 
+    await this.emitUnreadCount(userId);
+
     return notification;
   }
 
@@ -53,11 +65,13 @@ class NotificationService {
 
     const updated = await notificationRepository.markAsRead(notificationId);
     if (!updated) throw new AppError('Failed to update notification', 500);
+    await this.emitUnreadCount(userId);
     return updated;
   }
 
   async markAllAsRead(userId: string): Promise<void> {
     await notificationRepository.markAllAsRead(userId);
+    await this.emitUnreadCount(userId);
   }
 
   async delete(notificationId: string, userId: string): Promise<void> {
@@ -67,6 +81,7 @@ class NotificationService {
       throw new AppError('Not authorized', 403);
     }
     await notificationRepository.deleteById(notificationId);
+    await this.emitUnreadCount(userId);
   }
 
   async getUnreadCount(userId: string): Promise<number> {

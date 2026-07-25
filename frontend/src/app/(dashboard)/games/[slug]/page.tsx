@@ -85,7 +85,7 @@ export default function GameDetailPage() {
     { key: 'name', label: 'Room', render: (item: Record<string, unknown>) => {
       const gameType = (item.gameType as string) || slug;
       const name = (item.name as string) || `${gameType.replace(/-/g, ' ')} Room`;
-      return <span className="font-medium text-white">{name}</span>;
+      return <span className="font-medium text-theme-primary">{name}</span>;
     }},
     { key: 'host', label: 'Host', render: (item: Record<string, unknown>) => {
       const players = (item.players as RoomItem['players']) || [];
@@ -147,7 +147,7 @@ export default function GameDetailPage() {
     return (
       <DashboardLayout>
         <div className="text-center py-20">
-          <p className="text-gray-400 mb-4">Failed to load game details</p>
+          <p className="text-theme-muted mb-4">Failed to load game details</p>
           <Button variant="outline" onClick={() => refetchGame()} leftIcon={<RefreshCw className="w-4 h-4" />}>
             Retry
           </Button>
@@ -160,7 +160,7 @@ export default function GameDetailPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Link href="/games" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-4 transition-colors">
+          <Link href="/games" className="inline-flex items-center gap-2 text-sm text-theme-muted hover:text-theme-primary mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Games
           </Link>
 
@@ -169,11 +169,11 @@ export default function GameDetailPage() {
               <div className="flex items-center gap-4">
                 <span className="text-5xl">{icon}</span>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">{gameName}</h1>
-                  <p className="text-gray-400 mt-1">{gameDescription}</p>
+                  <h1 className="text-2xl font-bold text-theme-primary">{gameName}</h1>
+                  <p className="text-theme-muted mt-1">{gameDescription}</p>
                   <div className="flex items-center gap-3 mt-2">
                     <Badge variant="info">{category}</Badge>
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-1 text-xs text-theme-muted">
                       <Users className="w-3 h-3" /> {(game?.minPlayers as number) || 2}-{(game?.maxPlayers as number) || 2} players
                     </div>
                   </div>
@@ -219,7 +219,7 @@ export default function GameDetailPage() {
               <Table columns={columns} data={rooms as unknown as Record<string, unknown>[]} emptyMessage="No rooms available" />
             ) : (
               <EmptyState
-                icon={<Users className="w-8 h-8 text-gray-500" />}
+                icon={<Users className="w-8 h-8 text-theme-muted" />}
                 title="No rooms available"
                 description="Create a room or use Quick Match to start playing"
               />
@@ -229,7 +229,7 @@ export default function GameDetailPage() {
 
         {activeTab === 'leaderboard' && (
           <Card>
-            <h3 className="text-lg font-semibold text-white mb-4">Top Players - {gameName}</h3>
+            <h3 className="text-lg font-semibold text-theme-primary mb-4">Top Players - {gameName}</h3>
             <div className="space-y-3">
               {lbLoading && Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-surface-light/50">
@@ -241,16 +241,16 @@ export default function GameDetailPage() {
               ))}
               {!lbLoading && leaderboard.length === 0 && (
                 <div className="text-center py-8">
-                  <Trophy className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No leaderboard data yet</p>
+                  <Trophy className="w-8 h-8 text-theme-muted mx-auto mb-2" />
+                  <p className="text-sm text-theme-muted">No leaderboard data yet</p>
                 </div>
               )}
               {!lbLoading && leaderboard.slice(0, 10).map((player) => (
                 <div key={player.rank} className="flex items-center gap-4 p-3 rounded-xl bg-surface-light/50">
-                  <span className={`text-lg font-bold ${player.rank <= 3 ? 'text-yellow-400' : 'text-gray-400'}`}>#{player.rank}</span>
+                  <span className={`text-lg font-bold ${player.rank <= 3 ? 'text-yellow-400' : 'text-theme-muted'}`}>#{player.rank}</span>
                   <Avatar name={player.username} size="sm" />
-                  <span className="text-sm font-medium text-white">{player.username}</span>
-                  <span className="text-sm text-gray-400 ml-auto">{player.elo} ELO</span>
+                  <span className="text-sm font-medium text-theme-primary">{player.username}</span>
+                  <span className="text-sm text-theme-muted ml-auto">{player.elo} ELO</span>
                 </div>
               ))}
             </div>
@@ -259,12 +259,12 @@ export default function GameDetailPage() {
 
         {activeTab === 'rules' && (
           <Card>
-            <h3 className="text-lg font-semibold text-white mb-4">How to Play</h3>
+            <h3 className="text-lg font-semibold text-theme-primary mb-4">How to Play</h3>
             <div className="prose prose-invert prose-sm max-w-none">
               {game?.rules ? (
-                <p className="text-gray-400">{game.rules as string}</p>
+                <p className="text-theme-muted">{game.rules as string}</p>
               ) : (
-                <p className="text-gray-400">Rules for {gameName} will be displayed here.</p>
+                <p className="text-theme-muted">Rules for {gameName} will be displayed here.</p>
               )}
             </div>
           </Card>

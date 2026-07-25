@@ -1,12 +1,14 @@
 import { userRepository } from '../repositories/user.repository';
 import { sessionRepository } from '../repositories/session.repository';
 import { AppError } from '../utils/AppError';
-import { generateToken } from '../utils/helpers';
+import { generateToken, generateReferralCode } from '../utils/helpers';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email';
 import { gameEvents, EVENTS } from '../events';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { IUserDocument } from '../interfaces/user.interface';
+import { economyService } from './economy.service';
+import { COIN_REWARDS } from '../utils/constants';
 
 interface AuthTokens {
   accessToken: string;
@@ -17,6 +19,7 @@ interface RegisterData {
   username: string;
   email: string;
   password: string;
+  referralCode?: string;
 }
 
 class AuthService {
@@ -31,11 +34,27 @@ class AuthService {
       throw new AppError('Username already taken', 409);
     }
 
+    let referrer: IUserDocument | null = null;
+    if (data.referralCode) {
+      referrer = await userRepository.findOne({
+        referralCode: data.referralCode.toUpperCase(),
+      });
+      if (!referrer) {
+        throw new AppError('Invalid referral code', 400);
+      }
+    }
+
     const verificationToken = generateToken();
+    const referralCode = generateReferralCode(data.username);
 
     const user = await userRepository.create({
-      ...data,
+      username: data.username,
+      email: data.email,
+      password: data.password,
       verificationToken,
+      referralCode,
+      coins: 0,
+      referredBy: referrer?._id,
     } as Partial<IUserDocument>);
 
     try {
@@ -44,15 +63,28 @@ class AuthService {
       console.error('Failed to send verification email:', err);
     }
 
+    await economyService.creditCoins(
+      user._id.toString(),
+      COIN_REWARDS.WELCOME,
+      'welcome',
+      'Welcome bonus coins',
+      {}
+    );
+
+    if (referrer) {
+      await economyService.processReferralReward(referrer._id.toString(), user._id.toString());
+    }
+
     const accessToken = user.generateAuthToken();
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
     await user.save();
 
+    const refreshed = await userRepository.findById(user._id.toString());
     gameEvents.emit(EVENTS.USER_REGISTERED, { userId: user._id });
 
-    return { user, tokens: { accessToken, refreshToken } };
+    return { user: refreshed || user, tokens: { accessToken, refreshToken } };
   }
 
   async login(email: string, password: string, ip?: string, userAgent?: string): Promise<{ user: IUserDocument; tokens: AuthTokens }> {
@@ -162,7 +194,16 @@ class AuthService {
   }
 
   async getMe(userId: string): Promise<IUserDocument | null> {
-    return userRepository.findById(userId);
+    const user = await userRepository.findById(userId);
+    if (!user) return null;
+
+    // Backfill referral code for legacy accounts
+    if (!user.referralCode) {
+      user.referralCode = generateReferralCode(user.username);
+      await user.save();
+    }
+
+    return user;
   }
 }
 

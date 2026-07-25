@@ -36,8 +36,15 @@ export const SOCKET_EVENTS = {
   },
 
   NOTIFICATION: {
+    SUBSCRIBE: 'notification:subscribe',
     NEW: 'notification:new',
+    UNREAD_COUNT: 'notification:unreadCount',
     FRIEND_REQUEST: 'notification:friendRequest',
+  },
+
+  PLATFORM: {
+    SUBSCRIBE: 'platform:subscribe',
+    STATUS: 'platform:status',
   },
 
   PRESENCE: {

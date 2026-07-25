@@ -53,10 +53,10 @@ export default function ProfilePage() {
               <Avatar src={user?.avatar} name={user?.username} size="xl" online />
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-white">{user?.username}</h1>
+                  <h1 className="text-2xl font-bold text-theme-primary">{user?.username}</h1>
                   <RankBadge rank={user?.rank || 'bronze'} />
                 </div>
-                <p className="text-gray-400 text-sm mt-1">{user?.bio || 'No bio set'}</p>
+                <p className="text-theme-muted text-sm mt-1">{user?.bio || 'No bio set'}</p>
               </div>
               <Link href="/settings">
                 <Button variant="outline" size="sm" leftIcon={<Edit2 className="w-4 h-4" />}>
@@ -78,8 +78,8 @@ export default function ProfilePage() {
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <Card>
                 <stat.icon className={`w-5 h-5 ${stat.color} mb-2`} />
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-gray-400">{stat.label}</p>
+                <p className="text-2xl font-bold text-theme-primary">{stat.value}</p>
+                <p className="text-xs text-theme-muted">{stat.label}</p>
               </Card>
             </motion.div>
           ))}
@@ -88,8 +88,8 @@ export default function ProfilePage() {
         {/* Level Progress */}
         <Card>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-white">Level {user?.level || 1}</span>
-            <span className="text-xs text-gray-400">{user?.xp || 0} / {user?.xpToNextLevel || 1000} XP</span>
+            <span className="text-sm font-medium text-theme-primary">Level {user?.level || 1}</span>
+            <span className="text-xs text-theme-muted">{user?.xp || 0} / {user?.xpToNextLevel || 1000} XP</span>
           </div>
           <ProgressBar value={user?.xp || 350} max={user?.xpToNextLevel || 1000} variant="primary" size="md" />
         </Card>
@@ -101,38 +101,38 @@ export default function ProfilePage() {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-4">Statistics</h3>
+              <h3 className="text-lg font-semibold text-theme-primary mb-4">Statistics</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Wins</span>
+                  <span className="text-sm text-theme-muted">Wins</span>
                   <span className="text-sm font-semibold text-green-400">{user?.wins || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Losses</span>
+                  <span className="text-sm text-theme-muted">Losses</span>
                   <span className="text-sm font-semibold text-red-400">{user?.losses || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Draws</span>
+                  <span className="text-sm text-theme-muted">Draws</span>
                   <span className="text-sm font-semibold text-yellow-400">{user?.draws || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Win Rate</span>
-                  <span className="text-sm font-semibold text-white">{winRate}%</span>
+                  <span className="text-sm text-theme-muted">Win Rate</span>
+                  <span className="text-sm font-semibold text-theme-primary">{winRate}%</span>
                 </div>
               </div>
             </Card>
             <Card>
-              <h3 className="text-lg font-semibold text-white mb-4">Activity</h3>
+              <h3 className="text-lg font-semibold text-theme-primary mb-4">Activity</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-400">Member since</span>
-                  <span className="text-white ml-auto">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
+                  <Clock className="w-4 h-4 text-theme-muted" />
+                  <span className="text-theme-muted">Member since</span>
+                  <span className="text-theme-primary ml-auto">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <Gamepad2 className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-400">Total Games</span>
-                  <span className="text-white ml-auto">{user?.gamesPlayed || 0}</span>
+                  <Gamepad2 className="w-4 h-4 text-theme-muted" />
+                  <span className="text-theme-muted">Total Games</span>
+                  <span className="text-theme-primary ml-auto">{user?.gamesPlayed || 0}</span>
                 </div>
               </div>
             </Card>
@@ -141,7 +141,7 @@ export default function ProfilePage() {
 
         {activeTab === 'matches' && (
           <Card>
-            <h3 className="text-lg font-semibold text-white mb-4">Match History</h3>
+            <h3 className="text-lg font-semibold text-theme-primary mb-4">Match History</h3>
             <div className="space-y-3">
               {matchesLoading && Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-surface-light/50">
@@ -157,8 +157,8 @@ export default function ProfilePage() {
               ))}
               {!matchesLoading && matches.length === 0 && (
                 <div className="text-center py-8">
-                  <Gamepad2 className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No matches played yet</p>
+                  <Gamepad2 className="w-8 h-8 text-theme-muted mx-auto mb-2" />
+                  <p className="text-sm text-theme-muted">No matches played yet</p>
                 </div>
               )}
               {!matchesLoading && matches.map((match) => {
@@ -172,8 +172,8 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-3">
                       <div className={`w-2 h-2 rounded-full ${result === 'win' ? 'bg-green-400' : result === 'loss' ? 'bg-red-400' : 'bg-yellow-400'}`} />
                       <div>
-                        <p className="text-sm font-medium text-white">{match.gameType || match.gameName || 'Game'}</p>
-                        <p className="text-xs text-gray-400">vs {opponent?.username || 'Unknown'}</p>
+                        <p className="text-sm font-medium text-theme-primary">{match.gameType || match.gameName || 'Game'}</p>
+                        <p className="text-xs text-theme-muted">vs {opponent?.username || 'Unknown'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -181,7 +181,7 @@ export default function ProfilePage() {
                         {result === 'win' ? 'Win' : result === 'loss' ? 'Loss' : 'Draw'}
                       </Badge>
                       {match.createdAt && (
-                        <span className="text-xs text-gray-500">{formatRelativeTime(match.createdAt)}</span>
+                        <span className="text-xs text-theme-muted">{formatRelativeTime(match.createdAt)}</span>
                       )}
                     </div>
                   </div>
@@ -199,16 +199,16 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{achievement.icon}</span>
                     <div>
-                      <p className="text-sm font-semibold text-white">{achievement.name}</p>
-                      <p className="text-xs text-gray-400">{achievement.description}</p>
+                      <p className="text-sm font-semibold text-theme-primary">{achievement.name}</p>
+                      <p className="text-xs text-theme-muted">{achievement.description}</p>
                     </div>
                   </div>
                 </Card>
               ))
             ) : (
               <div className="col-span-full text-center py-8">
-                <Trophy className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No achievements yet. Keep playing to unlock them!</p>
+                <Trophy className="w-8 h-8 text-theme-muted mx-auto mb-2" />
+                <p className="text-sm text-theme-muted">No achievements yet. Keep playing to unlock them!</p>
               </div>
             )}
           </div>

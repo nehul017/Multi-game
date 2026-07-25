@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { Inbox } from 'lucide-react';
@@ -18,17 +19,28 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center py-16 px-4 text-center', className)}>
-      <div className="w-16 h-16 rounded-full bg-surface-light flex items-center justify-center mb-4">
-        {icon || <Inbox className="w-8 h-8 text-gray-500" />}
-      </div>
-      <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-      {description && <p className="text-sm text-gray-400 max-w-sm mb-6">{description}</p>}
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className={cn('flex flex-col items-center justify-center py-16 px-4 text-center', className)}
+    >
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        className="w-20 h-20 rounded-3xl bg-theme-secondary border border-theme flex items-center justify-center mb-5 shadow-card"
+      >
+        {icon || <Inbox className="w-9 h-9 text-theme-muted" />}
+      </motion.div>
+      <h3 className="text-lg font-semibold text-theme-primary font-display mb-2">{title}</h3>
+      {description && (
+        <p className="text-sm text-theme-muted max-w-sm mb-6">{description}</p>
+      )}
       {action && (
         <Button variant="primary" onClick={action.onClick}>
           {action.label}
         </Button>
       )}
-    </div>
+    </motion.div>
   );
 }

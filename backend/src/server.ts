@@ -24,12 +24,12 @@ const startServer = async (): Promise<void> => {
 
     httpServer.listen(env.port, () => {
       console.log(`
-╔═══════════════════════════════════════════════╗
-║       MultiGame Platform Backend              ║
-║       Running on port ${env.port}                   ║
-║       Environment: ${env.nodeEnv.padEnd(25)}║
-║       API Docs: http://localhost:${env.port}/api-docs ║
-╚═══════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════╗
+║       MultiGame Platform Backend                      ║
+║       Running on port ${env.port}                            ║
+║       Environment: ${env.nodeEnv.padEnd(25)}.         ║
+║       API Docs: http://localhost:${env.port}/api-docs        ║
+╚═══════════════════════════════════════════════════════╝
       `);
     });
 

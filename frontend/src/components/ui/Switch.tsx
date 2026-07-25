@@ -31,7 +31,7 @@ export function Switch({ checked, onChange, label, disabled, className }: Switch
           )}
         />
       </button>
-      {label && <span className="text-sm text-gray-300">{label}</span>}
+      {label && <span className="text-sm text-theme-muted">{label}</span>}
     </label>
   );
 }

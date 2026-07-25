@@ -150,12 +150,12 @@ export default function AdminGamesPage() {
     <AdminLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Game Management</h1>
-              <p className="text-gray-400 mt-1">Manage available games and their settings</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Game Management</h1>
+              <p className="text-gray-400 mt-1 text-sm sm:text-base">Manage available games and their settings</p>
             </div>
-            <Button leftIcon={<Plus className="w-4 h-4" />} onClick={openCreateModal}>
+            <Button leftIcon={<Plus className="w-4 h-4" />} onClick={openCreateModal} className="w-full sm:w-auto shrink-0">
               Add Game
             </Button>
           </div>

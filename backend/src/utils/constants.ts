@@ -21,6 +21,24 @@ export const XP_REWARDS = {
   GAME_PLAYED: 5,
 };
 
+export const COIN_REWARDS = {
+  WELCOME: 500,
+  WIN: 50,
+  LOSS: 10,
+  DRAW: 20,
+  DAILY_LOGIN_BASE: 25,
+  DAILY_LOGIN_STREAK_BONUS: 5,
+  DAILY_LOGIN_MAX_STREAK_BONUS: 50,
+  REFERRAL_REFERRER: 200,
+  REFERRAL_REFERRED: 100,
+  ACHIEVEMENT_DEFAULT: 50,
+};
+
+export const ECONOMY = {
+  MAX_PACK_PURCHASES_PER_DAY: 5,
+  MIN_BALANCE: 0,
+};
+
 export const RANK_TIERS = {
   BRONZE: { min: 0, max: 1399, name: 'Bronze' },
   SILVER: { min: 1400, max: 1599, name: 'Silver' },
@@ -78,10 +96,16 @@ export const SOCKET_EVENTS = {
   NOTIFICATION: {
     SUBSCRIBE: 'notification:subscribe',
     NEW: 'notification:new',
+    UNREAD_COUNT: 'notification:unreadCount',
     FRIEND_REQUEST: 'notification:friendRequest',
     MATCH_INVITE: 'notification:matchInvite',
     TOURNAMENT_UPDATE: 'notification:tournamentUpdate',
     ACHIEVEMENT_UNLOCKED: 'notification:achievementUnlocked',
+  },
+
+  PLATFORM: {
+    SUBSCRIBE: 'platform:subscribe',
+    STATUS: 'platform:status',
   },
 
   PRESENCE: {

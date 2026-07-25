@@ -56,7 +56,7 @@ export function ChatWindow({ messages, currentUserId, onSendMessage, onTyping, t
 
       <div className="p-4 border-t border-surface-lighter/30">
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light transition-colors">
+          <button className="p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-surface-light transition-colors">
             <Smile className="w-5 h-5" />
           </button>
           <input
@@ -65,7 +65,7 @@ export function ChatWindow({ messages, currentUserId, onSendMessage, onTyping, t
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-1 bg-surface-light border border-surface-lighter rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="flex-1 bg-surface-light border border-surface-lighter rounded-xl px-4 py-2.5 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <button
             onClick={handleSend}

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types';
 import api from '@/lib/api';
+import { toId } from '@/lib/id';
 
 interface AuthState {
   user: User | null;
@@ -13,7 +14,7 @@ interface AuthState {
 
 interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => void;
   refreshTokenAction: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
@@ -40,7 +41,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
           set({
-            user: { ...user, id: user._id || user.id },
+            user: { ...user, id: toId(user._id || user.id) },
             token: accessToken,
             refreshToken,
             isAuthenticated: true,
@@ -52,16 +53,21 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         }
       },
 
-      register: async (username: string, email: string, password: string) => {
+      register: async (username: string, email: string, password: string, referralCode?: string) => {
         set({ isLoading: true });
         try {
-          const { data } = await api.post('/auth/register', { username, email, password });
+          const { data } = await api.post('/auth/register', {
+            username,
+            email,
+            password,
+            ...(referralCode ? { referralCode } : {}),
+          });
           const { tokens, user } = data.data;
           const { accessToken, refreshToken } = tokens;
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
           set({
-            user: { ...user, id: user._id || user.id },
+            user: { ...user, id: toId(user._id || user.id) },
             token: accessToken,
             refreshToken,
             isAuthenticated: true,
@@ -123,7 +129,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           const { data } = await api.get('/auth/me');
           const userData = data.data;
-          const user = { ...userData, id: userData._id || userData.id };
+          const user = { ...userData, id: toId(userData._id || userData.id) };
           set({
             user,
             token,

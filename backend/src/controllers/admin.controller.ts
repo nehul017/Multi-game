@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { adminService } from '../services/admin.service';
+import { economyService } from '../services/economy.service';
+import { storeService } from '../services/store.service';
+import { missionService } from '../services/mission.service';
 
 class AdminController {
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -123,6 +126,129 @@ class AdminController {
     try {
       const settings = await adminService.updateSettings(req.body);
       res.json({ success: true, data: settings, message: 'Settings updated successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async adjustCoins(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { amount, reason } = req.body;
+      const data = await economyService.adminAdjustCoins(
+        req.params.id,
+        Number(amount),
+        reason || 'Admin adjustment'
+      );
+      res.json({ success: true, data, message: 'Coins updated' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getStoreItems(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const data = await storeService.getAllItemsAdmin(page);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createStoreItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await storeService.createItem(req.body);
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateStoreItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await storeService.updateItem(req.params.id, req.body);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteStoreItem(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await storeService.deleteItem(req.params.id);
+      res.json({ success: true, message: 'Store item deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getCoinPacks(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await storeService.getAllPacksAdmin();
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createCoinPack(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await storeService.createPack(req.body);
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateCoinPack(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await storeService.updatePack(req.params.id, req.body);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteCoinPack(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await storeService.deletePack(req.params.id);
+      res.json({ success: true, message: 'Coin pack deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMissions(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await missionService.getAllMissionsAdmin();
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createMission(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await missionService.createMission(req.body);
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateMission(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await missionService.updateMission(req.params.id, req.body);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteMission(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await missionService.deleteMission(req.params.id);
+      res.json({ success: true, message: 'Mission deleted' });
     } catch (error) {
       next(error);
     }

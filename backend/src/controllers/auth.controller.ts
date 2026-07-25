@@ -4,8 +4,8 @@ import { authService } from '../services/auth.service';
 class AuthController {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { username, email, password } = req.body;
-      const result = await authService.register({ username, email, password });
+      const { username, email, password, referralCode } = req.body;
+      const result = await authService.register({ username, email, password, referralCode });
 
       res.status(201).json({
         success: true,
@@ -16,6 +16,8 @@ class AuthController {
             username: result.user.username,
             email: result.user.email,
             role: result.user.role,
+            coins: result.user.coins,
+            referralCode: result.user.referralCode,
           },
           tokens: result.tokens,
         },
@@ -59,6 +61,10 @@ class AuthController {
             role: result.user.role,
             elo: result.user.elo,
             level: result.user.level,
+            xp: result.user.xp,
+            coins: result.user.coins ?? 0,
+            referralCode: result.user.referralCode,
+            loginStreak: result.user.loginStreak ?? 0,
           },
           tokens: result.tokens,
         },

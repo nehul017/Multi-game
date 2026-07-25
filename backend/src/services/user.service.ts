@@ -1,10 +1,12 @@
 import { userRepository } from '../repositories/user.repository';
 import { friendRepository } from '../repositories/friend.repository';
 import { matchRepository } from '../repositories/match.repository';
-import { notificationRepository } from '../repositories/notification.repository';
 import { AppError } from '../utils/AppError';
 import { IUserDocument, IUserUpdate } from '../interfaces/user.interface';
 import { gameEvents, EVENTS } from '../events';
+import { missionService } from './mission.service';
+import { achievementService } from './achievement.service';
+import { notificationService } from './notification.service';
 import bcrypt from 'bcryptjs';
 
 class UserService {
@@ -76,13 +78,13 @@ class UserService {
       status: 'pending',
     } as any);
 
-    await notificationRepository.create({
-      user: recipientId,
-      type: 'friend_request',
-      title: 'Friend Request',
-      message: `You have a new friend request`,
-      data: { fromUserId: userId },
-    } as any);
+    await notificationService.create(
+      recipientId,
+      'friend_request',
+      'Friend Request',
+      'You have a new friend request',
+      { fromUserId: userId }
+    );
 
     gameEvents.emit(EVENTS.FRIEND_REQUEST_SENT, { from: userId, to: recipientId });
   }
@@ -96,6 +98,24 @@ class UserService {
     await friendRepository.acceptRequest(requestId);
     await userRepository.addFriend(userId, request.requester.toString());
     await userRepository.addFriend(request.requester.toString(), userId);
+
+    await missionService.trackProgress(userId, 'friends_added', 1);
+    await missionService.trackProgress(request.requester.toString(), 'friends_added', 1);
+
+    const user = await userRepository.findById(userId);
+    const requester = await userRepository.findById(request.requester.toString());
+    if (user) {
+      await achievementService.checkAchievements(userId, {
+        type: 'friends',
+        value: user.friends.length,
+      });
+    }
+    if (requester) {
+      await achievementService.checkAchievements(request.requester.toString(), {
+        type: 'friends',
+        value: requester.friends.length,
+      });
+    }
 
     gameEvents.emit(EVENTS.FRIEND_REQUEST_ACCEPTED, {
       user1: userId,

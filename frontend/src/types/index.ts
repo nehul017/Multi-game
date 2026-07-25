@@ -19,6 +19,13 @@ export interface User {
   createdAt: string;
   lastSeen: string;
   isBanned: boolean;
+  coins?: number;
+  referralCode?: string;
+  referralCount?: number;
+  loginStreak?: number;
+  winStreak?: number;
+  inventory?: InventoryEntry[];
+  equipped?: EquippedItems;
 }
 
 export interface UserProfile extends User {
@@ -56,6 +63,7 @@ export interface RegisterData {
   email: string;
   password: string;
   confirmPassword: string;
+  referralCode?: string;
 }
 
 export interface Game {
@@ -115,6 +123,13 @@ export type GameState = {
   lastMove?: Move;
   moveCount: number;
   timeLeft: Record<string, number>;
+  metadata?: Record<string, unknown>;
+  rewards?: {
+    coins: number;
+    xp: number;
+    eloChange: number;
+    balance: number;
+  };
 };
 
 export interface Room {
@@ -316,6 +331,179 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
   hasMore: boolean;
+}
+
+export interface EconomyPage<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+// ─── Economy ───────────────────────────────────────────────────────────────
+
+export interface Wallet {
+  coins: number;
+  loginStreak: number;
+  lastLoginRewardAt?: string;
+  referralCode: string;
+  referralCount: number;
+}
+
+export interface DailyLoginStatus {
+  claimedToday: boolean;
+  loginStreak: number;
+  nextReward: number;
+  nextStreak: number;
+}
+
+export interface ClaimDailyLoginResult {
+  coins: number;
+  reward: number;
+  streak: number;
+  alreadyClaimed: boolean;
+}
+
+export type TransactionType =
+  | 'match_win'
+  | 'match_loss'
+  | 'match_draw'
+  | 'daily_login'
+  | 'mission'
+  | 'achievement'
+  | 'referral'
+  | 'pack_purchase'
+  | 'store_purchase'
+  | 'admin_grant'
+  | 'admin_deduct'
+  | 'refund'
+  | 'welcome';
+
+export interface CoinTransaction {
+  _id: string;
+  userId: string;
+  type: TransactionType;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoinPack {
+  _id: string;
+  name: string;
+  description: string;
+  coins: number;
+  bonusCoins: number;
+  priceLabel: string;
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchasePackResult {
+  coins: number;
+  added: number;
+  pack: { id: string; name: string; coins: number; bonusCoins: number };
+}
+
+export type StoreItemType = 'avatar' | 'theme' | 'frame' | 'badge' | 'premium' | 'consumable';
+export type StoreItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface StoreItem {
+  _id: string;
+  name: string;
+  description: string;
+  type: StoreItemType;
+  rarity: StoreItemRarity;
+  price: number;
+  image: string;
+  preview?: string;
+  isActive: boolean;
+  isPremium: boolean;
+  stock: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquippedItems {
+  avatar?: string;
+  theme?: string;
+  frame?: string;
+  badge?: string;
+}
+
+export interface InventoryEntry {
+  itemId: string;
+  purchasedAt: string;
+  equipped: boolean;
+  item?: StoreItem;
+}
+
+export interface PurchaseItemResult {
+  item: StoreItem;
+  coins: number;
+  inventory: InventoryEntry[];
+}
+
+export interface InventoryResponse {
+  inventory: InventoryEntry[];
+  equipped: EquippedItems;
+}
+
+export type MissionType = 'daily' | 'weekly';
+export type MissionConditionType =
+  | 'wins'
+  | 'games_played'
+  | 'login'
+  | 'friends_added'
+  | 'spend_coins'
+  | 'earn_coins';
+
+export interface MissionCondition {
+  type: MissionConditionType;
+  value: number;
+  gameType?: string;
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  type: MissionType;
+  condition: MissionCondition;
+  coinReward: number;
+  xpReward: number;
+  progress: number;
+  target: number;
+  completed: boolean;
+  claimed: boolean;
+  periodKey: string;
+}
+
+export interface ClaimMissionResult {
+  coins: number;
+  coinReward: number;
+  xpReward: number;
+  mission: { id: string; title: string };
+}
+
+export interface AdminMission {
+  _id: string;
+  title: string;
+  description: string;
+  type: MissionType;
+  condition: MissionCondition;
+  coinReward: number;
+  xpReward: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApiError {

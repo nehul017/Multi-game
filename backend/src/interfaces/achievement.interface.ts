@@ -16,6 +16,7 @@ export interface IAchievement {
   category: string;
   condition: IAchievementCondition;
   xpReward: number;
+  coinReward: number;
   rarity: AchievementRarity;
   createdAt: Date;
   updatedAt: Date;

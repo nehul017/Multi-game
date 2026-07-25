@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/auth.service';
 import { userService } from '@/services/user.service';
@@ -9,8 +10,15 @@ import { chatService } from '@/services/chat.service';
 import { notificationService } from '@/services/notification.service';
 import { leaderboardService } from '@/services/leaderboard.service';
 import { adminService } from '@/services/admin.service';
-import { platformService } from '@/services/platform.service';
+import { economyService } from '@/services/economy.service';
+import { useAuthStore } from '@/store/auth.store';
+import { StoreItemType } from '@/types';
 import toast from 'react-hot-toast';
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  const e = err as { response?: { data?: { message?: string } } };
+  return e?.response?.data?.message || fallback;
+}
 
 // Auth Hooks
 export function useMe() {
@@ -240,29 +248,12 @@ export function useNotifications(page = 1) {
   });
 }
 
-export function useUnreadNotificationCount() {
-  return useQuery({
-    queryKey: ['unreadNotifications'],
-    queryFn: () => notificationService.getUnreadCount(),
-    refetchInterval: 30000,
-  });
-}
-
-export function usePlatformStatus() {
-  return useQuery({
-    queryKey: ['platformStatus'],
-    queryFn: () => platformService.getStatus(),
-    refetchInterval: 60000,
-  });
-}
-
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => notificationService.markAsRead(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
     },
   });
 }
@@ -273,7 +264,6 @@ export function useMarkAllNotificationsRead() {
     mutationFn: () => notificationService.markAllAsRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
     },
   });
 }
@@ -382,5 +372,299 @@ export function useBroadcast() {
     onSuccess: () => {
       toast.success('Announcement broadcast');
     },
+  });
+}
+
+// ─── Economy Hooks ──────────────────────────────────────────────────────────
+
+export function useWallet() {
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const query = useQuery({
+    queryKey: ['wallet'],
+    queryFn: () => economyService.getWallet(),
+  });
+
+  useEffect(() => {
+    const wallet = query.data?.data;
+    if (wallet) {
+      updateUser({
+        coins: wallet.coins,
+        loginStreak: wallet.loginStreak,
+        referralCode: wallet.referralCode,
+        referralCount: wallet.referralCount,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data]);
+
+  return query;
+}
+
+export function useTransactions(page = 1, limit = 20) {
+  return useQuery({
+    queryKey: ['transactions', page, limit],
+    queryFn: () => economyService.getTransactions(page, limit),
+  });
+}
+
+export function useDailyLoginStatus() {
+  return useQuery({
+    queryKey: ['dailyLogin'],
+    queryFn: () => economyService.getDailyLoginStatus(),
+  });
+}
+
+export function useClaimDailyLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => economyService.claimDailyLogin(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyLogin'] });
+      queryClient.invalidateQueries({ queryKey: ['missions'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`+${res.data.reward} coins! Login streak: ${res.data.streak}`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to claim daily reward')),
+  });
+}
+
+export function useCoinPacks() {
+  return useQuery({
+    queryKey: ['coinPacks'],
+    queryFn: () => economyService.getCoinPacks(),
+  });
+}
+
+export function usePurchasePack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (packId: string) => economyService.purchasePack(packId),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`+${res.data.added} coins added to your wallet!`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Purchase failed')),
+  });
+}
+
+export function useMissions() {
+  return useQuery({
+    queryKey: ['missions'],
+    queryFn: () => economyService.getMissions(),
+  });
+}
+
+export function useClaimMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (missionId: string) => economyService.claimMission(missionId),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['missions'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`Claimed ${res.data.coinReward} coins from "${res.data.mission.title}"!`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to claim mission')),
+  });
+}
+
+export function useStoreCatalog(type?: StoreItemType, page = 1, limit = 50) {
+  return useQuery({
+    queryKey: ['storeCatalog', type, page, limit],
+    queryFn: () => economyService.getCatalog(type, page, limit),
+  });
+}
+
+export function usePurchaseStoreItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => economyService.purchaseItem(itemId),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success(`Purchased ${res.data.item.name}!`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Purchase failed')),
+  });
+}
+
+export function useInventory() {
+  return useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => economyService.getInventory(),
+  });
+}
+
+export function useEquipItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => economyService.equipItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success('Item equipped!');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to equip item')),
+  });
+}
+
+export function useUnequipItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => economyService.unequipItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success('Item unequipped');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to unequip item')),
+  });
+}
+
+// ─── Admin Economy Hooks ────────────────────────────────────────────────────
+
+export function useAdminStoreItems(page = 1) {
+  return useQuery({
+    queryKey: ['adminStoreItems', page],
+    queryFn: () => adminService.getStoreItemsAdmin(page),
+  });
+}
+
+export function useCreateStoreItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) => adminService.createStoreItem(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminStoreItems'] });
+      toast.success('Store item created');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to create item')),
+  });
+}
+
+export function useUpdateStoreItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => adminService.updateStoreItem(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminStoreItems'] });
+      toast.success('Store item updated');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to update item')),
+  });
+}
+
+export function useDeleteStoreItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.deleteStoreItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminStoreItems'] });
+      toast.success('Store item deleted');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to delete item')),
+  });
+}
+
+export function useAdminCoinPacks() {
+  return useQuery({
+    queryKey: ['adminCoinPacks'],
+    queryFn: () => adminService.getCoinPacksAdmin(),
+  });
+}
+
+export function useCreateCoinPack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) => adminService.createCoinPack(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCoinPacks'] });
+      toast.success('Coin pack created');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to create pack')),
+  });
+}
+
+export function useUpdateCoinPack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => adminService.updateCoinPack(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCoinPacks'] });
+      toast.success('Coin pack updated');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to update pack')),
+  });
+}
+
+export function useDeleteCoinPack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.deleteCoinPack(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCoinPacks'] });
+      toast.success('Coin pack deleted');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to delete pack')),
+  });
+}
+
+export function useAdminMissions() {
+  return useQuery({
+    queryKey: ['adminMissions'],
+    queryFn: () => adminService.getMissionsAdmin(),
+  });
+}
+
+export function useCreateMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) => adminService.createMission(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMissions'] });
+      toast.success('Mission created');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to create mission')),
+  });
+}
+
+export function useUpdateMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => adminService.updateMission(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMissions'] });
+      toast.success('Mission updated');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to update mission')),
+  });
+}
+
+export function useDeleteMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.deleteMission(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminMissions'] });
+      toast.success('Mission deleted');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to delete mission')),
+  });
+}
+
+export function useAdjustUserCoins() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, amount, reason }: { userId: string; amount: number; reason: string }) =>
+      adminService.adjustUserCoins(userId, amount, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      toast.success('User balance updated');
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to adjust coins')),
   });
 }

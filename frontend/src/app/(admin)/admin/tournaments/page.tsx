@@ -81,12 +81,12 @@ export default function AdminTournamentsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Tournament Management</h1>
-              <p className="text-gray-400 mt-1">Create and manage tournaments</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-theme-primary">Tournament Management</h1>
+              <p className="text-theme-muted mt-1 text-sm sm:text-base">Create and manage tournaments</p>
             </div>
-            <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setShowCreate(true)}>
+            <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => setShowCreate(true)} className="w-full sm:w-auto shrink-0">
               Create Tournament
             </Button>
           </div>
@@ -124,7 +124,7 @@ export default function AdminTournamentsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-white">{tournament.name}</h3>
+                      <h3 className="text-sm font-semibold text-theme-primary">{tournament.name}</h3>
                       <Badge variant={
                         tournament.status === 'in-progress' || tournament.status === 'active' ? 'success' :
                         tournament.status === 'registration' || tournament.status === 'upcoming' ? 'warning' : 'info'
@@ -132,7 +132,7 @@ export default function AdminTournamentsPage() {
                         {tournament.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-4 mt-1 text-xs text-theme-muted">
                       <span>{tournament.game?.name || tournament.game || '—'}</span>
                       <span className="flex items-center gap-1">
                         <Users className="w-3 h-3" />

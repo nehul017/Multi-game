@@ -83,7 +83,7 @@ export default function UserProfilePage() {
     return (
       <DashboardLayout>
         <div className="text-center py-20">
-          <p className="text-gray-400 mb-4">Failed to load profile</p>
+          <p className="text-theme-muted mb-4">Failed to load profile</p>
           <Button variant="outline" onClick={() => refetch()} leftIcon={<RefreshCw className="w-4 h-4" />}>
             Retry
           </Button>
@@ -105,10 +105,10 @@ export default function UserProfilePage() {
               <Avatar src={userData.avatar} name={userData.username} size="xl" />
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-white">{userData.username}</h1>
+                  <h1 className="text-2xl font-bold text-theme-primary">{userData.username}</h1>
                   <RankBadge rank={(userData.rank as 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'grandmaster') || 'bronze'} />
                 </div>
-                <p className="text-gray-400 text-sm mt-1">{userData.bio || 'No bio set'}</p>
+                <p className="text-theme-muted text-sm mt-1">{userData.bio || 'No bio set'}</p>
               </div>
               <Button
                 variant="outline"
@@ -134,8 +134,8 @@ export default function UserProfilePage() {
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <Card>
                 <stat.icon className={`w-5 h-5 ${stat.color} mb-2`} />
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-gray-400">{stat.label}</p>
+                <p className="text-2xl font-bold text-theme-primary">{stat.value}</p>
+                <p className="text-xs text-theme-muted">{stat.label}</p>
               </Card>
             </motion.div>
           ))}
@@ -144,15 +144,15 @@ export default function UserProfilePage() {
         {/* Level */}
         <Card>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-white">Level {userData.level || 1}</span>
-            <span className="text-xs text-gray-400">{userData.xp || 0} / {userData.xpToNextLevel || 1000} XP</span>
+            <span className="text-sm font-medium text-theme-primary">Level {userData.level || 1}</span>
+            <span className="text-xs text-theme-muted">{userData.xp || 0} / {userData.xpToNextLevel || 1000} XP</span>
           </div>
           <ProgressBar value={userData.xp || 0} max={userData.xpToNextLevel || 1000} variant="primary" size="md" />
         </Card>
 
         {/* Recent Matches */}
         <Card>
-          <h3 className="text-lg font-semibold text-white mb-4">Recent Matches</h3>
+          <h3 className="text-lg font-semibold text-theme-primary mb-4">Recent Matches</h3>
           <div className="space-y-3">
             {matchesLoading && Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-surface-light/50">
@@ -180,15 +180,15 @@ export default function UserProfilePage() {
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${result === 'win' ? 'bg-green-400' : result === 'loss' ? 'bg-red-400' : 'bg-yellow-400'}`} />
                     <div>
-                      <p className="text-sm font-medium text-white">{match.gameType || 'Game'}</p>
-                      <p className="text-xs text-gray-400">vs {opponent?.username || 'Unknown'}</p>
+                      <p className="text-sm font-medium text-theme-primary">{match.gameType || 'Game'}</p>
+                      <p className="text-xs text-theme-muted">vs {opponent?.username || 'Unknown'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={result === 'win' ? 'success' : result === 'loss' ? 'danger' : 'warning'}>
                       {result === 'win' ? 'Win' : result === 'loss' ? 'Loss' : 'Draw'}
                     </Badge>
-                    {match.createdAt && <span className="text-xs text-gray-500">{formatRelativeTime(match.createdAt)}</span>}
+                    {match.createdAt && <span className="text-xs text-theme-muted">{formatRelativeTime(match.createdAt)}</span>}
                   </div>
                 </div>
               );

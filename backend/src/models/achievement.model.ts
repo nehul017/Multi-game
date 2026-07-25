@@ -13,6 +13,7 @@ const achievementSchema = new Schema<IAchievementDocument>(
       gameType: { type: String },
     },
     xpReward: { type: Number, required: true, min: 0 },
+    coinReward: { type: Number, default: 50, min: 0 },
     rarity: {
       type: String,
       enum: ['common', 'uncommon', 'rare', 'epic', 'legendary'],

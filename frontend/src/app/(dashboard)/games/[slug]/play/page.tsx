@@ -1,21 +1,79 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2 } from 'lucide-react';
+import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2, Send, Swords } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { TicTacToeBoard } from '@/components/game/TicTacToeBoard';
 import { ConnectFourBoard } from '@/components/game/ConnectFourBoard';
 import { ChessBoard } from '@/components/game/ChessBoard';
+import { SnakeBoard } from '@/components/game/SnakeBoard';
+import { LudoBoard } from '@/components/game/LudoBoard';
+import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
+import { GameChat } from '@/components/game/GameChat';
+import { SpectatorBar } from '@/components/game/SpectatorBar';
+import { MoveHistory } from '@/components/game/MoveHistory';
+import { PlayerPanel } from '@/components/game/PlayerPanel';
+import {
+  ChessArena,
+  ChessCaptured,
+  ChessStatus,
+  type ChessStatusKind,
+} from '@/components/game/chess';
 import { useAuthStore } from '@/store/auth.store';
 import { useGameStore } from '@/store/game.store';
-import { useGameSocket, useChatSocket } from '@/socket/hooks';
+import { useSocketStore } from '@/store/socket.store';
+import { useGameSocket, useChatSocket, useGameTimer } from '@/socket/hooks';
+import { SOCKET_EVENTS } from '@/constants/socket';
+import { toId } from '@/lib/id';
+import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
+
+function PlayerBar({
+  username,
+  elo,
+  timeLeft,
+  isActive,
+  align,
+}: {
+  username: string;
+  elo: string | number;
+  timeLeft: string;
+  isActive: boolean;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div
+      className={cn(
+        'game-panel flex items-center gap-3 sm:gap-4 p-3 sm:p-4 transition-all duration-300 min-w-0',
+        isActive && 'game-panel-active',
+        align === 'right' && 'flex-row-reverse text-right'
+      )}
+    >
+      <Avatar name={username} size="md" online={isActive} floating={isActive} />
+      <div className={cn('flex-1 min-w-0', align === 'right' && 'items-end')}>
+        <p className="text-sm font-semibold text-theme-primary truncate font-display">{username}</p>
+        <p className="text-xs text-theme-muted">{elo} ELO</p>
+      </div>
+      <div
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-mono text-xs sm:text-sm shrink-0',
+          isActive
+            ? 'bg-primary-500/15 text-primary-500 border border-primary-500/25'
+            : 'bg-theme-secondary text-theme-muted border border-theme'
+        )}
+      >
+        <Clock className="w-3.5 h-3.5" />
+        {timeLeft}
+      </div>
+    </div>
+  );
+}
 
 export default function PlayPage() {
   const params = useParams();
@@ -23,25 +81,41 @@ export default function PlayPage() {
   const slug = params.slug as string;
   const roomParam = searchParams.get('room');
   const { user } = useAuthStore();
+  const { gameState, players, spectators, countdown, isMatchmaking, currentRoom, moveHistory } =
+    useGameStore();
   const {
-    gameState,
-    players,
-    spectators,
-    countdown,
-    isMatchmaking,
-    currentRoom,
-  } = useGameStore();
-  const { joinRoom, leaveRoom, makeMove, surrender, startMatchmaking, cancelMatchmaking, isGameConnected } = useGameSocket();
-  const { sendMessage: sendChatMessage } = useChatSocket();
+    joinRoom,
+    leaveRoom,
+    makeMove,
+    surrender,
+    offerDraw,
+    acceptDraw,
+    startMatchmaking,
+    cancelMatchmaking,
+    isGameConnected,
+  } = useGameSocket();
+  const { sendMessage: sendChatMessage, joinChatRoom, leaveChatRoom } = useChatSocket();
+  const { chatOn, chatOff, chatSocket } = useSocketStore();
+  useGameTimer();
 
-  const [chatMessages, setChatMessages] = useState<Array<{ user: string; text: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ id?: string; user: string; text: string; timestamp: number; userId?: string }>
+  >([]);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const roomId = currentRoom?.id || '';
   const gameStatus = gameState?.status || (isMatchmaking ? 'waiting' : 'waiting');
-  const me = players.find((p) => p.userId === user?.id);
-  const opponent = players.find((p) => p.userId !== user?.id);
+  const myId = toId(user?.id);
+  const me = players.find((p) => toId(p.userId) === myId);
+  const opponent = players.find((p) => toId(p.userId) !== myId);
+
+  const isMyTurn =
+    gameStatus === 'playing' &&
+    !!myId &&
+    (gameState?.currentTurn
+      ? toId(gameState.currentTurn) === myId
+      : players.length >= 2 && toId(players[(gameState?.moveCount ?? 0) % 2]?.userId) === myId);
 
   useEffect(() => {
     if (!isGameConnected) return;
@@ -72,24 +146,144 @@ export default function PlayPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  const handleMakeMove = (position: { row: number; col: number } | number) => {
+  // Join the game's chat room so both players receive messages
+  useEffect(() => {
+    if (!roomId || !chatSocket?.connected) return;
+    joinChatRoom(roomId);
+    return () => leaveChatRoom(roomId);
+  }, [roomId, chatSocket?.connected, joinChatRoom, leaveChatRoom]);
+
+  // Apply incoming room chat messages to local game chat UI
+  useEffect(() => {
     if (!roomId) return;
-    makeMove({ position, roomId });
+
+    const handleNewMessage = (raw: unknown) => {
+      const msg = raw as {
+        _id?: string;
+        id?: string;
+        room?: string;
+        content?: string;
+        createdAt?: string;
+        sender?: { _id?: string; id?: string; username?: string } | string;
+        senderId?: string;
+        senderUsername?: string;
+      };
+
+      if (msg.room && msg.room !== roomId) return;
+
+      const senderObj = typeof msg.sender === 'object' && msg.sender ? msg.sender : null;
+      const senderId = toId(
+        senderObj?._id || senderObj?.id || msg.senderId || (typeof msg.sender === 'string' ? msg.sender : '')
+      );
+      const username = senderObj?.username || msg.senderUsername || 'Player';
+      const text = msg.content?.trim();
+      if (!text) return;
+      const id = msg._id || msg.id;
+      const timestamp = msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now();
+
+      setChatMessages((prev) => {
+        if (id && prev.some((m) => m.id === id)) return prev;
+
+        // Replace optimistic local copy of our own message
+        if (senderId && senderId === myId) {
+          const idx = [...prev]
+            .reverse()
+            .findIndex((m) => !m.id && m.userId === myId && m.text === text);
+          if (idx !== -1) {
+            const realIdx = prev.length - 1 - idx;
+            const next = [...prev];
+            next[realIdx] = { id, user: username, text, timestamp, userId: senderId };
+            return next;
+          }
+        }
+
+        return [...prev, { id, user: username, text, timestamp, userId: senderId || undefined }];
+      });
+    };
+
+    chatOn(SOCKET_EVENTS.CHAT.NEW_MESSAGE, handleNewMessage);
+    return () => chatOff(SOCKET_EVENTS.CHAT.NEW_MESSAGE, handleNewMessage);
+  }, [roomId, myId, chatOn, chatOff]);
+
+  const emitMove = (moveData: Record<string, unknown>, action = 'move') => {
+    if (!roomId) return;
+    makeMove({ roomId, action, moveData });
+  };
+
+  const handleTttMove = (position: { row: number; col: number } | number) => {
+    if (!isMyTurn) return;
+    if (typeof position === 'number') {
+      emitMove({ row: Math.floor(position / 3), col: position % 3 }, 'place');
+    } else {
+      emitMove(position, 'place');
+    }
+  };
+
+  const handleConnectFourMove = (position: { row: number; col: number } | number) => {
+    if (!isMyTurn) return;
+    const col = typeof position === 'number' ? position : position.col;
+    emitMove({ col }, 'drop');
+  };
+
+  const handleChessMove = (move: {
+    from: { row: number; col: number };
+    to: { row: number; col: number };
+  }) => {
+    if (!isMyTurn) return;
+    emitMove(move, 'move');
+  };
+
+  const handleSnakeMove = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (gameStatus !== 'playing') return;
+    emitMove({ direction }, 'direction');
+  };
+
+  const handleLudoRoll = () => {
+    if (!isMyTurn) return;
+    emitMove({ action: 'roll' }, 'roll');
+  };
+
+  const handleLudoToken = (tokenId: number) => {
+    if (!isMyTurn) return;
+    emitMove({ action: 'move', tokenId }, 'move');
+  };
+
+  const handleQuizAnswer = (answer: number) => {
+    if (gameStatus !== 'playing') return;
+    emitMove({ action: 'answer', answer, timeMs: 5000 }, 'answer');
   };
 
   const handleSurrender = () => {
     if (roomId) surrender(roomId);
   };
 
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages((prev) => [...prev, { user: user?.username || 'You', text: chatInput }]);
-    if (roomId) sendChatMessage(roomId, chatInput);
-    setChatInput('');
+  const handleOfferDraw = () => {
+    if (!roomId) return;
+    offerDraw(roomId);
+    toast.success('Draw offer sent');
   };
 
-  const handleGameEnd = (winnerId: string | null) => {
-    void winnerId;
+  const handleAcceptDraw = () => {
+    if (!roomId) return;
+    acceptDraw(roomId);
+  };
+
+  const drawOffered = Boolean(gameState?.metadata?.drawOffered);
+
+  const handleSendChat = (text?: string) => {
+    const value = (text ?? chatInput).trim();
+    if (!value) return;
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        user: user?.username || 'You',
+        text: value,
+        timestamp: Date.now(),
+        userId: myId,
+      },
+    ]);
+    if (roomId) sendChatMessage(roomId, value);
+    setChatInput('');
   };
 
   const formatTime = (seconds?: number) => {
@@ -99,22 +293,178 @@ export default function PlayPage() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const isChess = slug === 'chess';
+  const isLudo = slug === 'ludo';
+  const isTtt = slug === 'tic-tac-toe';
+  const isSnake = slug === 'snake-multiplayer';
+  const symbolMap = (gameState?.metadata?.symbols || {}) as Record<string, 'X' | 'O'>;
+  const myMark: 'X' | 'O' | undefined = myId
+    ? symbolMap[myId] ||
+      Object.entries(symbolMap).find(([id]) => toId(id) === myId)?.[1]
+    : undefined;
+  const opponentMark: 'X' | 'O' | undefined =
+    myMark === 'X' ? 'O' : myMark === 'O' ? 'X' : undefined;
+  const inCheck = Boolean(gameState?.metadata?.inCheck);
+  const colorMap = (gameState?.metadata?.colors || {}) as Record<string, 'white' | 'black'>;
+
+  const turnColor: 'white' | 'black' | null = useMemo(() => {
+    if (!gameState?.currentTurn) return null;
+    const colors = (gameState.metadata?.colors || {}) as Record<string, 'white' | 'black'>;
+    const turnId = toId(gameState.currentTurn);
+    return colors[turnId] || colors[gameState.currentTurn] || null;
+  }, [gameState?.currentTurn, gameState?.metadata]);
+
+  const myColor: 'white' | 'black' = useMemo(() => {
+    if (!myId) return 'white';
+    if (colorMap[myId]) return colorMap[myId];
+    const userKey = toId(user?.id);
+    if (userKey && colorMap[userKey]) return colorMap[userKey];
+    const matched = Object.entries(colorMap).find(([id]) => toId(id) === myId);
+    if (matched) return matched[1];
+    // Fallback from seat order: first player is white
+    if (players[0] && toId(players[0].userId) === myId) return 'white';
+    if (players[1] && toId(players[1].userId) === myId) return 'black';
+    return 'white';
+  }, [colorMap, myId, user?.id, players]);
+  const opponentColor: 'white' | 'black' = myColor === 'white' ? 'black' : 'white';
+
+  const checkColor: 'white' | 'black' | undefined =
+    inCheck && turnColor ? turnColor : undefined;
+
+  const chessStatus: ChessStatusKind = useMemo(() => {
+    if (gameStatus === 'waiting' || gameStatus === 'countdown') return 'waiting';
+    if (gameStatus === 'finished') {
+      if (!gameState?.winner) return 'draw';
+      if (inCheck) return 'checkmate';
+      return 'resigned';
+    }
+    if (inCheck) return 'check';
+    if (turnColor === 'white') return 'white-turn';
+    if (turnColor === 'black') return 'black-turn';
+    return 'playing';
+  }, [gameStatus, gameState?.winner, inCheck, turnColor]);
+
+  const myTime = gameState?.timeLeft?.[myId] ?? 300;
+  const opponentTime = gameState?.timeLeft?.[toId(opponent?.userId)] ?? 300;
+
   const renderBoard = () => {
-    const disabled = gameStatus !== 'playing';
+    const disabled = gameStatus !== 'playing' || (!isMyTurn && slug !== 'snake-multiplayer' && slug !== 'quiz-battle');
     const board = gameState?.board;
+
     switch (slug) {
       case 'tic-tac-toe':
-        return <TicTacToeBoard board={board} onMove={handleMakeMove} onGameEnd={handleGameEnd} disabled={disabled} />;
+        return (
+          <TicTacToeBoard
+            board={board}
+            onMove={handleTttMove}
+            disabled={disabled}
+            isMyTurn={isMyTurn}
+            myMark={myMark}
+          />
+        );
       case 'connect-four':
-        return <ConnectFourBoard board={board} onMove={handleMakeMove} onGameEnd={handleGameEnd} disabled={disabled} />;
+        return (
+          <ConnectFourBoard
+            board={board}
+            onMove={handleConnectFourMove}
+            disabled={disabled}
+            isMyTurn={isMyTurn}
+          />
+        );
       case 'chess':
-        return <ChessBoard board={board} onMove={handleMakeMove} onGameEnd={handleGameEnd} disabled={disabled} />;
+        return (
+          <ChessBoard
+            board={board}
+            onMove={handleChessMove}
+            disabled={disabled}
+            inCheck={inCheck}
+            checkColor={checkColor}
+            orientation={myColor}
+            playerColor={myColor}
+          />
+        );
+      case 'snake-multiplayer':
+        return (
+          <SnakeBoard
+            board={board}
+            onMove={handleSnakeMove}
+            disabled={gameStatus !== 'playing'}
+            players={players.map((p) => ({
+              userId: toId(p.userId),
+              username: p.username,
+              avatar: p.avatar,
+              elo: p.elo,
+            }))}
+            spectators={spectators}
+            currentUserId={myId}
+            currentUsername={user?.username}
+            roomId={roomId}
+            gameStatus={gameStatus}
+            gameStartedAt={
+              typeof gameState?.metadata?.startedAt === 'number'
+                ? (gameState?.metadata?.startedAt as number)
+                : gameState?.status === 'playing'
+                  ? Date.now() - (moveHistory.length * 200)
+                  : null
+            }
+            onLeave={() => {
+              if (roomId) leaveRoom(roomId);
+              if (typeof window !== 'undefined') {
+                window.history.back();
+              }
+            }}
+            onSurrender={handleSurrender}
+            onPlayAgain={() => startMatchmaking(slug)}
+            chatMessages={chatMessages}
+            onSendChat={handleSendChat}
+            latency={isGameConnected ? 42 : 999}
+          />
+        );
+      case 'ludo':
+        return (
+          <LudoBoard
+            board={board}
+            disabled={disabled}
+            isMyTurn={isMyTurn}
+            onRoll={handleLudoRoll}
+            onMoveToken={handleLudoToken}
+            currentUserId={myId}
+            turnPlayerId={gameState?.currentTurn ? toId(gameState.currentTurn) : undefined}
+            playersMeta={players.map((p) => ({ userId: toId(p.userId), username: p.username }))}
+            rollKey={gameState?.moveCount ?? moveHistory.length}
+            turnPhase={
+              gameStatus === 'waiting' || gameStatus === 'countdown'
+                ? 'waiting'
+                : isMyTurn
+                  ? 'your-turn'
+                  : 'opponent'
+            }
+          />
+        );
+      case 'quiz-battle':
+        return (
+          <QuizBattleBoard
+            board={board}
+            disabled={gameStatus !== 'playing'}
+            onAnswer={handleQuizAnswer}
+          />
+        );
       default:
-        return <TicTacToeBoard board={board} onMove={handleMakeMove} onGameEnd={handleGameEnd} disabled={disabled} />;
+        return (
+          <TicTacToeBoard
+            board={board}
+            onMove={handleTttMove}
+            disabled={disabled}
+            isMyTurn={isMyTurn}
+            myMark={myMark}
+          />
+        );
     }
   };
 
-  const eloChange = gameState?.winner === user?.id ? 15 : gameState?.winner ? -10 : 0;
+  const rewards = gameState?.rewards;
+  const eloChange = rewards?.eloChange ?? 0;
+  const gameTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   if ((!isGameConnected || isMatchmaking) && !currentRoom) {
     return (
@@ -124,44 +474,205 @@ export default function PlayPage() {
             animate={{ rotate: 360 }}
             transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
           >
-            <Loader2 className="w-12 h-12 text-primary-400" />
+            <Loader2 className="w-12 h-12 text-primary-500" />
           </motion.div>
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-white mb-2">
+            <h2 className="text-xl font-semibold text-theme-primary font-display mb-2">
               {!isGameConnected ? 'Connecting...' : 'Finding a match...'}
             </h2>
-            <p className="text-gray-400">
+            <p className="text-theme-muted">
               {!isGameConnected
                 ? 'Establishing game connection'
-                : `Looking for an opponent for ${slug.replace(/-/g, ' ')}`}
+                : `Looking for an opponent for ${gameTitle}`}
             </p>
           </div>
           {isGameConnected && (
-            <Button variant="outline" onClick={cancelMatchmaking}>Cancel</Button>
+            <Button variant="outline" onClick={cancelMatchmaking}>
+              Cancel
+            </Button>
           )}
         </div>
       </DashboardLayout>
     );
   }
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-4">
-        {/* Countdown Overlay */}
+  const actionsPanel = isLudo ? (
+    <div className="ludo-glass rounded-2xl border border-theme p-4 space-y-2.5">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-theme-muted font-semibold px-0.5">
+        Match actions
+      </p>
+      <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          variant="danger"
+          size="sm"
+          leftIcon={<Flag className="w-4 h-4" />}
+          className="w-full ludo-action-danger border-0"
+          onClick={handleSurrender}
+          disabled={gameStatus !== 'playing'}
+        >
+          Surrender
+        </Button>
+      </motion.div>
+      <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<RotateCcw className="w-4 h-4" />}
+          className="w-full ludo-action-draw"
+          disabled={gameStatus !== 'playing'}
+          onClick={handleOfferDraw}
+        >
+          Offer Draw
+        </Button>
+      </motion.div>
+      {drawOffered && (
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+          <Button variant="primary" size="sm" className="w-full" onClick={handleAcceptDraw}>
+            Accept Draw
+          </Button>
+        </motion.div>
+      )}
+    </div>
+  ) : (
+    <div
+      className={cn(
+        isTtt
+          ? 'ttt-actions'
+          : isChess
+            ? 'chess-glass rounded-xl border border-theme'
+            : 'game-panel',
+        'p-3 sm:p-4 space-y-2',
+      )}
+    >
+      <p className="text-[10px] uppercase tracking-[0.16em] text-theme-muted font-semibold px-0.5">
+        Match actions
+      </p>
+      <div className={cn(isTtt ? 'grid grid-cols-2 gap-2' : 'space-y-2')}>
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon={<Flag className="w-3.5 h-3.5" />}
+          className={cn(
+            'w-full text-theme-danger border-theme-danger/25 hover:bg-theme-danger/8 hover:border-theme-danger/40',
+            !isTtt && 'col-span-full',
+          )}
+          onClick={handleSurrender}
+          disabled={gameStatus !== 'playing'}
+        >
+          Surrender
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+          className="w-full"
+          disabled={gameStatus !== 'playing'}
+          onClick={handleOfferDraw}
+        >
+          Offer Draw
+        </Button>
+      </div>
+      {drawOffered && (
+        <Button variant="primary" size="sm" className="w-full" onClick={handleAcceptDraw}>
+          Accept Draw
+        </Button>
+      )}
+    </div>
+  );
+
+  const chatPanel = isLudo ? (
+    <GameChat
+      messages={chatMessages}
+      onSendMessage={handleSendChat}
+      currentUserId={myId}
+      currentUsername={user?.username}
+    />
+  ) : (
+    <div
+      className={cn(
+        isChess ? 'chess-glass rounded-xl border border-theme' : 'game-panel',
+        'p-4 flex flex-col h-72'
+      )}
+    >
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-theme">
+        <MessageSquare className="w-4 h-4 text-primary-500" />
+        <span className="text-sm font-semibold text-theme-primary tracking-tight">Game Chat</span>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-2.5 mb-3 min-h-0">
+        {chatMessages.map((msg, i) => (
+          <div key={i} className="text-xs">
+            <span className="font-semibold text-primary-500">{msg.user}: </span>
+            <span className="text-theme-primary">{msg.text}</span>
+          </div>
+        ))}
+        {chatMessages.length === 0 && (
+          <p className="text-xs text-theme-muted text-center py-6">No messages yet</p>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
+          placeholder="Type a message..."
+          className="input-glass flex-1 px-3 py-2 text-xs"
+        />
+        <Button size="sm" onClick={() => handleSendChat()} aria-label="Send message">
+          <Send className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (isSnake) {
+    return (
+      <DashboardLayout>
         <AnimatePresence>
           {gameStatus === 'countdown' && countdown !== null && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+              className="fixed inset-0 z-50 flex items-center justify-center"
+              style={{ background: 'var(--overlay)' }}
             >
               <motion.span
                 key={countdown}
                 initial={{ scale: 2, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
-                className="text-8xl font-display font-bold text-primary-400"
+                className="text-6xl sm:text-8xl font-display font-bold gradient-text"
+              >
+                {countdown || 'GO!'}
+              </motion.span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {renderBoard()}
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-5">
+        <AnimatePresence>
+          {gameStatus === 'countdown' && countdown !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center"
+              style={{ background: 'var(--overlay)' }}
+            >
+              <motion.span
+                key={countdown}
+                initial={{ scale: 2, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                className="text-6xl sm:text-8xl font-display font-bold gradient-text"
               >
                 {countdown || 'GO!'}
               </motion.span>
@@ -169,100 +680,244 @@ export default function PlayPage() {
           )}
         </AnimatePresence>
 
-        {/* Player Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
-          <Card className="flex items-center gap-3 border-primary-500/30">
-            <Avatar name={user?.username} size="md" online />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{me?.username || user?.username || 'You'}</p>
-              <p className="text-xs text-gray-400">{me?.elo || user?.elo || 1000} ELO</p>
-            </div>
-            <div className="flex items-center gap-1 text-sm text-primary-400">
-              <Clock className="w-4 h-4" />
-              <span className="font-mono">{formatTime(gameState?.timeLeft?.[user?.id || ''])}</span>
-            </div>
-          </Card>
-
-          <div className="text-center">
-            <Badge variant="purple">VS</Badge>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <h1
+              className={cn(
+                'text-lg sm:text-xl font-bold text-theme-primary truncate tracking-tight',
+                isLudo && 'font-display sm:text-2xl'
+              )}
+            >
+              {gameTitle}
+            </h1>
+            <p className="text-sm text-theme-muted capitalize">
+              {gameStatus === 'playing' ? 'Match in progress' : gameStatus}
+            </p>
           </div>
-
-          <Card className="flex items-center gap-3 border-secondary-500/30">
-            <Avatar name={opponent?.username || 'Waiting...'} size="md" online={!!opponent} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{opponent?.username || 'Waiting...'}</p>
-              <p className="text-xs text-gray-400">{opponent?.elo || '---'} ELO</p>
-            </div>
-            <div className="flex items-center gap-1 text-sm text-secondary-400">
-              <Clock className="w-4 h-4" />
-              <span className="font-mono">{formatTime(gameState?.timeLeft?.[opponent?.userId || ''])}</span>
-            </div>
-          </Card>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            {isChess && <ChessStatus status={chessStatus} />}
+            {isLudo && gameStatus === 'playing' && (
+              <Badge variant="purple" className="gap-1.5">
+                <Swords className="w-3 h-3" />
+                {isMyTurn ? 'Your turn' : 'Live'}
+              </Badge>
+            )}
+            <Badge variant="purple">{spectators.length} watching</Badge>
+          </div>
         </div>
 
-        {/* Game Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
-          <Card className="flex items-center justify-center min-h-[400px]">
-            {renderBoard()}
-          </Card>
-
-          {/* Side Panel */}
-          <div className="space-y-4">
-            <Card>
-              <div className="flex flex-col gap-2">
-                <Button
-                  variant="danger"
-                  size="sm"
-                  leftIcon={<Flag className="w-4 h-4" />}
-                  className="w-full"
-                  onClick={handleSurrender}
-                  disabled={gameStatus !== 'playing'}
-                >
-                  Surrender
-                </Button>
-                <Button variant="outline" size="sm" leftIcon={<RotateCcw className="w-4 h-4" />} className="w-full" disabled={gameStatus !== 'playing'}>
-                  Offer Draw
-                </Button>
+        {isChess ? (
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
+            <div className="space-y-2">
+              <PlayerPanel
+                username={me?.username || user?.username || 'You'}
+                elo={me?.elo || user?.elo || 1000}
+                timeLeft={myTime}
+                isActive={isMyTurn}
+                side="left"
+              />
+              <ChessCaptured
+                board={gameState?.board}
+                color={opponentColor}
+                label="Captured"
+              />
+            </div>
+            <div className="hidden md:flex items-center justify-center px-2">
+              <div className="w-12 h-12 rounded-2xl chess-glass border border-theme flex items-center justify-center">
+                <span className="text-xs font-bold text-theme-primary tracking-wider">VS</span>
               </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center gap-2 mb-2">
-                <Eye className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-400">{spectators.length} Spectator{spectators.length !== 1 ? 's' : ''}</span>
-              </div>
-            </Card>
-
-            <Card className="flex flex-col h-64">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> Chat
-                </span>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-2 mb-2">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className="text-xs">
-                    <span className="font-medium text-primary-400">{msg.user}: </span>
-                    <span className="text-gray-300">{msg.text}</span>
-                  </div>
-                ))}
-                {chatMessages.length === 0 && (
-                  <p className="text-xs text-gray-500 text-center mt-4">No messages yet</p>
+            </div>
+            <div className="space-y-2">
+              <PlayerPanel
+                username={opponent?.username || 'Waiting...'}
+                elo={opponent?.elo ?? '---'}
+                timeLeft={opponentTime}
+                isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
+                side="right"
+              />
+              <ChessCaptured
+                board={gameState?.board}
+                color={myColor}
+                label="Captured"
+              />
+            </div>
+          </div>
+        ) : isTtt ? (
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
+            <PlayerPanel
+              username={me?.username || user?.username || 'You'}
+              avatar={me?.avatar || user?.avatar}
+              elo={me?.elo || user?.elo || 1000}
+              timeLeft={myTime}
+              isActive={isMyTurn}
+              side="left"
+              premium
+              showTurnBadge
+              winStreak={user?.winStreak}
+            />
+            <div className="flex items-center justify-center px-2 py-1">
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+                className="relative w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white"
+                style={{
+                  background:
+                    'linear-gradient(135deg, #a855f7 0%, #7c3aed 45%, #3b82f6 100%)',
+                  boxShadow:
+                    '0 12px 28px -8px rgba(124,58,237,0.55), inset 0 1px 0 rgba(255,255,255,0.35)',
+                }}
+                aria-label="Versus"
+              >
+                <span className="text-[10px] font-bold tracking-[0.22em]">VS</span>
+                {(myMark || opponentMark) && (
+                  <span className="text-[9px] font-display opacity-90">
+                    {myMark || 'X'} · {opponentMark || 'O'}
+                  </span>
                 )}
-                <div ref={chatEndRef} />
+              </motion.div>
+            </div>
+            <PlayerPanel
+              username={opponent?.username || 'Waiting...'}
+              avatar={opponent?.avatar}
+              elo={opponent?.elo ?? '---'}
+              timeLeft={opponentTime}
+              isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
+              side="right"
+              premium
+            />
+          </div>
+        ) : isLudo ? (
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
+            <PlayerPanel
+              username={me?.username || user?.username || 'You'}
+              avatar={me?.avatar || user?.avatar}
+              elo={me?.elo || user?.elo || 1000}
+              timeLeft={myTime}
+              isActive={isMyTurn}
+              side="left"
+              premium
+              showTurnBadge
+              winStreak={user?.winStreak}
+            />
+            <div className="flex items-center justify-center px-2 py-1">
+              <motion.div
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                className="ludo-vs-badge w-14 h-14 rounded-full flex flex-col items-center justify-center text-white"
+                aria-label="Versus"
+              >
+                <span className="text-[10px] font-bold tracking-[0.2em]">VS</span>
+                <span className="text-[9px] opacity-80 capitalize">{gameStatus === 'playing' ? 'live' : gameStatus}</span>
+              </motion.div>
+            </div>
+            <PlayerPanel
+              username={opponent?.username || 'Waiting...'}
+              avatar={opponent?.avatar}
+              elo={opponent?.elo ?? '---'}
+              timeLeft={opponentTime}
+              isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
+              side="right"
+              premium
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
+            <PlayerBar
+              username={me?.username || user?.username || 'You'}
+              elo={me?.elo || user?.elo || 1000}
+              timeLeft={formatTime(gameState?.timeLeft?.[myId])}
+              isActive={isMyTurn}
+              align="left"
+            />
+            <div className="hidden md:flex items-center justify-center px-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow-purple">
+                <span className="text-xs font-bold text-theme-primary tracking-wider">VS</span>
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-surface-light border border-surface-lighter rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-                <Button size="sm" onClick={handleSendChat}>Send</Button>
+            </div>
+            <PlayerBar
+              username={opponent?.username || 'Waiting...'}
+              elo={opponent?.elo ?? '---'}
+              timeLeft={formatTime(gameState?.timeLeft?.[toId(opponent?.userId)])}
+              isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
+              align="right"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(240px,280px)] gap-4 sm:gap-5">
+          {isChess ? (
+            <ChessArena>{renderBoard()}</ChessArena>
+          ) : isLudo ? (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="ludo-arena flex items-center justify-center min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] p-3 sm:p-6 md:p-8 overflow-x-auto"
+            >
+              {renderBoard()}
+            </motion.div>
+          ) : isTtt ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className={cn(
+                'ttt-scene relative flex items-center justify-center overflow-hidden',
+                'min-h-[420px] sm:min-h-[520px] lg:min-h-[600px]',
+                'px-4 py-8 sm:p-10 md:p-14',
+                isMyTurn && gameStatus === 'playing' && 'ttt-scene-active',
+              )}
+            >
+              <div className="ttt-orb ttt-orb-1" aria-hidden />
+              <div className="ttt-orb ttt-orb-2" aria-hidden />
+              <div className="ttt-orb ttt-orb-3" aria-hidden />
+              <div className="ttt-particles" aria-hidden>
+                <span className="ttt-particle" style={{ left: '12%', bottom: '-6px', animationDelay: '0s' }} />
+                <span className="ttt-particle" style={{ left: '28%', bottom: '-6px', animationDelay: '2.4s' }} />
+                <span className="ttt-particle" style={{ left: '46%', bottom: '-6px', animationDelay: '4.1s' }} />
+                <span className="ttt-particle" style={{ left: '62%', bottom: '-6px', animationDelay: '6.8s' }} />
+                <span className="ttt-particle" style={{ left: '78%', bottom: '-6px', animationDelay: '1.6s' }} />
+                <span className="ttt-particle" style={{ left: '90%', bottom: '-6px', animationDelay: '9.2s' }} />
               </div>
-            </Card>
+              <div className="relative z-[1] w-full flex items-center justify-center">
+                {renderBoard()}
+              </div>
+            </motion.div>
+          ) : (
+            <div
+              className={cn(
+                'game-arena flex items-center justify-center min-h-[280px] sm:min-h-[360px] lg:min-h-[420px] p-3 sm:p-6 md:p-10 overflow-x-auto',
+                slug === 'connect-four' && 'c4-arena'
+              )}
+            >
+              {renderBoard()}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {actionsPanel}
+
+            {isChess && <MoveHistory moves={moveHistory} />}
+
+            {isLudo ? (
+              <SpectatorBar
+                spectators={spectators.map((id) => ({
+                  id,
+                  username: `Viewer ${id.slice(-4)}`,
+                }))}
+              />
+            ) : (
+              <div className={cn(isChess ? 'chess-glass rounded-xl border border-theme' : 'game-panel', 'p-4')}>
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-theme-muted" />
+                  <span className="text-sm text-theme-muted">
+                    {spectators.length} Spectator{spectators.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {chatPanel}
           </div>
         </div>
 
@@ -270,7 +925,10 @@ export default function PlayPage() {
           isOpen={gameStatus === 'finished'}
           winner={gameState?.winner || null}
           currentUser={user?.id || ''}
+          username={user?.username}
           eloChange={eloChange}
+          xpGained={rewards?.xp}
+          coinsEarned={rewards?.coins}
           onPlayAgain={() => startMatchmaking(slug)}
           onClose={() => {}}
         />

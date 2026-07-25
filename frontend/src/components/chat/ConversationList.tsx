@@ -34,15 +34,15 @@ export function ConversationList({ conversations, activeId, onSelect }: Conversa
             />
             <div className="flex-1 min-w-0 text-left">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white truncate">{displayName}</span>
+                <span className="text-sm font-medium text-theme-primary truncate">{displayName}</span>
                 {conv.lastMessage && (
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-[10px] text-theme-muted">
                     {formatRelativeTime(conv.lastMessage.createdAt)}
                   </span>
                 )}
               </div>
               {conv.lastMessage && (
-                <p className="text-xs text-gray-400 truncate">
+                <p className="text-xs text-theme-muted truncate">
                   {truncate(conv.lastMessage.content, 40)}
                 </p>
               )}

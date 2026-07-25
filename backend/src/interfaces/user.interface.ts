@@ -5,6 +5,19 @@ export interface IFriendRequest {
   status: 'pending' | 'accepted' | 'rejected';
 }
 
+export interface IInventoryEntry {
+  itemId: string;
+  purchasedAt: Date;
+  equipped: boolean;
+}
+
+export interface IEquippedItems {
+  avatar?: string;
+  theme?: string;
+  frame?: string;
+  badge?: string;
+}
+
 export interface IUser {
   _id: string;
   username: string;
@@ -19,13 +32,23 @@ export interface IUser {
   elo: number;
   xp: number;
   level: number;
+  coins: number;
   wins: number;
   losses: number;
   draws: number;
   gamesPlayed: number;
+  winStreak: number;
+  bestWinStreak: number;
   friends: string[];
   friendRequests: IFriendRequest[];
   achievements: string[];
+  inventory: IInventoryEntry[];
+  equipped: IEquippedItems;
+  referralCode: string;
+  referredBy?: string;
+  referralCount: number;
+  loginStreak: number;
+  lastLoginRewardAt?: Date;
   lastSeen: Date;
   refreshToken: string;
   verificationToken: string;

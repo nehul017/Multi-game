@@ -29,12 +29,15 @@ export const setupChatNamespace = (io: Server): void => {
         const message = await chatService.sendMessage(socket.user._id.toString(), data);
 
         const populated = await message.populate('sender', 'username avatar');
+        const payload = populated.toObject ? populated.toObject() : populated;
 
         if (data.room) {
-          chatNs.to(data.room).emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, populated);
+          // Ensure sender is in the room so they (and any late joiners) receive broadcasts
+          socket.join(data.room);
+          chatNs.to(data.room).emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, payload);
         } else if (data.receiver) {
-          socket.emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, populated);
-          chatNs.to(`user:${data.receiver}`).emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, populated);
+          socket.emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, payload);
+          chatNs.to(`user:${data.receiver}`).emit(SOCKET_EVENTS.CHAT.NEW_MESSAGE, payload);
         }
       } catch (error) {
         socket.emit('error', { message: 'Failed to send message' });

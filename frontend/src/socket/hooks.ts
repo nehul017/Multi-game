@@ -5,17 +5,18 @@ import { useSocketStore } from '@/store/socket.store';
 import { useGameStore } from '@/store/game.store';
 import { useChatStore } from '@/store/chat.store';
 import { useNotificationStore } from '@/store/notification.store';
+import { useUIStore } from '@/store/ui.store';
 import { SOCKET_EVENTS } from '@/constants/socket';
 import { GameState, Message, Notification, Move, RoomPlayer } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
+import { toId } from '@/lib/id';
 
-function toId(value: unknown): string {
-  if (value == null) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object' && value !== null && '_id' in value) {
-    return String((value as { _id: unknown })._id);
-  }
-  return String(value);
+const DEFAULT_GAME_TIME_SECONDS = 300;
+
+function buildInitialTimeLeft(players: RoomPlayer[]): Record<string, number> {
+  return Object.fromEntries(
+    players.map((player) => [toId(player.userId), DEFAULT_GAME_TIME_SECONDS])
+  );
 }
 
 function createInitialGameState(): GameState {
@@ -25,6 +26,53 @@ function createInitialGameState(): GameState {
     status: 'waiting',
     moveCount: 0,
     timeLeft: {},
+  };
+}
+
+/** Deep-clone server board so React always receives a new immutable tree */
+function cloneBoard(board: unknown): unknown {
+  if (board == null) return board;
+  try {
+    return JSON.parse(JSON.stringify(board));
+  } catch {
+    return board;
+  }
+}
+
+function serverMoveCount(gameState: Record<string, unknown> | undefined, fallback: number): number {
+  if (!gameState) return fallback;
+  if (typeof gameState.moveCount === 'number') return gameState.moveCount;
+  if (Array.isArray(gameState.moveHistory)) return gameState.moveHistory.length;
+  return fallback;
+}
+
+/** Replace local game state with authoritative server snapshot (no in-place mutation) */
+function applyServerGameState(
+  prev: GameState,
+  serverState: Record<string, unknown>,
+  extras: Partial<GameState> = {}
+): GameState {
+  const serverTurn = (serverState.currentPlayer || serverState.currentTurn) as string | undefined;
+  const moveCount = serverMoveCount(
+    serverState,
+    typeof extras.moveCount === 'number' ? extras.moveCount : prev.moveCount || 0
+  );
+
+  return {
+    ...createInitialGameState(),
+    ...prev,
+    ...serverState,
+    ...extras,
+    board: serverState.board !== undefined ? cloneBoard(serverState.board) : cloneBoard(prev.board),
+    currentTurn: serverTurn ? toId(serverTurn) : extras.currentTurn || prev.currentTurn,
+    status: (extras.status || (serverState.status as GameState['status']) || prev.status || 'playing') as GameState['status'],
+    winner: serverState.winner
+      ? toId(serverState.winner)
+      : extras.winner !== undefined
+        ? extras.winner
+        : prev.winner,
+    moveCount,
+    timeLeft: extras.timeLeft || prev.timeLeft || {},
   };
 }
 
@@ -49,7 +97,8 @@ function applyTicTacToeMove(
   const nextBoard = [...board];
   if (nextBoard[index] != null) return null;
 
-  const playerIndex = players.findIndex((player) => player.userId === playerId);
+  const normalizedPlayerId = toId(playerId);
+  const playerIndex = players.findIndex((player) => toId(player.userId) === normalizedPlayerId);
   if (playerIndex < 0) return null;
 
   nextBoard[index] = playerIndex === 0 ? 'X' : 'O';
@@ -120,7 +169,7 @@ export function useGameSocket() {
       }
       if (user) {
         setPlayers([{
-          userId: user.id,
+          userId: toId(user.id),
           username: user.username,
           avatar: user.avatar,
           elo: user.elo,
@@ -177,6 +226,7 @@ export function useGameSocket() {
           isReady: player.isReady ?? false,
         })) || useGameStore.getState().players;
 
+      const moveCount = payload.moves?.length || 0;
       const replayedBoard = buildBoardFromMoves(
         payload.gameType,
         playersForBoard,
@@ -185,11 +235,29 @@ export function useGameSocket() {
 
       const gameStatus =
         payload.status === 'playing' ? 'playing' : payload.status === 'finished' ? 'finished' : 'waiting';
+      const currentTurn =
+        (payload.gameState?.currentTurn as string | undefined) ||
+        (playersForBoard.length >= 2 ? playersForBoard[moveCount % 2]?.userId : '') ||
+        '';
+
+      const serverTimeLeft = payload.gameState?.timeLeft as Record<string, number> | undefined;
+      const timeLeft =
+        serverTimeLeft && Object.keys(serverTimeLeft).length > 0
+          ? serverTimeLeft
+          : gameStatus === 'playing'
+            ? buildInitialTimeLeft(playersForBoard)
+            : {};
+
+      const serverBoard = payload.gameState?.board;
+      const authoritativeMoveCount = serverMoveCount(payload.gameState, moveCount);
       setGameState({
         ...createInitialGameState(),
         status: gameStatus,
         ...(payload.gameState || {}),
-        ...(replayedBoard ? { board: replayedBoard, moveCount: payload.moves?.length || 0 } : {}),
+        board: cloneBoard(serverBoard ?? replayedBoard ?? createInitialGameState().board),
+        moveCount: authoritativeMoveCount,
+        currentTurn: currentTurn ? toId(currentTurn) : '',
+        timeLeft,
       });
       setIsPlaying(gameStatus === 'playing');
 
@@ -226,36 +294,62 @@ export function useGameSocket() {
     };
 
     const handleMoveMade = (move: unknown) => {
-      const m = move as { playerId: unknown; data: { position?: unknown }; timestamp: Date | string };
-      const playerId = toId(m.playerId);
-      addMove({
-        id: `${Date.now()}`,
-        playerId,
-        position: m.data?.position as string | number | number[],
-        timestamp: typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString(),
-      });
+      const m = move as {
+        playerId: unknown;
+        data: Record<string, unknown>;
+        gameState?: Record<string, unknown>;
+        timestamp: Date | string;
+      };
+      const playerId = m.playerId ? toId(m.playerId) : '';
+      if (playerId) {
+        addMove({
+          id: `${Date.now()}-${playerId}-${Math.random().toString(36).slice(2, 7)}`,
+          playerId,
+          position: (m.data?.position ?? m.data) as string | number | number[],
+          timestamp: typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString(),
+        });
+      }
 
       const { gameState, players } = useGameStore.getState();
-      const currentBoard = (gameState?.board as unknown[]) || Array(9).fill(null);
-      const updatedBoard = applyTicTacToeMove(
-        currentBoard,
-        players,
-        playerId,
-        m.data?.position
-      );
+      const prev = gameState || createInitialGameState();
 
+      if (m.gameState) {
+        const incomingCount = serverMoveCount(
+          m.gameState,
+          (prev.moveCount || 0) + (playerId ? 1 : 0)
+        );
+        // Drop stale snapshots so older packets cannot overwrite newer board state
+        if ((prev.moveCount || 0) > incomingCount) {
+          return;
+        }
+
+        setGameState(
+          applyServerGameState(prev, m.gameState, {
+            moveCount: incomingCount,
+            status: (m.gameState.status as GameState['status']) || 'playing',
+            timeLeft: prev.timeLeft,
+          })
+        );
+        setIsPlaying(true);
+        return;
+      }
+
+      // Fallback client apply for tic-tac-toe when server state missing
+      const position = m.data?.position ?? m.data;
+      const currentBoard = (prev.board as unknown[]) || Array(9).fill(null);
+      const updatedBoard = applyTicTacToeMove(currentBoard, players, playerId, position);
       if (!updatedBoard) return;
 
-      const nextPlayerIndex = players.findIndex((player) => player.userId === playerId);
+      const newMoveCount = (prev.moveCount || 0) + 1;
       const nextTurnPlayer =
-        players.length >= 2 ? players[(nextPlayerIndex + 1) % players.length]?.userId : playerId;
+        players.length >= 2 ? toId(players[newMoveCount % 2]?.userId) : playerId;
 
       setGameState({
-        ...(gameState || createInitialGameState()),
+        ...prev,
         board: updatedBoard,
-        status: gameState?.status === 'waiting' ? 'playing' : (gameState?.status || 'playing'),
-        currentTurn: nextTurnPlayer || playerId,
-        moveCount: (gameState?.moveCount || 0) + 1,
+        status: prev.status === 'waiting' ? 'playing' : prev.status || 'playing',
+        currentTurn: nextTurnPlayer,
+        moveCount: newMoveCount,
       });
       setIsPlaying(true);
     };
@@ -263,29 +357,70 @@ export function useGameSocket() {
     const handleCountdown = (data: unknown) => {
       const { count } = data as { count: number };
       setCountdown(count);
+      const prev = useGameStore.getState().gameState || createInitialGameState();
       setGameState({
-        ...createInitialGameState(),
+        ...prev,
         status: 'countdown',
       });
     };
 
-    const handleGameStart = () => {
+    const handleGameStart = (data: unknown) => {
       setIsPlaying(true);
       setCountdown(null);
-      setGameState({
-        ...createInitialGameState(),
-        status: 'playing',
-        currentTurn: useGameStore.getState().players[0]?.userId || user?.id || '',
-      });
+      const payload = (data || {}) as { gameState?: Record<string, unknown>; players?: string[] };
+      const { players } = useGameStore.getState();
+      const serverState = payload.gameState || {};
+      const currentTurn = toId(
+        (serverState.currentPlayer as string) ||
+          (serverState.currentTurn as string) ||
+          players[0]?.userId ||
+          user?.id ||
+          ''
+      );
+
+      setGameState(
+        applyServerGameState(createInitialGameState(), serverState, {
+          status: 'playing',
+          currentTurn,
+          timeLeft: buildInitialTimeLeft(players),
+          moveCount: serverMoveCount(serverState, 0),
+        })
+      );
     };
 
     const handleGameOver = (data: unknown) => {
-      const { winner, reason } = data as { winner: unknown; reason: string };
+      const { winner, reason, rewards, gameState } = data as {
+        winner: unknown;
+        reason: string;
+        rewards?: Array<{
+          userId: string;
+          result: string;
+          coins: number;
+          xp: number;
+          eloChange: number;
+          balance: number;
+        }>;
+        gameState?: Record<string, unknown>;
+      };
+      const prev = useGameStore.getState().gameState || createInitialGameState();
+      const myId = toId(useAuthStore.getState().user?.id);
+      const myReward = rewards?.find((r) => toId(r.userId) === myId);
+
       setGameState({
-        ...(useGameStore.getState().gameState || createInitialGameState()),
-        status: 'finished',
-        winner: winner ? toId(winner) : undefined,
-      });
+        ...applyServerGameState(prev, gameState || {}, {
+          status: 'finished',
+          winner: winner ? toId(winner) : undefined,
+          timeLeft: prev.timeLeft,
+        }),
+        rewards: myReward
+          ? {
+              coins: myReward.coins,
+              xp: myReward.xp,
+              eloChange: myReward.eloChange,
+              balance: myReward.balance,
+            }
+          : undefined,
+      } as GameState);
       setIsPlaying(false);
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('activeGameRoom');
@@ -296,6 +431,21 @@ export function useGameSocket() {
     const handleSpectatorJoin = (data: unknown) => {
       const { userId } = data as { userId: unknown };
       addSpectator(toId(userId));
+    };
+
+    const handleDrawOffered = (data: unknown) => {
+      const { offeredBy, username } = data as { offeredBy: unknown; username: string };
+      if (toId(offeredBy) === toId(useAuthStore.getState().user?.id)) return;
+      useGameStore.setState((state) => ({
+        gameState: state.gameState
+          ? { ...state.gameState, metadata: { ...(state.gameState.metadata || {}), drawOffered: true, offeredBy: toId(offeredBy) } }
+          : state.gameState,
+      }));
+      if (typeof window !== 'undefined') {
+        import('react-hot-toast').then(({ default: toast }) => {
+          toast(`${username} offered a draw`, { icon: '🤝' });
+        });
+      }
     };
 
     const handleError = (data: unknown) => {
@@ -313,6 +463,7 @@ export function useGameSocket() {
     gameOn(SOCKET_EVENTS.GAME.GAME_START, handleGameStart);
     gameOn(SOCKET_EVENTS.GAME.GAME_OVER, handleGameOver);
     gameOn(SOCKET_EVENTS.GAME.SPECTATOR_JOINED, handleSpectatorJoin);
+    gameOn(SOCKET_EVENTS.GAME.DRAW_OFFERED, handleDrawOffered);
     gameOn('error', handleError);
 
     return () => {
@@ -326,6 +477,7 @@ export function useGameSocket() {
       gameOff(SOCKET_EVENTS.GAME.GAME_START, handleGameStart);
       gameOff(SOCKET_EVENTS.GAME.GAME_OVER, handleGameOver);
       gameOff(SOCKET_EVENTS.GAME.SPECTATOR_JOINED, handleSpectatorJoin);
+      gameOff(SOCKET_EVENTS.GAME.DRAW_OFFERED, handleDrawOffered);
       gameOff('error', handleError);
     };
   }, [
@@ -360,12 +512,28 @@ export function useGameSocket() {
   );
 
   const makeMove = useCallback(
-    (move: { position: unknown; roomId: string }) =>
+    (move: { roomId: string; action?: string; moveData: Record<string, unknown> }) =>
       gameEmit(SOCKET_EVENTS.GAME.MAKE_MOVE, {
         roomId: move.roomId,
-        action: 'place',
-        moveData: { position: move.position },
+        action: move.action || 'move',
+        moveData: move.moveData,
       }),
+    [gameEmit]
+  );
+
+  const offerDraw = useCallback(
+    (roomId: string) => gameEmit(SOCKET_EVENTS.GAME.OFFER_DRAW, { roomId }),
+    [gameEmit]
+  );
+
+  const acceptDraw = useCallback(
+    (roomId: string) => gameEmit(SOCKET_EVENTS.GAME.ACCEPT_DRAW, { roomId }),
+    [gameEmit]
+  );
+
+  const inviteFriend = useCallback(
+    (friendId: string, roomId: string, gameType: string) =>
+      gameEmit('game:inviteFriend', { friendId, roomId, gameType }),
     [gameEmit]
   );
 
@@ -403,7 +571,70 @@ export function useGameSocket() {
     [gameEmit, resetGame]
   );
 
-  return { joinRoom, leaveRoom, makeMove, ready, surrender, startMatchmaking, cancelMatchmaking, isGameConnected };
+  return {
+    joinRoom,
+    leaveRoom,
+    makeMove,
+    ready,
+    surrender,
+    offerDraw,
+    acceptDraw,
+    inviteFriend,
+    startMatchmaking,
+    cancelMatchmaking,
+    isGameConnected,
+  };
+}
+
+export function useGameTimer() {
+  const gameState = useGameStore((s) => s.gameState);
+  const players = useGameStore((s) => s.players);
+
+  useEffect(() => {
+    if (gameState?.status !== 'playing' || players.length < 2) return;
+    if (Object.keys(gameState.timeLeft || {}).length > 0) return;
+
+    // Patch only timeLeft using latest store state to avoid clobbering board updates
+    useGameStore.setState((s) => {
+      if (!s.gameState || s.gameState.status !== 'playing') return s;
+      if (Object.keys(s.gameState.timeLeft || {}).length > 0) return s;
+      return {
+        gameState: {
+          ...s.gameState,
+          timeLeft: buildInitialTimeLeft(s.players),
+        },
+      };
+    });
+  }, [gameState?.status, gameState?.timeLeft, players.length]);
+
+  useEffect(() => {
+    if (gameState?.status !== 'playing' || !gameState.currentTurn) return;
+
+    const interval = setInterval(() => {
+      // Functional update: always derive from latest state so a tick never
+      // overwrites a newer board/token snapshot from MOVE_MADE
+      useGameStore.setState((s) => {
+        const state = s.gameState;
+        if (!state || state.status !== 'playing' || !state.currentTurn) return s;
+
+        const activeId = toId(state.currentTurn);
+        const current = state.timeLeft?.[activeId];
+        if (current == null || current <= 0) return s;
+
+        return {
+          gameState: {
+            ...state,
+            timeLeft: {
+              ...state.timeLeft,
+              [activeId]: current - 1,
+            },
+          },
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState?.status, gameState?.currentTurn]);
 }
 
 export function useChatSocket() {
@@ -455,24 +686,71 @@ export function useChatSocket() {
     [chatEmit]
   );
 
-  return { sendMessage, startTyping, stopTyping, joinChatRoom };
+  const leaveChatRoom = useCallback(
+    (roomId: string) => chatEmit(SOCKET_EVENTS.CHAT.LEAVE_ROOM, roomId),
+    [chatEmit]
+  );
+
+  return { sendMessage, startTyping, stopTyping, joinChatRoom, leaveChatRoom };
 }
 
 export function useNotificationSocket() {
-  const { notificationOn, notificationOff } = useSocketStore();
-  const { addNotification } = useNotificationStore();
+  const { notificationOn, notificationOff, notificationEmit, notificationSocket } = useSocketStore();
+  const { addNotification, setUnreadCount } = useNotificationStore();
+  const setMaintenanceMode = useUIStore((state) => state.setMaintenanceMode);
 
   useEffect(() => {
     const handleNotification = (notification: unknown) => {
       addNotification(notification as Notification);
     };
 
+    const handleUnreadCount = (payload: unknown) => {
+      const count = (payload as { count?: number } | undefined)?.count;
+      if (typeof count === 'number') {
+        setUnreadCount(count);
+      }
+    };
+
+    const handlePlatformStatus = (payload: unknown) => {
+      const maintenanceMode = (payload as { maintenanceMode?: boolean } | undefined)?.maintenanceMode;
+      if (typeof maintenanceMode === 'boolean') {
+        setMaintenanceMode(maintenanceMode);
+      }
+    };
+
     notificationOn(SOCKET_EVENTS.NOTIFICATION.NEW, handleNotification);
+    notificationOn(SOCKET_EVENTS.NOTIFICATION.UNREAD_COUNT, handleUnreadCount);
+    notificationOn(SOCKET_EVENTS.PLATFORM.STATUS, handlePlatformStatus);
+    notificationEmit(SOCKET_EVENTS.NOTIFICATION.SUBSCRIBE);
+    notificationEmit(SOCKET_EVENTS.PLATFORM.SUBSCRIBE);
 
     return () => {
       notificationOff(SOCKET_EVENTS.NOTIFICATION.NEW, handleNotification);
+      notificationOff(SOCKET_EVENTS.NOTIFICATION.UNREAD_COUNT, handleUnreadCount);
+      notificationOff(SOCKET_EVENTS.PLATFORM.STATUS, handlePlatformStatus);
     };
-  }, [notificationOn, notificationOff, addNotification]);
+  }, [
+    notificationOn,
+    notificationOff,
+    notificationEmit,
+    addNotification,
+    setUnreadCount,
+    setMaintenanceMode,
+  ]);
+
+  useEffect(() => {
+    if (!notificationSocket) return;
+
+    const resubscribe = () => {
+      notificationEmit(SOCKET_EVENTS.NOTIFICATION.SUBSCRIBE);
+      notificationEmit(SOCKET_EVENTS.PLATFORM.SUBSCRIBE);
+    };
+
+    notificationSocket.on('connect', resubscribe);
+    return () => {
+      notificationSocket.off('connect', resubscribe);
+    };
+  }, [notificationSocket, notificationEmit]);
 }
 
 export function usePresence() {

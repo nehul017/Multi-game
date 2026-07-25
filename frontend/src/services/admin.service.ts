@@ -1,5 +1,17 @@
 import api from '@/lib/api';
-import { ApiResponse, AdminStats, ServerHealth, User, Game, Tournament, PaginatedResponse } from '@/types';
+import {
+  ApiResponse,
+  AdminStats,
+  ServerHealth,
+  User,
+  Game,
+  Tournament,
+  PaginatedResponse,
+  EconomyPage,
+  StoreItem,
+  CoinPack,
+  AdminMission,
+} from '@/types';
 
 export const adminService = {
   getDashboard: async (): Promise<ApiResponse<AdminStats>> => {
@@ -108,6 +120,79 @@ export const adminService = {
 
   updateSettings: async (settings: Record<string, unknown>): Promise<ApiResponse<{ message: string }>> => {
     const { data } = await api.put('/admin/settings', settings);
+    return data;
+  },
+
+  // Economy — coins
+  adjustUserCoins: async (
+    userId: string,
+    amount: number,
+    reason: string
+  ): Promise<ApiResponse<{ coins: number; transactionId: string }>> => {
+    const { data } = await api.post(`/admin/users/${userId}/coins`, { amount, reason });
+    return data;
+  },
+
+  // Economy — store items
+  getStoreItemsAdmin: async (page = 1, limit = 50): Promise<ApiResponse<EconomyPage<StoreItem>>> => {
+    const { data } = await api.get(`/admin/store/items?page=${page}&limit=${limit}`);
+    return data;
+  },
+
+  createStoreItem: async (payload: Partial<StoreItem>): Promise<ApiResponse<StoreItem>> => {
+    const { data } = await api.post('/admin/store/items', payload);
+    return data;
+  },
+
+  updateStoreItem: async (id: string, payload: Partial<StoreItem>): Promise<ApiResponse<StoreItem>> => {
+    const { data } = await api.put(`/admin/store/items/${id}`, payload);
+    return data;
+  },
+
+  deleteStoreItem: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+    const { data } = await api.delete(`/admin/store/items/${id}`);
+    return data;
+  },
+
+  // Economy — coin packs
+  getCoinPacksAdmin: async (): Promise<ApiResponse<EconomyPage<CoinPack>>> => {
+    const { data } = await api.get('/admin/store/packs');
+    return data;
+  },
+
+  createCoinPack: async (payload: Partial<CoinPack>): Promise<ApiResponse<CoinPack>> => {
+    const { data } = await api.post('/admin/store/packs', payload);
+    return data;
+  },
+
+  updateCoinPack: async (id: string, payload: Partial<CoinPack>): Promise<ApiResponse<CoinPack>> => {
+    const { data } = await api.put(`/admin/store/packs/${id}`, payload);
+    return data;
+  },
+
+  deleteCoinPack: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+    const { data } = await api.delete(`/admin/store/packs/${id}`);
+    return data;
+  },
+
+  // Economy — missions
+  getMissionsAdmin: async (): Promise<ApiResponse<EconomyPage<AdminMission>>> => {
+    const { data } = await api.get('/admin/missions');
+    return data;
+  },
+
+  createMission: async (payload: Partial<AdminMission>): Promise<ApiResponse<AdminMission>> => {
+    const { data } = await api.post('/admin/missions', payload);
+    return data;
+  },
+
+  updateMission: async (id: string, payload: Partial<AdminMission>): Promise<ApiResponse<AdminMission>> => {
+    const { data } = await api.put(`/admin/missions/${id}`, payload);
+    return data;
+  },
+
+  deleteMission: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+    const { data } = await api.delete(`/admin/missions/${id}`);
     return data;
   },
 };

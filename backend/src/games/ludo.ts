@@ -20,14 +20,19 @@ interface LudoPlayer {
 const BOARD_SIZE = 52;
 const HOME_STRETCH_LENGTH = 6;
 const SAFE_POSITIONS = [0, 8, 13, 21, 26, 34, 39, 47];
+// Color order matches yard layout: red BL, blue TL, green TR, yellow BR
 const COLORS = ['red', 'blue', 'green', 'yellow'];
-const START_POSITIONS = [0, 13, 26, 39];
+// Track indices for official clockwise starts (see frontend TRACK):
+// blue=0 left [6,1], green=13 top [1,8], yellow=26 right [8,13], red=39 bottom [13,6]
+const START_POSITIONS = [39, 0, 13, 26];
 
 export class Ludo extends GameEngine {
   private ludoPlayers: LudoPlayer[];
   private lastDiceRoll: number = 0;
   private hasRolled: boolean = false;
   private extraTurn: boolean = false;
+  // Track consecutive sixes for the three-sixes rule
+  private consecutiveSixes: number = 0;
 
   constructor(players: string[]) {
     super(players.slice(0, 4));
@@ -54,10 +59,19 @@ export class Ludo extends GameEngine {
       boardSize: BOARD_SIZE,
       safePositions: SAFE_POSITIONS,
       lastDice: 0,
+      hasRolled: false,
     };
     this.state.status = 'playing';
     this.state.currentPlayer = this.state.players[0];
     this.hasRolled = false;
+    this.consecutiveSixes = 0;
+  }
+
+  /** Keep dice/turn flags on board so all clients stay in sync */
+  private syncBoardMeta(): void {
+    const board = this.state.board as Record<string, unknown>;
+    board.lastDice = this.lastDiceRoll;
+    board.hasRolled = this.hasRolled;
   }
 
   validateMove(player: string, move: Record<string, unknown>): boolean {
@@ -100,13 +114,35 @@ export class Ludo extends GameEngine {
     const action = move.action as string;
 
     if (action === 'roll') {
-      this.lastDiceRoll = Math.floor(Math.random() * 6) + 1;
+      // `_forcedDice` is server-only (stripped from client payloads) for reconnect replay
+      const forced = move._forcedDice;
+      this.lastDiceRoll =
+        typeof forced === 'number' && forced >= 1 && forced <= 6
+          ? Math.floor(forced)
+          : Math.floor(Math.random() * 6) + 1;
       this.hasRolled = true;
-      this.extraTurn = this.lastDiceRoll === 6;
+
+      // Three Sixes Rule: track consecutive 6s
+      if (this.lastDiceRoll === 6) {
+        this.consecutiveSixes++;
+        if (this.consecutiveSixes >= 3) {
+          // Third consecutive 6 — turn ends immediately, no movement allowed
+          this.addMoveToHistory(player, 'roll', { dice: this.lastDiceRoll, voided: true });
+          this.hasRolled = false;
+          this.extraTurn = false;
+          this.consecutiveSixes = 0;
+          this.switchPlayer();
+          this.syncBoardMeta();
+          return true;
+        }
+        this.extraTurn = true;
+      } else {
+        // Non-six resets consecutive counter
+        this.consecutiveSixes = 0;
+        this.extraTurn = false;
+      }
 
       this.addMoveToHistory(player, 'roll', { dice: this.lastDiceRoll });
-
-      (this.state.board as Record<string, unknown>).lastDice = this.lastDiceRoll;
 
       const ludoPlayer = this.ludoPlayers.find((p) => p.playerId === player)!;
       const canMove = ludoPlayer.tokens.some((t) => {
@@ -117,10 +153,14 @@ export class Ludo extends GameEngine {
 
       if (!canMove) {
         this.hasRolled = false;
-        this.extraTurn = false;
-        this.switchPlayer();
+        if (!this.extraTurn) {
+          this.consecutiveSixes = 0;
+          this.switchPlayer();
+        }
+        // If extraTurn (rolled 6 but can't move), player gets another roll
       }
 
+      this.syncBoardMeta();
       return true;
     }
 
@@ -128,22 +168,33 @@ export class Ludo extends GameEngine {
       const tokenId = move.tokenId as number;
       const ludoPlayer = this.ludoPlayers.find((p) => p.playerId === player)!;
       const token = ludoPlayer.tokens[tokenId];
+      let captured = false;
+      let finished = false;
 
       if (token.status === 'home') {
+        // Token enters the board at start position
         token.status = 'active';
         token.position = ludoPlayer.startPosition;
         token.stepsFromStart = 0;
+        // Rule: Capture opponent on start position (start is safe in standard rules,
+        // but entering specifically CAN displace in many digital implementations).
+        // Since start positions are in SAFE_POSITIONS, standard rules say no capture here.
+        // We still call checkCapture for correctness — it will respect safe positions.
+        captured = this.checkCapture(ludoPlayer, token);
       } else {
         token.stepsFromStart += this.lastDiceRoll;
 
         if (token.stepsFromStart >= BOARD_SIZE + HOME_STRETCH_LENGTH) {
+          // Token reaches HOME — exact count already validated
           token.status = 'finished';
           token.position = -1;
+          finished = true;
         } else if (token.stepsFromStart >= BOARD_SIZE) {
+          // Token is in home stretch (private path, no captures possible)
           token.position = -1;
         } else {
           token.position = (ludoPlayer.startPosition + token.stepsFromStart) % BOARD_SIZE;
-          this.checkCapture(ludoPlayer, token);
+          captured = this.checkCapture(ludoPlayer, token);
         }
       }
 
@@ -159,21 +210,30 @@ export class Ludo extends GameEngine {
       const winner = this.checkWin();
       if (winner) {
         this.endGame(winner);
+      } else if (captured || finished) {
+        // Extra turn: capture or finishing a token both grant another turn
+        this.extraTurn = false;
+        // Player keeps the turn (don't switch) — they must roll again
       } else if (this.extraTurn) {
+        // Extra turn from rolling 6: player rolls again
         this.extraTurn = false;
       } else {
+        // Normal end of turn
+        this.consecutiveSixes = 0;
         this.switchPlayer();
       }
 
+      this.syncBoardMeta();
       return true;
     }
 
     return false;
   }
 
-  private checkCapture(currentPlayer: LudoPlayer, movedToken: Token): void {
-    if (SAFE_POSITIONS.includes(movedToken.position)) return;
+  private checkCapture(currentPlayer: LudoPlayer, movedToken: Token): boolean {
+    if (SAFE_POSITIONS.includes(movedToken.position)) return false;
 
+    let captured = false;
     for (const otherPlayer of this.ludoPlayers) {
       if (otherPlayer.playerId === currentPlayer.playerId) continue;
 
@@ -182,10 +242,11 @@ export class Ludo extends GameEngine {
           otherToken.status = 'home';
           otherToken.position = -1;
           otherToken.stepsFromStart = 0;
-          this.extraTurn = true;
+          captured = true;
         }
       }
     }
+    return captured;
   }
 
   checkWin(): string | null {

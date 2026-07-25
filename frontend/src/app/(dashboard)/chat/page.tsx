@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Search, Smile, MessageSquare } from 'lucide-react';
+import { Send, Search, Smile, MessageSquare, ArrowLeft } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
@@ -97,20 +97,29 @@ export default function ChatPage() {
 
   return (
     <DashboardLayout>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-8rem)]">
-        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] h-full gap-4">
-          {/* Conversations List */}
-          <Card className="flex flex-col overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="h-[calc(100dvh-8rem)] min-h-[420px]"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(260px,320px)_1fr] h-full gap-4">
+          {/* Conversations List — hidden on mobile when a chat is open */}
+          <Card
+            className={cn(
+              'flex flex-col overflow-hidden min-h-0',
+              activeChat ? 'hidden md:flex' : 'flex'
+            )}
+          >
             <div className="p-4 border-b border-surface-lighter/30">
-              <h2 className="text-lg font-semibold text-white mb-3">Messages</h2>
+              <h2 className="text-lg font-semibold text-theme-primary mb-3">Messages</h2>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search conversations..."
-                  className="w-full bg-surface-light border border-surface-lighter rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full bg-surface-light border border-surface-lighter rounded-lg pl-9 pr-4 py-2 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-1 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -125,7 +134,7 @@ export default function ChatPage() {
                 </div>
               ))}
               {!convosLoading && filteredConversations.length === 0 && (
-                <div className="p-4 text-center text-sm text-gray-500">No conversations</div>
+                <div className="p-4 text-center text-sm text-theme-muted">No conversations</div>
               )}
               {!convosLoading && filteredConversations.map((conv) => {
                 const convId = conv._id || conv.id || '';
@@ -145,14 +154,14 @@ export default function ChatPage() {
                   >
                     <Avatar name={name} size="md" online={other?.status === 'online'} />
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-white truncate">{name}</span>
-                        {time && <span className="text-xs text-gray-500">{formatRelativeTime(time)}</span>}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-theme-primary truncate">{name}</span>
+                        {time && <span className="text-xs text-theme-muted shrink-0">{formatRelativeTime(time)}</span>}
                       </div>
-                      <p className="text-xs text-gray-400 truncate">{lastMsg}</p>
+                      <p className="text-xs text-theme-muted truncate">{lastMsg}</p>
                     </div>
                     {unread > 0 && (
-                      <span className="w-5 h-5 bg-primary-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                      <span className="w-5 h-5 bg-primary-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0">
                         {unread}
                       </span>
                     )}
@@ -162,38 +171,49 @@ export default function ChatPage() {
             </div>
           </Card>
 
-          {/* Chat Window */}
-          <Card className="flex flex-col overflow-hidden">
+          {/* Chat Window — full screen on mobile when open */}
+          <Card
+            className={cn(
+              'flex flex-col overflow-hidden min-h-0',
+              activeChat ? 'flex' : 'hidden md:flex'
+            )}
+          >
             {!activeChat ? (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center p-6">
                 <EmptyState
-                  icon={<MessageSquare className="w-8 h-8 text-gray-500" />}
+                  icon={<MessageSquare className="w-8 h-8 text-theme-muted" />}
                   title="Select a conversation"
                   description="Choose a conversation from the list to start chatting"
                 />
               </div>
             ) : (
               <>
-                {/* Chat Header */}
-                <div className="flex items-center gap-3 p-4 border-b border-surface-lighter/30">
+                <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-surface-lighter/30">
+                  <button
+                    type="button"
+                    onClick={() => setActiveChat(null)}
+                    className="md:hidden p-2 -ml-1 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-surface-light transition-colors"
+                    aria-label="Back to conversations"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
                   <Avatar name={chatName} size="sm" online={isOnline} />
-                  <div>
-                    <p className="text-sm font-semibold text-white">{chatName}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-theme-primary truncate">{chatName}</p>
                     <p className="text-xs text-green-400">
                       {isTyping ? 'Typing...' : isOnline ? 'Online' : 'Offline'}
                     </p>
                   </div>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
                   {msgsLoading && Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-start' : 'justify-end')}>
                       <Skeleton className={cn('h-10 rounded-2xl', i % 2 === 0 ? 'w-48' : 'w-40')} />
                     </div>
                   ))}
                   {!msgsLoading && messages.length === 0 && (
-                    <div className="text-center py-8 text-sm text-gray-500">No messages yet. Say hello!</div>
+                    <div className="text-center py-8 text-sm text-theme-muted">No messages yet. Say hello!</div>
                   )}
                   {!msgsLoading && messages.map((msg) => {
                     const msgId = msg._id || msg.id || '';
@@ -201,13 +221,13 @@ export default function ChatPage() {
                     return (
                       <div key={msgId} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
                         <div className={cn(
-                          'max-w-[70%] rounded-2xl px-4 py-2.5',
+                          'max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2.5',
                           isMine
                             ? 'bg-primary-600 text-white rounded-br-md'
-                            : 'bg-surface-light text-gray-200 rounded-bl-md'
+                            : 'bg-theme-secondary text-theme-primary border border-theme rounded-bl-md'
                         )}>
-                          <p className="text-sm">{msg.content}</p>
-                          <p className={cn('text-[10px] mt-1', isMine ? 'text-primary-200' : 'text-gray-500')}>
+                          <p className="text-sm break-words">{msg.content}</p>
+                          <p className={cn('text-[10px] mt-1', isMine ? 'text-primary-200' : 'text-theme-muted')}>
                             {formatRelativeTime(msg.createdAt)}
                           </p>
                         </div>
@@ -217,10 +237,12 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
-                <div className="p-4 border-t border-surface-lighter/30">
+                <div className="p-3 sm:p-4 border-t border-surface-lighter/30">
                   <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light transition-colors">
+                    <button
+                      type="button"
+                      className="hidden sm:inline-flex p-2 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-surface-light transition-colors"
+                    >
                       <Smile className="w-5 h-5" />
                     </button>
                     <input
@@ -232,11 +254,12 @@ export default function ChatPage() {
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                       placeholder="Type a message..."
-                      className="flex-1 bg-surface-light border border-surface-lighter rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="flex-1 min-w-0 bg-surface-light border border-surface-lighter rounded-xl px-3 sm:px-4 py-2.5 text-sm text-theme-primary placeholder:text-theme-muted focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                     <button
+                      type="button"
                       onClick={handleSend}
-                      className="p-2.5 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                      className="p-2.5 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors shrink-0"
                     >
                       <Send className="w-5 h-5" />
                     </button>

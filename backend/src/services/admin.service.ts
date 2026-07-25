@@ -1,30 +1,79 @@
 import { userRepository } from '../repositories/user.repository';
 import { matchRepository } from '../repositories/match.repository';
+import { gameRepository } from '../repositories/game.repository';
+import { tournamentRepository } from '../repositories/tournament.repository';
 import { reportRepository } from '../repositories/report.repository';
 import { settingsRepository } from '../repositories/settings.repository';
 import { SETTING_DEFINITIONS } from '../utils/settings.constants';
 import { sessionRepository } from '../repositories/session.repository';
 import { notificationService } from './notification.service';
+import { settingsService } from './settings.service';
 import { AppError } from '../utils/AppError';
+import { getIO } from '../socket';
+import { broadcastPlatformStatus } from '../socket/namespaces/notification';
 import mongoose from 'mongoose';
 import os from 'os';
 
 class AdminService {
   async getDashboardStats() {
-    const [totalUsers, onlineUsers, totalMatches, activeMatches, pendingReports] = await Promise.all([
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [
+      totalUsers,
+      onlineNow,
+      activeUsers,
+      totalMatches,
+      runningMatches,
+      totalGames,
+      totalTournaments,
+      newUsersToday,
+      matchesToday,
+      dailyActiveUsers,
+      gamesDistributionRaw,
+      newUsersChart,
+      matchesChart,
+      games,
+    ] = await Promise.all([
       userRepository.count(),
       userRepository.count({ isOnline: true } as any),
+      userRepository.count({ lastSeen: { $gte: sevenDaysAgo } } as any),
       matchRepository.count(),
       matchRepository.count({ status: { $in: ['waiting', 'playing'] } } as any),
-      reportRepository.count({ status: 'pending' } as any),
+      gameRepository.count(),
+      tournamentRepository.count(),
+      userRepository.count({ createdAt: { $gte: startOfToday } } as any),
+      matchRepository.count({ createdAt: { $gte: startOfToday } } as any),
+      matchRepository.getDailyActiveUsers(30),
+      matchRepository.getGamesDistribution(),
+      userRepository.getDailySignups(30),
+      matchRepository.getDailyMatchCounts(30),
+      gameRepository.findMany({}, { limit: 100 }),
     ]);
+
+    const gameNameBySlug = Object.fromEntries(games.data.map((game) => [game.slug, game.name]));
+    const gamesDistribution = gamesDistributionRaw.map((item) => ({
+      name: gameNameBySlug[item.name] ?? item.name.replace(/-/g, ' '),
+      value: item.value,
+    }));
 
     return {
       totalUsers,
-      onlineUsers,
+      activeUsers,
+      onlineNow,
+      totalGames,
       totalMatches,
-      activeMatches,
-      pendingReports,
+      runningMatches,
+      totalTournaments,
+      newUsersToday,
+      matchesToday,
+      dailyActiveUsers,
+      gamesDistribution,
+      newUsersChart,
+      matchesChart,
     };
   }
 
@@ -128,7 +177,7 @@ class AdminService {
     };
 
     return {
-      status: 'ok',
+      status: dbState === 1 ? 'healthy' : 'degraded',
       uptime: process.uptime(),
       timestamp: new Date(),
       database: {
@@ -194,6 +243,15 @@ class AdminService {
       await this.notifyMaintenancePeriod(true);
     } else if (updates.maintenanceMode === false && wasMaintenanceEnabled) {
       await this.notifyMaintenancePeriod(false);
+    }
+
+    if (updates.maintenanceMode !== undefined) {
+      try {
+        const status = await settingsService.getPlatformStatus();
+        broadcastPlatformStatus(getIO(), status);
+      } catch {
+        // Socket may not be initialized during tests or startup
+      }
     }
 
     return this.getSettings();

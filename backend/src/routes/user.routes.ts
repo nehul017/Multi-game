@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { userController } from '../controllers/user.controller';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { avatarUpload } from '../middleware/upload';
 import { updateProfileValidator, changePasswordValidator } from '../validators/user.validator';
 
 const router = Router();
@@ -35,6 +36,7 @@ router.get('/profile/:id', userController.getProfile);
  *     tags: [Users]
  */
 router.put('/update', updateProfileValidator, validate, userController.updateProfile);
+router.post('/avatar', avatarUpload.single('avatar'), userController.uploadAvatar);
 
 /**
  * @swagger

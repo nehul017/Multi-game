@@ -52,7 +52,7 @@ export const adminService = {
   },
 
   getGames: async (): Promise<ApiResponse<Game[]>> => {
-    const { data } = await api.get('/games');
+    const { data } = await api.get('/games?limit=100');
     return data;
   },
 

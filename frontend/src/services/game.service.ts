@@ -3,7 +3,7 @@ import { ApiResponse, Game, Match, Room, PaginatedResponse } from '@/types';
 
 export const gameService = {
   getGames: async (): Promise<ApiResponse<Game[]>> => {
-    const { data } = await api.get('/games');
+    const { data } = await api.get('/games?limit=100');
     return data;
   },
 

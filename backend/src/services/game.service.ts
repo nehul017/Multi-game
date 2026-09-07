@@ -9,7 +9,7 @@ class GameService {
     return gameRepository.create(data);
   }
 
-  async getGames(page: number = 1, limit: number = 20) {
+  async getGames(page: number = 1, limit: number = 100) {
     return gameRepository.findMany({ isActive: true }, { page, limit, sort: 'name' });
   }
 

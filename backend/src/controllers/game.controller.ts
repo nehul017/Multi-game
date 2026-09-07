@@ -13,7 +13,7 @@ class GameController {
 
   async getGames(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { page = '1', limit = '20' } = req.query;
+      const { page = '1', limit = '100' } = req.query;
       const result = await gameService.getGames(parseInt(page as string), parseInt(limit as string));
       res.json({ success: true, data: result });
     } catch (error) {

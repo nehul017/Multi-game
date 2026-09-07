@@ -3,6 +3,8 @@ import { matchService } from '../../services/match.service';
 import { rewardService } from '../../services/reward.service';
 import { notificationService } from '../../services/notification.service';
 import {
+  BOT_FILL_MS,
+  FILL_BOT_GAMES,
   JOIN_IN_PROGRESS_GAMES,
   SOCKET_EVENTS,
   maxPlayersFor,
@@ -11,6 +13,7 @@ import {
 import { createGameEngine, serializeGameState, serializeSnakeTick } from '../../games/factory';
 import { GameEngine } from '../../games/engine';
 import { SNAKE_TICK_MS } from '../../games/snake-multiplayer';
+import { isBotPlayerId, ludoBotId, pickLudoBotMove } from '../../games/ludo-bot';
 
 interface GameRoom {
   matchId: string;
@@ -22,11 +25,14 @@ interface GameRoom {
   engine: GameEngine | null;
   drawOfferFrom?: string;
   tickTimer?: ReturnType<typeof setInterval>;
+  botFillTimer?: ReturnType<typeof setTimeout>;
+  botPlayTimer?: ReturnType<typeof setTimeout>;
   settings?: Record<string, unknown>;
 }
 
 const activeRooms = new Map<string, GameRoom>();
 const matchmakingQueue = new Map<string, Set<string>>();
+const hydratingRooms = new Map<string, Promise<GameRoom | null>>();
 
 const toPlayerId = (userId: unknown): string => {
   if (userId == null) return '';
@@ -59,42 +65,55 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
   const existing = activeRooms.get(roomId);
   if (existing) return existing;
 
-  const match = await matchService.getMatchByRoom(roomId);
-  if (!['waiting', 'playing'].includes(match.status)) return null;
+  const pending = hydratingRooms.get(roomId);
+  if (pending) return pending;
 
-  const playerIds = match.players.map((p) => toPlayerId(p.userId));
-  const canHydrateSolo = JOIN_IN_PROGRESS_GAMES.has(match.gameType);
-  const engine =
-    match.status === 'playing' && (playerIds.length >= 2 || (canHydrateSolo && playerIds.length >= 1))
-      ? createGameEngine(match.gameType, playerIds, (match.settings || {}) as Record<string, unknown>)
-      : null;
+  const work = (async (): Promise<GameRoom | null> => {
+    const already = activeRooms.get(roomId);
+    if (already) return already;
 
-  if (engine && match.moves?.length) {
-    replayMatchMoves(engine, match.moves);
-  }
+    const match = await matchService.getMatchByRoom(roomId);
+    if (!['waiting', 'playing'].includes(match.status)) return null;
 
-  const room: GameRoom = {
-    matchId: match._id.toString(),
-    roomId: match.roomId,
-    gameType: match.gameType,
-    players: new Map(),
-    gameState: engine ? serializeGameState(engine) : {},
-    spectators: new Set(match.spectators?.map((id) => toPlayerId(id)) || []),
-    engine,
-    settings: (match.settings || {}) as Record<string, unknown>,
-  };
+    const playerIds = match.players.map((p) => toPlayerId(p.userId));
+    const canHydrateSolo = JOIN_IN_PROGRESS_GAMES.has(match.gameType);
+    const engine =
+      match.status === 'playing' && (playerIds.length >= 2 || (canHydrateSolo && playerIds.length >= 1))
+        ? createGameEngine(match.gameType, playerIds, (match.settings || {}) as Record<string, unknown>)
+        : null;
 
-  for (const player of match.players) {
-    const playerId = toPlayerId(player.userId);
-    room.players.set(playerId, {
-      socketId: '',
-      ready: match.status === 'playing',
-      connected: false,
-    });
-  }
+    if (engine && match.moves?.length) {
+      replayMatchMoves(engine, match.moves);
+    }
 
-  activeRooms.set(roomId, room);
-  return room;
+    const room: GameRoom = {
+      matchId: match._id.toString(),
+      roomId: match.roomId,
+      gameType: match.gameType,
+      players: new Map(),
+      gameState: engine ? serializeGameState(engine) : {},
+      spectators: new Set(match.spectators?.map((id) => toPlayerId(id)) || []),
+      engine,
+      settings: (match.settings || {}) as Record<string, unknown>,
+    };
+
+    for (const player of match.players) {
+      const playerId = toPlayerId(player.userId);
+      room.players.set(playerId, {
+        socketId: '',
+        ready: match.status === 'playing',
+        connected: false,
+      });
+    }
+
+    activeRooms.set(roomId, room);
+    return room;
+  })().finally(() => {
+    hydratingRooms.delete(roomId);
+  });
+
+  hydratingRooms.set(roomId, work);
+  return work;
 };
 
 const buildMatchPayload = (
@@ -118,11 +137,22 @@ const buildMatchPayload = (
     };
   });
 
+  for (const [playerId] of room.players.entries()) {
+    if (!isBotPlayerId(playerId) || players.some((p) => p.userId === playerId)) continue;
+    players.push({
+      userId: playerId,
+      username: 'Bot',
+      avatar: undefined,
+      elo: 1000,
+      isReady: true,
+    });
+  }
+
   return {
     roomId: room.roomId,
     matchId: room.matchId,
     gameType: room.gameType,
-    status: match.status,
+    status: room.engine ? 'playing' : match.status,
     players,
     moves: match.moves,
     gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
@@ -147,6 +177,14 @@ const clearRoomTimers = (room: GameRoom): void => {
     clearInterval(room.tickTimer);
     room.tickTimer = undefined;
   }
+  if (room.botFillTimer) {
+    clearTimeout(room.botFillTimer);
+    room.botFillTimer = undefined;
+  }
+  if (room.botPlayTimer) {
+    clearTimeout(room.botPlayTimer);
+    room.botPlayTimer = undefined;
+  }
 };
 
 const finishMatch = async (
@@ -156,7 +194,17 @@ const finishMatch = async (
   reason: 'finished' | 'draw' | 'surrender'
 ): Promise<void> => {
   clearRoomTimers(room);
-  const rewards = await rewardService.settleMatch(room.matchId, winnerId, reason);
+  const botWon = Boolean(winnerId && isBotPlayerId(winnerId));
+  const rewards = botWon
+    ? []
+    : await rewardService.settleMatch(room.matchId, winnerId, reason);
+  if (botWon) {
+    try {
+      await matchService.updateMatchStatus(room.matchId, 'finished');
+    } catch {
+      // match may already be closed
+    }
+  }
 
   gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_OVER, {
     winner: winnerId,
@@ -232,6 +280,7 @@ const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): v
         gameState: room.gameState,
       });
       startSnakeLoop(gameNs, room);
+      scheduleBotTurn(gameNs, room, 1100);
     }
   }, 1000);
 };
@@ -257,8 +306,196 @@ const tryStartGame = async (gameNs: ReturnType<Server['of']>, room: GameRoom): P
   if (room.engine) return;
   const allReady = Array.from(room.players.values()).every((p) => p.ready);
   if (allReady && room.players.size >= minPlayersToStart(room.gameType)) {
+    if (room.botFillTimer) {
+      clearTimeout(room.botFillTimer);
+      room.botFillTimer = undefined;
+    }
     await matchService.updateMatchStatus(room.matchId, 'playing');
     startGameCountdown(gameNs, room);
+  }
+};
+
+const roomHasBot = (room: GameRoom): boolean =>
+  Array.from(room.players.keys()).some((id) => isBotPlayerId(id));
+
+const humanPlayerCount = (room: GameRoom): number =>
+  Array.from(room.players.keys()).filter((id) => !isBotPlayerId(id)).length;
+
+const canFillBot = (room: GameRoom): boolean =>
+  FILL_BOT_GAMES.has(room.gameType) && !room.engine && !roomHasBot(room) && humanPlayerCount(room) === 1;
+
+const scheduleBotFill = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
+  if (!canFillBot(room)) {
+    return;
+  }
+  if (room.botFillTimer) clearTimeout(room.botFillTimer);
+  room.botFillTimer = setTimeout(() => {
+    void fillBotIntoRoom(gameNs, room);
+  }, BOT_FILL_MS);
+};
+
+const emitToRoomAndSocket = (
+  gameNs: ReturnType<Server['of']>,
+  room: GameRoom,
+  event: string,
+  payload: unknown,
+  notifySocket?: Socket
+): void => {
+  gameNs.to(room.roomId).emit(event, payload);
+  notifySocket?.emit(event, payload);
+};
+
+const resolveBotFillRoom = async (userId: string, roomId?: string): Promise<GameRoom | null> => {
+  if (roomId) {
+    try {
+      const room = await hydrateRoomFromDb(roomId);
+      if (room && room.players.has(userId)) return room;
+    } catch {
+      // fall through to in-memory search
+    }
+  }
+
+  return (
+    Array.from(activeRooms.values()).find(
+      (entry) => canFillBot(entry) && entry.players.has(userId)
+    ) || null
+  );
+};
+
+const fillBotIntoRoom = async (
+  gameNs: ReturnType<Server['of']>,
+  room: GameRoom,
+  notifySocket?: Socket
+): Promise<void> => {
+  if (!canFillBot(room)) {
+    return;
+  }
+
+  if (room.botFillTimer) {
+    clearTimeout(room.botFillTimer);
+    room.botFillTimer = undefined;
+  }
+
+  const botId = ludoBotId(room.roomId);
+  room.players.set(botId, { socketId: '', ready: true, connected: true });
+  for (const player of room.players.values()) {
+    player.ready = true;
+  }
+
+  emitToRoomAndSocket(
+    gameNs,
+    room,
+    SOCKET_EVENTS.GAME.PLAYER_JOINED,
+    {
+      userId: botId,
+      username: 'Bot',
+      elo: 1000,
+      playersCount: room.players.size,
+    },
+    notifySocket
+  );
+
+  try {
+    const match = await matchService.getMatch(room.matchId);
+    emitToRoomAndSocket(
+      gameNs,
+      room,
+      SOCKET_EVENTS.GAME.MATCH_FOUND,
+      buildMatchPayload(room, match),
+      notifySocket
+    );
+  } catch (error) {
+    console.error('Bot fill match payload failed:', error);
+  }
+
+  await tryStartGame(gameNs, room);
+};
+
+const applyEngineMove = async (
+  gameNs: ReturnType<Server['of']>,
+  room: GameRoom,
+  playerId: string,
+  movePayload: Record<string, unknown>,
+  username: string
+): Promise<boolean> => {
+  if (!room.engine) return false;
+  const historyBefore = room.engine.getGameState().moveHistory.length;
+  const accepted = room.engine.makeMove(playerId, movePayload);
+  if (!accepted) return false;
+
+  const snapshot = serializeGameState(room.engine);
+  room.gameState = snapshot;
+  const lastApplied = room.engine.getGameState().moveHistory.slice(-1)[0];
+  const persistData: Record<string, unknown> = {
+    ...movePayload,
+    ...(lastApplied?.data || {}),
+  };
+  if (lastApplied?.action && !persistData.action) {
+    persistData.action = lastApplied.action;
+  }
+
+  const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
+  if (historyChanged) {
+    gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+      playerId,
+      username,
+      action: lastApplied?.action || (movePayload.action as string) || 'move',
+      data: persistData,
+      gameState: snapshot,
+      timestamp: new Date(),
+    });
+
+    if (!isBotPlayerId(playerId)) {
+      await matchService.addMove(
+        room.matchId,
+        playerId,
+        lastApplied?.action || (movePayload.action as string) || 'move',
+        persistData
+      );
+    }
+  }
+
+  if (room.engine.isGameOver()) {
+    const state = room.engine.getGameState();
+    await finishMatch(gameNs, room, state.winner, state.status === 'draw' ? 'draw' : 'finished');
+    return true;
+  }
+
+  if (!isBotPlayerId(playerId)) {
+    scheduleBotTurn(gameNs, room);
+  }
+  return true;
+};
+
+const scheduleBotTurn = (gameNs: ReturnType<Server['of']>, room: GameRoom, delay = 850): void => {
+  if (!room.engine || room.engine.isGameOver() || !FILL_BOT_GAMES.has(room.gameType)) return;
+  const current = room.engine.getGameState().currentPlayer;
+  if (!current || !isBotPlayerId(current)) return;
+  if (room.botPlayTimer) clearTimeout(room.botPlayTimer);
+  room.botPlayTimer = setTimeout(() => {
+    void runBotTurn(gameNs, room);
+  }, delay);
+};
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const runBotTurn = async (
+  gameNs: ReturnType<Server['of']>,
+  room: GameRoom
+): Promise<void> => {
+  for (let step = 0; step < 10; step++) {
+    if (!room.engine || room.engine.isGameOver()) return;
+    const botId = room.engine.getGameState().currentPlayer;
+    if (!botId || !isBotPlayerId(botId)) return;
+
+    const move = pickLudoBotMove(room.engine, botId);
+    if (!move) return;
+
+    const accepted = await applyEngineMove(gameNs, room, botId, move, 'Bot');
+    if (!accepted || !room.engine || room.engine.isGameOver()) return;
+    if (!isBotPlayerId(room.engine.getGameState().currentPlayer)) return;
+
+    await sleep(move.action === 'roll' ? 1200 : 700);
   }
 };
 
@@ -389,6 +626,8 @@ export const setupGameNamespace = (io: Server): void => {
 
         if (autoStart) {
           await tryStartGame(gameNs, room);
+        } else {
+          scheduleBotFill(gameNs, room);
         }
       } catch (error) {
         console.error('Matchmaking error:', error);
@@ -451,6 +690,8 @@ export const setupGameNamespace = (io: Server): void => {
 
         if (autoStart) {
           await tryStartGame(gameNs, room);
+        } else {
+          scheduleBotFill(gameNs, room);
         }
       } catch (error) {
         socket.emit('error', { message: 'Failed to create room' });
@@ -517,6 +758,12 @@ export const setupGameNamespace = (io: Server): void => {
             player.ready = true;
           }
           await tryStartGame(gameNs, room);
+        } else if (canFillBot(room)) {
+          if (refreshed.status === 'playing') {
+            await fillBotIntoRoom(gameNs, room, socket);
+          } else {
+            scheduleBotFill(gameNs, room);
+          }
         }
       } catch (error) {
         console.error('Join room error:', error);
@@ -542,6 +789,23 @@ export const setupGameNamespace = (io: Server): void => {
       }
 
       await tryStartGame(gameNs, room);
+    });
+
+    socket.on(SOCKET_EVENTS.GAME.FILL_BOT, async (data: { roomId?: string }) => {
+      if (!socket.user) return;
+      const userId = socket.user._id.toString();
+      try {
+        const room = await resolveBotFillRoom(userId, data?.roomId);
+        if (!room) {
+          socket.emit('error', { message: 'No waiting Ludo match to fill with a bot' });
+          return;
+        }
+        socket.join(room.roomId);
+        await fillBotIntoRoom(gameNs, room, socket);
+      } catch (error) {
+        console.error('Fill bot error:', error);
+        socket.emit('error', { message: 'Failed to start bot match' });
+      }
     });
 
     socket.on(SOCKET_EVENTS.GAME.MAKE_MOVE, async (data: { roomId: string; action: string; moveData: Record<string, unknown> }) => {
@@ -604,7 +868,7 @@ export const setupGameNamespace = (io: Server): void => {
               data.action || lastApplied?.action || 'move',
               persistData
             );
-            if (isSnakeTurn) {
+            if (room.gameType === 'snake-multiplayer') {
               void persist.catch((error) => console.error('Failed to persist snake turn:', error));
             } else {
               await persist;
@@ -619,6 +883,8 @@ export const setupGameNamespace = (io: Server): void => {
               state.winner,
               state.status === 'draw' ? 'draw' : 'finished'
             );
+          } else {
+            scheduleBotTurn(gameNs, room);
           }
           return;
         }

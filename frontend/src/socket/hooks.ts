@@ -598,6 +598,21 @@ export function useGameSocket() {
     [gameEmit, resetGame]
   );
 
+  const fillBot = useCallback(
+    (roomId?: string) => {
+      const resolved =
+        roomId ||
+        useGameStore.getState().currentRoom?.id ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('activeGameRoom') : null) ||
+        undefined;
+      if (resolved) {
+        gameEmit(SOCKET_EVENTS.GAME.JOIN_ROOM, { roomId: resolved });
+      }
+      gameEmit(SOCKET_EVENTS.GAME.FILL_BOT, resolved ? { roomId: resolved } : {});
+    },
+    [gameEmit]
+  );
+
   return {
     joinRoom,
     leaveRoom,
@@ -609,6 +624,7 @@ export function useGameSocket() {
     inviteFriend,
     startMatchmaking,
     cancelMatchmaking,
+    fillBot,
     isGameConnected,
   };
 }

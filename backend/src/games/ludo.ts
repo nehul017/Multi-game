@@ -20,10 +20,10 @@ interface LudoPlayer {
 const BOARD_SIZE = 52;
 const HOME_STRETCH_LENGTH = 6;
 const SAFE_POSITIONS = [0, 8, 13, 21, 26, 34, 39, 47];
-// Color order matches yard layout: red BL, blue TL, green TR, yellow BR
-const COLORS = ['red', 'blue', 'green', 'yellow'];
-// Track indices for official clockwise starts (see frontend TRACK):
-// blue=0 left [6,1], green=13 top [1,8], yellow=26 right [8,13], red=39 bottom [13,6]
+// Classic Ludo corners: red BL, green TL, blue TR, yellow BR
+const COLORS = ['red', 'green', 'blue', 'yellow'];
+// Track indices for clockwise starts (see frontend TRACK):
+// green=0 left [6,1], blue=13 top [1,8], yellow=26 right [8,13], red=39 bottom [13,6]
 const START_POSITIONS = [39, 0, 13, 26];
 
 export class Ludo extends GameEngine {
@@ -264,6 +264,7 @@ export class Ludo extends GameEngine {
 
   getValidMoves(player: string): Record<string, unknown>[] {
     const moves: Record<string, unknown>[] = [];
+    if (player !== this.state.currentPlayer || this.isGameOver()) return moves;
 
     if (!this.hasRolled) {
       moves.push({ action: 'roll' });

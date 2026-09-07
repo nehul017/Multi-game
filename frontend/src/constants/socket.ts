@@ -22,6 +22,7 @@ export const SOCKET_EVENTS = {
     SPECTATE: 'game:spectate',
     MATCHMAKING: 'game:matchmaking',
     CANCEL_MATCHMAKING: 'game:cancelMatchmaking',
+    FILL_BOT: 'game:fillBot',
     ROOM_CREATED: 'game:roomCreated',
     MATCH_FOUND: 'game:matchFound',
     PLAYER_JOINED: 'game:playerJoined',

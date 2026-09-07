@@ -54,6 +54,8 @@ const startServer = async (): Promise<void> => {
         console.log('HTTP server closed');
         process.exit(0);
       });
+      // Open sockets can block close() forever and leave port 5000 dead.
+      setTimeout(() => process.exit(0), 1500).unref();
     };
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

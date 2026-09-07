@@ -37,7 +37,7 @@ class RewardService {
       elo: p.elo,
     }));
 
-    if (players.length < 2) return [];
+    if (players.length < 1) return [];
 
     const beforeMap = new Map<string, { elo: number; xp: number; level: number }>();
     for (const player of players) {

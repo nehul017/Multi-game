@@ -107,6 +107,7 @@ function GenericPlayPage() {
     acceptDraw,
     startMatchmaking,
     cancelMatchmaking,
+    fillBot,
     isGameConnected,
   } = useGameSocket();
   const { sendMessage: sendChatMessage, joinChatRoom, leaveChatRoom } = useChatSocket();
@@ -117,13 +118,16 @@ function GenericPlayPage() {
     Array<{ id?: string; user: string; text: string; timestamp: number; userId?: string }>
   >([]);
   const [chatInput, setChatInput] = useState('');
+  const [botEta, setBotEta] = useState(60);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const pendingBotFill = useRef(false);
 
   const roomId = currentRoom?.id || '';
   const gameStatus = gameState?.status || (isMatchmaking ? 'waiting' : 'waiting');
   const myId = toId(user?.id);
   const me = players.find((p) => toId(p.userId) === myId);
   const opponent = players.find((p) => toId(p.userId) !== myId);
+  const hasBotOpponent = players.some((p) => toId(p.userId).startsWith('bot:'));
 
   const isMyTurn =
     gameStatus === 'playing' &&
@@ -131,6 +135,38 @@ function GenericPlayPage() {
     (gameState?.currentTurn
       ? toId(gameState.currentTurn) === myId
       : players.length >= 2 && toId(players[(gameState?.moveCount ?? 0) % 2]?.userId) === myId);
+
+  const waitingForOpponent =
+    slug === 'ludo' &&
+    gameStatus !== 'playing' &&
+    gameStatus !== 'finished' &&
+    gameStatus !== 'countdown' &&
+    !hasBotOpponent &&
+    players.filter((p) => !toId(p.userId).startsWith('bot:')).length < 2;
+
+  const requestBotFill = useCallback(() => {
+    const stored =
+      typeof window !== 'undefined' ? sessionStorage.getItem('activeGameRoom') : null;
+    const target = roomId || stored || undefined;
+    if (target) {
+      pendingBotFill.current = false;
+      fillBot(target);
+      return;
+    }
+    pendingBotFill.current = true;
+    if (isGameConnected && !isMatchmaking) {
+      startMatchmaking(slug);
+    }
+  }, [roomId, fillBot, isGameConnected, isMatchmaking, startMatchmaking, slug]);
+
+  useEffect(() => {
+    if (!waitingForOpponent) return;
+    setBotEta(60);
+    const tick = window.setInterval(() => {
+      setBotEta((left) => Math.max(0, left - 1));
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [waitingForOpponent, currentRoom?.id]);
 
   useEffect(() => {
     if (!isGameConnected || slug === 'snake-multiplayer') return;
@@ -145,6 +181,14 @@ function GenericPlayPage() {
       startMatchmaking(slug);
     }
   }, [slug, roomParam, isGameConnected, joinRoom, startMatchmaking]);
+
+  useEffect(() => {
+    if (!pendingBotFill.current || !isGameConnected) return;
+    const target = currentRoom?.id;
+    if (!target) return;
+    pendingBotFill.current = false;
+    fillBot(target);
+  }, [currentRoom?.id, isGameConnected, fillBot]);
 
   useEffect(() => {
     return () => {
@@ -511,9 +555,16 @@ function GenericPlayPage() {
                 ? 'Establishing game connection'
                 : slug === 'snake-multiplayer'
                   ? 'Play now — other players can join mid-game'
-                  : `Looking for an opponent for ${gameTitle}`}
+                  : slug === 'ludo'
+                    ? `Looking for a player. A bot joins in ${botEta}s.`
+                    : `Looking for an opponent for ${gameTitle}`}
             </p>
           </div>
+          {isGameConnected && slug === 'ludo' && (
+            <Button variant="primary" onClick={requestBotFill}>
+              Play vs Bot now
+            </Button>
+          )}
           {isGameConnected && (
             <Button variant="outline" onClick={cancelMatchmaking}>
               Cancel
@@ -660,7 +711,7 @@ function GenericPlayPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className={cn('space-y-5', isLudo && 'ludo-play-page')}>
         <AnimatePresence>
           {gameStatus === 'countdown' && countdown !== null && (
             <motion.div
@@ -792,41 +843,7 @@ function GenericPlayPage() {
               premium
             />
           </div>
-        ) : isLudo ? (
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
-            <PlayerPanel
-              username={me?.username || user?.username || 'You'}
-              avatar={me?.avatar || user?.avatar}
-              elo={me?.elo || user?.elo || 1000}
-              timeLeft={myTime}
-              isActive={isMyTurn}
-              side="left"
-              premium
-              showTurnBadge
-              winStreak={user?.winStreak}
-            />
-            <div className="flex items-center justify-center px-2 py-1">
-              <motion.div
-                animate={{ scale: [1, 1.06, 1] }}
-                transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-                className="ludo-vs-badge w-14 h-14 rounded-full flex flex-col items-center justify-center text-white"
-                aria-label="Versus"
-              >
-                <span className="text-[10px] font-bold tracking-[0.2em]">VS</span>
-                <span className="text-[9px] opacity-80 capitalize">{gameStatus === 'playing' ? 'live' : gameStatus}</span>
-              </motion.div>
-            </div>
-            <PlayerPanel
-              username={opponent?.username || 'Waiting...'}
-              avatar={opponent?.avatar}
-              elo={opponent?.elo ?? '---'}
-              timeLeft={opponentTime}
-              isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
-              side="right"
-              premium
-            />
-          </div>
-        ) : (
+        ) : isLudo ? null : (
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
             <PlayerBar
               username={me?.username || user?.username || 'You'}
@@ -855,11 +872,27 @@ function GenericPlayPage() {
             <ChessArena>{renderBoard()}</ChessArena>
           ) : isLudo ? (
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="ludo-arena flex items-center justify-center min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] p-3 sm:p-6 md:p-8 overflow-x-auto"
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="ludo-arena relative flex flex-col items-center justify-center p-4 sm:p-5 md:p-6 overflow-x-hidden"
             >
+              {waitingForOpponent && (
+                <div className="w-full max-w-[420px] mb-4 rounded-2xl bg-white/90 border border-black/5 px-4 py-3 text-center shadow-sm">
+                  <p className="text-sm font-semibold text-neutral-800">Waiting for a player</p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    A bot joins automatically in <span className="font-mono font-semibold">{botEta}s</span>
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mt-3"
+                    onClick={requestBotFill}
+                  >
+                    Play vs Bot now
+                  </Button>
+                </div>
+              )}
               {renderBoard()}
             </motion.div>
           ) : isTtt ? (

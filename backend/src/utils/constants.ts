@@ -50,6 +50,8 @@ export const RANK_TIERS = {
 };
 
 export const JOIN_IN_PROGRESS_GAMES = new Set(['snake-multiplayer']);
+export const FILL_BOT_GAMES = new Set(['ludo']);
+export const BOT_FILL_MS = 60_000;
 
 export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = {
   'snake-multiplayer': { min: 1, max: 8 },
@@ -108,6 +110,7 @@ export const SOCKET_EVENTS = {
     MATCHMAKING: 'game:matchmaking',
     CANCEL_MATCHMAKING: 'game:cancelMatchmaking',
     MATCH_FOUND: 'game:matchFound',
+    FILL_BOT: 'game:fillBot',
   },
 
   NOTIFICATION: {

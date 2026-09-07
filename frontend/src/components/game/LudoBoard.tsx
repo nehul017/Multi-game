@@ -64,18 +64,20 @@ const TRACK: Array<[number, number]> = [
 
 const HOME_STRETCH_CELLS: Record<string, Array<[number, number]>> = {
   red: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]],
-  blue: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
-  green: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
+  green: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
+  blue: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
   yellow: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
 };
 
 /** Yard bounds [r0, r1, c0, c1] and centered 2×2 parking spots (1-cell margin in 6×6) */
 const YARD: Record<string, { bounds: [number, number, number, number]; tokens: Array<[number, number]> }> = {
   red: { bounds: [9, 14, 0, 5], tokens: [[10, 1], [10, 4], [13, 1], [13, 4]] },
-  blue: { bounds: [0, 5, 0, 5], tokens: [[1, 1], [1, 4], [4, 1], [4, 4]] },
-  green: { bounds: [0, 5, 9, 14], tokens: [[1, 10], [1, 13], [4, 10], [4, 13]] },
+  green: { bounds: [0, 5, 0, 5], tokens: [[1, 1], [1, 4], [4, 1], [4, 4]] },
+  blue: { bounds: [0, 5, 9, 14], tokens: [[1, 10], [1, 13], [4, 10], [4, 13]] },
   yellow: { bounds: [9, 14, 9, 14], tokens: [[10, 10], [10, 13], [13, 10], [13, 13]] },
 };
+
+const BOARD_COLORS = ['green', 'blue', 'red', 'yellow'] as const;
 
 const COLOR_THEME: Record<
   string,
@@ -97,64 +99,64 @@ const COLOR_THEME: Record<
   }
 > = {
   red: {
-    fill: 'bg-[#D32F2F]',
-    soft: 'bg-[#EF5350]',
-    glow: 'shadow-[0_4px_14px_rgba(244,67,54,0.45)]',
-    ring: 'ring-[#FFCDD2]',
-    text: 'text-[#C62828]',
-    gradient: 'from-[#F44336] via-[#E53935] to-[#D32F2F]',
-    hex: '#F44336',
-    base: '#F44336',
-    mid: '#E53935',
-    dark: '#C62828',
-    light: '#FF8A80',
-    pad: '#F8C9C9',
-    padShadow: 'rgba(183, 28, 28, 0.22)',
+    fill: 'bg-[#EF3F3F]',
+    soft: 'bg-[#F56B6B]',
+    glow: 'shadow-[0_3px_8px_rgba(239,63,63,0.28)]',
+    ring: 'ring-[#F8C4C4]',
+    text: 'text-[#C42B2B]',
+    gradient: 'from-[#F56B6B] via-[#EF3F3F] to-[#D63232]',
+    hex: '#EF3F3F',
+    base: '#EF3F3F',
+    mid: '#E03535',
+    dark: '#C42B2B',
+    light: '#F7A0A0',
+    pad: '#F7D0D0',
+    padShadow: 'rgba(196, 43, 43, 0.18)',
   },
   blue: {
-    fill: 'bg-[#1565C0]',
-    soft: 'bg-[#42A5F5]',
-    glow: 'shadow-[0_4px_14px_rgba(30,136,229,0.45)]',
-    ring: 'ring-[#BBDEFB]',
-    text: 'text-[#0D47A1]',
-    gradient: 'from-[#1E88E5] via-[#1976D2] to-[#1565C0]',
-    hex: '#1E88E5',
-    base: '#1E88E5',
-    mid: '#1976D2',
-    dark: '#0D47A1',
-    light: '#64B5F6',
-    pad: '#BBDEFB',
-    padShadow: 'rgba(13, 71, 161, 0.22)',
+    fill: 'bg-[#2F8FE8]',
+    soft: 'bg-[#5AA7EE]',
+    glow: 'shadow-[0_3px_8px_rgba(47,143,232,0.28)]',
+    ring: 'ring-[#B9D8F6]',
+    text: 'text-[#1B6FC0]',
+    gradient: 'from-[#5AA7EE] via-[#2F8FE8] to-[#1F7AD4]',
+    hex: '#2F8FE8',
+    base: '#2F8FE8',
+    mid: '#1F7AD4',
+    dark: '#1B6FC0',
+    light: '#8FC4F3',
+    pad: '#C9E3F8',
+    padShadow: 'rgba(27, 111, 192, 0.18)',
   },
   green: {
-    fill: 'bg-[#2E7D32]',
-    soft: 'bg-[#66BB6A]',
-    glow: 'shadow-[0_4px_14px_rgba(67,160,71,0.45)]',
-    ring: 'ring-[#C8E6C9]',
-    text: 'text-[#1B5E20]',
-    gradient: 'from-[#43A047] via-[#388E3C] to-[#2E7D32]',
-    hex: '#43A047',
-    base: '#43A047',
-    mid: '#388E3C',
-    dark: '#1B5E20',
-    light: '#81C784',
-    pad: '#C8E6C9',
-    padShadow: 'rgba(27, 94, 32, 0.22)',
+    fill: 'bg-[#18B96F]',
+    soft: 'bg-[#3DC887]',
+    glow: 'shadow-[0_3px_8px_rgba(24,185,111,0.28)]',
+    ring: 'ring-[#B6E8D0]',
+    text: 'text-[#0F8F55]',
+    gradient: 'from-[#3DC887] via-[#18B96F] to-[#12965A]',
+    hex: '#18B96F',
+    base: '#18B96F',
+    mid: '#12965A',
+    dark: '#0F8F55',
+    light: '#7FDBB0',
+    pad: '#C5EED9',
+    padShadow: 'rgba(15, 143, 85, 0.18)',
   },
   yellow: {
-    fill: 'bg-[#F9A825]',
-    soft: 'bg-[#FFEE58]',
-    glow: 'shadow-[0_4px_14px_rgba(251,192,45,0.45)]',
-    ring: 'ring-[#FFF9C4]',
-    text: 'text-[#F57F17]',
-    gradient: 'from-[#FFD54F] via-[#FFCA28] to-[#FBC02D]',
-    hex: '#FFD54F',
-    base: '#FFD54F',
-    mid: '#FFCA28',
-    dark: '#F9A825',
-    light: '#FFECB3',
-    pad: '#FFF3C4',
-    padShadow: 'rgba(245, 127, 23, 0.2)',
+    fill: 'bg-[#F5C928]',
+    soft: 'bg-[#F7D45A]',
+    glow: 'shadow-[0_3px_8px_rgba(245,201,40,0.28)]',
+    ring: 'ring-[#F8E9A8]',
+    text: 'text-[#C49A12]',
+    gradient: 'from-[#F7D45A] via-[#F5C928] to-[#E0B61A]',
+    hex: '#F5C928',
+    base: '#F5C928',
+    mid: '#E0B61A',
+    dark: '#C49A12',
+    light: '#F8E08A',
+    pad: '#F8EBB8',
+    padShadow: 'rgba(196, 154, 18, 0.16)',
   },
 };
 
@@ -171,17 +173,17 @@ const SAFE = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
 /** Track index → player color for colored entry squares (must match server START_POSITIONS) */
 const START_COLOR_BY_INDEX: Record<number, string> = {
-  0: 'blue', // left start
-  13: 'green', // top start
-  26: 'yellow', // right start
-  39: 'red', // bottom start
+  0: 'green',
+  13: 'blue',
+  26: 'yellow',
+  39: 'red',
 };
 
-/** First home-stretch cell → arrow direction */
+/** Start / home-lane arrows follow clockwise travel */
 const HOME_ARROW: Record<string, 'up' | 'down' | 'left' | 'right'> = {
   red: 'up',
-  blue: 'right',
-  green: 'down',
+  green: 'right',
+  blue: 'down',
   yellow: 'left',
 };
 
@@ -203,6 +205,12 @@ function yardColorAt(r: number, c: number): string | undefined {
   return (['red', 'blue', 'green', 'yellow'] as const).find((col) => inYard(col, r, c));
 }
 
+function isYardInnerCell(color: string, r: number, c: number) {
+  const b = YARD[color]?.bounds;
+  if (!b) return false;
+  return r >= b[0] + 1 && r <= b[1] - 1 && c >= b[2] + 1 && c <= b[3] - 1;
+}
+
 function canMoveToken(token: Token, dice: number): boolean {
   if (!dice || token.status === 'finished') return false;
   if (token.status === 'home') return dice === 6;
@@ -212,15 +220,15 @@ function canMoveToken(token: Token, dice: number): boolean {
 
 const FINISH_CELL: Record<string, [number, number]> = {
   red: [8, 7],
-  blue: [7, 6],
-  green: [6, 7],
+  green: [7, 6],
+  blue: [6, 7],
   yellow: [7, 8],
 };
 
 /** Track start index per color (matches server START_POSITIONS) */
 const START_BY_COLOR: Record<string, number> = {
-  blue: 0,
-  green: 13,
+  green: 0,
+  blue: 13,
   yellow: 26,
   red: 39,
 };
@@ -390,47 +398,34 @@ function DiceFace({
   );
 }
 
-function EntryArrow({ direction }: { direction: 'up' | 'down' | 'left' | 'right' }) {
-  const rotation = { up: 0, right: 90, down: 180, left: 270 }[direction];
+function BoardArrow({
+  direction,
+  color,
+}: {
+  direction: 'up' | 'down' | 'left' | 'right';
+  color?: string;
+}) {
+  const rotation = { up: -90, right: 0, down: 90, left: 180 }[direction];
+  const fill = color ? COLOR_THEME[color]?.dark || '#4b5563' : '#8b939e';
   return (
     <svg
       viewBox="0 0 24 24"
-      className="absolute w-[52%] h-[52%] pointer-events-none ludo-entry-arrow"
+      className="absolute w-[58%] h-[58%] pointer-events-none ludo-entry-arrow"
       style={{ transform: `rotate(${rotation}deg)` }}
       aria-hidden
     >
-      <defs>
-        <linearGradient id={`arrow-grad-${direction}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.75)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M12 3.5 C12 3.5 7.5 10.5 7.5 14.5 C7.5 17 9.5 19 12 19 C14.5 19 16.5 17 16.5 14.5 C16.5 10.5 12 3.5 12 3.5 Z"
-        fill={`url(#arrow-grad-${direction})`}
-        stroke="rgba(0,0,0,0.2)"
-        strokeWidth="0.6"
-      />
+      <path d="M7.2 6.2 L17.6 12 L7.2 17.8 Z" fill={fill} />
     </svg>
   );
 }
 
-function SafeStar() {
+function SafeStar({ tone = 'silver', color }: { tone?: 'silver' | 'color'; color?: string }) {
+  const fill = tone === 'color' && color ? COLOR_THEME[color]?.dark || '#4b5563' : '#A8B0BA';
   return (
     <svg viewBox="0 0 24 24" className="ludo-safe-star" aria-hidden>
-      <defs>
-        <linearGradient id="ludo-gold-star" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FFF8E1" />
-          <stop offset="35%" stopColor="#FFD54F" />
-          <stop offset="70%" stopColor="#FFB300" />
-          <stop offset="100%" stopColor="#FF8F00" />
-        </linearGradient>
-      </defs>
       <path
-        d="M12 2.2l2.7 6.1 6.6.6-5 4.4 1.5 6.5L12 16.6 6.2 19.8l1.5-6.5-5-4.4 6.6-.6L12 2.2z"
-        fill="url(#ludo-gold-star)"
-        stroke="rgba(183,110,0,0.55)"
-        strokeWidth="0.7"
+        d="M12 2.6l2.45 5.55 6.05.55-4.6 4.05 1.4 5.95L12 15.7 6.7 18.7l1.4-5.95-4.6-4.05 6.05-.55L12 2.6z"
+        fill={fill}
       />
     </svg>
   );
@@ -438,26 +433,29 @@ function SafeStar() {
 
 /** Exact 15×15 grid spans (1-indexed CSS grid lines) so overlays never drift */
 const YARD_GRID: Record<string, { column: string; row: string }> = {
-  blue: { column: '1 / 7', row: '1 / 7' },
-  green: { column: '10 / 16', row: '1 / 7' },
+  green: { column: '1 / 7', row: '1 / 7' },
+  blue: { column: '10 / 16', row: '1 / 7' },
   red: { column: '1 / 7', row: '10 / 16' },
   yellow: { column: '10 / 16', row: '10 / 16' },
 };
 
-function CrystalCenter() {
+function FinishHub({ finished }: { finished: Record<string, number> }) {
   return (
     <div
       className="ludo-crystal-center pointer-events-none z-[5]"
       style={{ gridColumn: '7 / 10', gridRow: '7 / 10' }}
       aria-hidden
     >
-      <span className="ludo-crystal-glow-ring" />
       <div className="ludo-crystal-diamond">
-        <span className="ludo-crystal-tri ludo-crystal-tri-green" />
+        <span className="ludo-crystal-tri ludo-crystal-tri-blue" />
         <span className="ludo-crystal-tri ludo-crystal-tri-yellow" />
         <span className="ludo-crystal-tri ludo-crystal-tri-red" />
-        <span className="ludo-crystal-tri ludo-crystal-tri-blue" />
-        <span className="ludo-crystal-glass" />
+        <span className="ludo-crystal-tri ludo-crystal-tri-green" />
+        {BOARD_COLORS.map((color) => (
+          <span key={color} className={cn('ludo-finish-count', `ludo-finish-count-${color}`)}>
+            {finished[color] || 0}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -472,7 +470,7 @@ function YardPlatforms({
 }) {
   return (
     <>
-      {(['blue', 'green', 'red', 'yellow'] as const).map((color) => {
+      {BOARD_COLORS.map((color) => {
         const theme = COLOR_THEME[color];
         const area = YARD_GRID[color];
         return (
@@ -481,13 +479,11 @@ function YardPlatforms({
             className={cn(
               'ludo-yard-platform',
               `ludo-yard-platform-${color}`,
-              activeColor === color && 'is-active',
-              activeColor && activeColor !== color && 'is-dimmed'
+              activeColor === color && 'is-active'
             )}
             style={{ gridColumn: area.column, gridRow: area.row }}
             aria-hidden
           >
-            <span className="ludo-yard-bevel" />
             <div
               className="ludo-yard-inset"
               style={
@@ -511,7 +507,7 @@ function TokenPiece({
   movable,
   finished,
   bouncing,
-  atHome,
+  capturing,
   onClick,
   disabled,
   label,
@@ -522,12 +518,10 @@ function TokenPiece({
   movable?: boolean;
   finished?: boolean;
   bouncing?: boolean;
-  /** Home-base marble style (Ludo King reference) */
-  atHome?: boolean;
+  capturing?: boolean;
   onClick?: () => void;
   disabled?: boolean;
   label: string;
-  /** Stable id so the piece FLIPs cell-to-cell while walking */
   layoutId?: string;
 }) {
   const theme = COLOR_THEME[color] || COLOR_THEME.red;
@@ -539,44 +533,48 @@ function TokenPiece({
       aria-label={label}
       disabled={disabled || !onClick}
       onClick={onClick}
-      layout={!reduce}
-      layoutId={reduce ? undefined : layoutId}
-      whileHover={!disabled && onClick ? { scale: 1.12, y: -3 } : undefined}
-      whileTap={!disabled && onClick ? { scale: 0.9, y: 2 } : undefined}
+      layout={!reduce && !capturing}
+      layoutId={reduce || capturing ? undefined : layoutId}
+      whileHover={!disabled && onClick ? { scale: 1.08 } : undefined}
+      whileTap={!disabled && onClick ? { scale: 0.92 } : undefined}
       animate={
         reduce
-          ? { y: 0, scale: selected || movable ? 1.06 : 1 }
-          : bouncing
-            ? { y: [0, -10, 0, -4, 0], scale: [1, 1.12, 0.96, 1.05, 1] }
-            : movable
-              ? { y: [0, -4, 0], scale: selected ? 1.1 : 1.05 }
-              : selected
-                ? { y: [0, -3, 0], scale: 1.1 }
-                : { y: 0, scale: 1 }
+          ? { scale: selected || movable ? 1.06 : 1, opacity: 1 }
+          : capturing
+            ? { scale: [1, 0.55, 0.2], opacity: [1, 0.55, 0] }
+            : bouncing
+              ? { scale: [1, 1.12, 0.96, 1.04, 1], opacity: 1 }
+              : movable
+                ? { scale: selected ? 1.12 : 1.04, opacity: 1 }
+                : selected
+                  ? { scale: 1.12, opacity: 1 }
+                  : { scale: 1, opacity: 1 }
       }
       transition={
-        bouncing
-          ? { duration: 0.45, ease: [0.22, 1, 0.36, 1], layout: { duration: STEP_MS / 1000 } }
-          : movable || selected
-            ? {
-                repeat: Infinity,
-                duration: selected ? 1.1 : 1.35,
-                ease: 'easeInOut',
-                layout: { type: 'spring', stiffness: 520, damping: 34, mass: 0.65 },
-              }
-            : {
-                type: 'spring',
-                stiffness: 420,
-                damping: 22,
-                layout: { type: 'spring', stiffness: 520, damping: 34, mass: 0.65 },
-              }
+        capturing
+          ? { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
+          : bouncing
+            ? { duration: 0.4, ease: [0.22, 1, 0.36, 1], layout: { duration: STEP_MS / 1000 } }
+            : movable || selected
+              ? {
+                  repeat: Infinity,
+                  duration: selected ? 1.2 : 1.5,
+                  ease: 'easeInOut',
+                  layout: { type: 'spring', stiffness: 520, damping: 34, mass: 0.65 },
+                }
+              : {
+                  type: 'spring',
+                  stiffness: 420,
+                  damping: 22,
+                  layout: { type: 'spring', stiffness: 520, damping: 34, mass: 0.65 },
+                }
       }
       className={cn(
-        'relative flex items-center justify-center',
+        'relative flex items-center justify-center ludo-marble w-[74%] aspect-square',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-amber-400/70',
-        atHome ? 'ludo-marble w-[78%] aspect-square' : 'ludo-pawn w-[78%] h-[92%] flex-col justify-end',
-        movable && (atHome ? 'ludo-marble-movable' : 'ludo-pawn-movable'),
-        selected && (atHome ? 'ludo-marble-selected' : 'ludo-pawn-selected'),
+        movable && 'ludo-marble-movable',
+        selected && 'ludo-marble-selected',
+        capturing && 'ludo-marble-captured',
         finished && 'ludo-pawn-finished',
         (disabled || !onClick) && 'cursor-default'
       )}
@@ -589,43 +587,21 @@ function TokenPiece({
         } as CSSProperties
       }
     >
-      {atHome ? (
-        <>
-          <span className="ludo-marble-shadow" aria-hidden />
-          {(movable || selected) && !reduce && (
-            <motion.span
-              className="ludo-pawn-ring"
-              style={{ borderColor: `${theme.base}cc`, boxShadow: `0 0 14px ${theme.base}88` }}
-              animate={{ opacity: [0.95, 0.35, 0.95], scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 1.15 }}
-            />
-          )}
-          <span className="ludo-marble-sphere">
-            <span className="ludo-marble-shine" />
-            <span className="ludo-marble-rim" />
-          </span>
-        </>
-      ) : (
-        <>
-          <span className="ludo-pawn-shadow" aria-hidden />
-          {(movable || selected) && !reduce && (
-            <motion.span
-              className="ludo-pawn-ring"
-              style={{ borderColor: `${theme.base}cc`, boxShadow: `0 0 14px ${theme.base}88` }}
-              animate={{ opacity: [0.95, 0.35, 0.95], scale: [1, 1.22, 1] }}
-              transition={{ repeat: Infinity, duration: 1.15 }}
-            />
-          )}
-          <span className="ludo-pawn-head">
-            <span className="ludo-pawn-gloss" />
-          </span>
-          <span className="ludo-pawn-neck" />
-          <span className="ludo-pawn-body" />
-          <span className="ludo-pawn-base" />
-          {finished && (
-            <Crown className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 text-amber-300 drop-shadow z-[4]" />
-          )}
-        </>
+      <span className="ludo-marble-shadow" aria-hidden />
+      {(movable || selected) && !reduce && !capturing && (
+        <motion.span
+          className="ludo-pawn-ring"
+          style={{ borderColor: `${theme.base}aa` }}
+          animate={{ opacity: [0.85, 0.3, 0.85], scale: [1, 1.18, 1] }}
+          transition={{ repeat: Infinity, duration: 1.35 }}
+        />
+      )}
+      <span className="ludo-marble-sphere">
+        <span className="ludo-marble-shine" />
+        <span className="ludo-marble-rim" />
+      </span>
+      {finished && (
+        <Crown className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 text-amber-300 drop-shadow z-[4]" />
       )}
     </motion.button>
   );
@@ -670,10 +646,7 @@ export function LudoBoard({
   const reduce = useReducedMotion();
   const [diceAnim, setDiceAnim] = useState<DiceAnim>('idle');
   const [displayDice, setDisplayDice] = useState(state.lastDice || 1);
-  /** LAST readout — only updates after the settle animation finishes */
-  const [revealedDice, setRevealedDice] = useState(state.lastDice || 0);
   const [spinKey, setSpinKey] = useState(0);
-  const [rollHistory, setRollHistory] = useState<number[]>([]);
   const [burst, setBurst] = useState(false);
   const [selectedToken, setSelectedToken] = useState<number | null>(null);
   const [winEffect, setWinEffect] = useState<string | null>(null);
@@ -685,12 +658,15 @@ export function LudoBoard({
   const prevRollKey = useRef(rollKey);
   const prevTokenSig = useRef('');
   const prevTokenSnapshot = useRef<Map<string, { color: string; token: Token }>>(new Map());
+  const [capturing, setCapturing] = useState(false);
   const walkPlanRef = useRef<{
     sig: string;
     walks: Array<{ key: string; path: Array<[number, number]> }>;
     finishedColors: string[];
-  }>({ sig: '', walks: [], finishedColors: [] });
+    captures: Array<{ key: string; from: [number, number] }>;
+  }>({ sig: '', walks: [], finishedColors: [], captures: [] });
   const walkTimers = useRef<number[]>([]);
+  const diceSettleTimer = useRef<number | null>(null);
   const rolling = diceAnim !== 'idle';
 
   const trackSet = useMemo(() => new Set(TRACK.map(([r, c]) => cellKey(r, c))), []);
@@ -718,6 +694,7 @@ export function LudoBoard({
   if (tokenSig !== walkPlanRef.current.sig) {
     const walks: Array<{ key: string; path: Array<[number, number]> }> = [];
     const finishedColors: string[] = [];
+    const captures: Array<{ key: string; from: [number, number] }> = [];
     const hadSnapshot = prevTokenSnapshot.current.size > 0;
 
     for (const player of state.players || []) {
@@ -733,13 +710,17 @@ export function LudoBoard({
           prev.token.position !== token.position ||
           (prev.token.stepsFromStart ?? 0) !== (token.stepsFromStart ?? 0);
         if (!changed) continue;
-        if (prev.token.status === 'active' && token.status === 'home') continue; // capture snap
+        if (prev.token.status === 'active' && token.status === 'home') {
+          const from = tokenCell(player.color, prev.token);
+          if (from) captures.push({ key, from });
+          continue;
+        }
         const path = buildWalkPath(player.color, token.id, prev.token, token);
         if (path.length) walks.push({ key, path });
       }
     }
 
-    walkPlanRef.current = { sig: tokenSig, walks, finishedColors };
+    walkPlanRef.current = { sig: tokenSig, walks, finishedColors, captures };
   }
 
   const walkPlan = walkPlanRef.current;
@@ -753,54 +734,60 @@ export function LudoBoard({
     return map;
   }, [walkPlan, walkStep, reduce]);
 
+  const captureCells = useMemo(() => {
+    const map = new Map<string, [number, number]>();
+    if (reduce || !capturing || !walkPlan.captures.length) return map;
+    for (const c of walkPlan.captures) map.set(c.key, c.from);
+    return map;
+  }, [walkPlan, capturing, reduce]);
+
   useEffect(() => {
     const keyChanged = rollKey !== undefined && rollKey !== prevRollKey.current;
     const diceChanged = Boolean(state.lastDice) && state.lastDice !== prevDice.current;
     const tokensSame = tokenSig === prevTokenSig.current || !prevTokenSig.current;
     const isNewRoll = Boolean(state.lastDice) && (diceChanged || (keyChanged && tokensSame));
 
-    if (isNewRoll) {
-      const result = state.lastDice;
-      // Lock the authoritative face immediately so settle never shows the wrong number
-      setDisplayDice(result);
-      setBurst(false);
-      setSpinKey((k) => k + 1);
-      playDiceSfx('roll');
-
-      if (reduce) {
-        setDiceAnim('idle');
-        setBurst(true);
-        setRevealedDice(result);
-        setRollHistory((h) => [result, ...h].slice(0, 6));
-        playDiceSfx('land');
-        const t = window.setTimeout(() => setBurst(false), 400);
-        prevDice.current = result;
-        prevRollKey.current = rollKey;
-        prevTokenSig.current = tokenSig;
-        return () => clearTimeout(t);
-      }
-
-      setDiceAnim('settling');
-      const settleMs = 1050;
-      const t = window.setTimeout(() => {
-        setDiceAnim('idle');
-        setBurst(true);
-        setRevealedDice(result);
-        setRollHistory((h) => [result, ...h].slice(0, 6));
-        playDiceSfx('land');
-        window.setTimeout(() => setBurst(false), 650);
-      }, settleMs);
-
-      prevDice.current = result;
-      prevRollKey.current = rollKey;
-      prevTokenSig.current = tokenSig;
-      return () => clearTimeout(t);
-    }
-
     prevDice.current = state.lastDice;
     prevRollKey.current = rollKey;
     prevTokenSig.current = tokenSig;
-  }, [state.lastDice, rollKey, tokenSig, isMyTurn, reduce]);
+
+    if (!isNewRoll) return;
+
+    const result = state.lastDice;
+    setDisplayDice(result);
+    setBurst(false);
+    setSpinKey((k) => k + 1);
+    playDiceSfx('roll');
+
+    if (diceSettleTimer.current) {
+      window.clearTimeout(diceSettleTimer.current);
+      diceSettleTimer.current = null;
+    }
+
+    if (reduce) {
+      setDiceAnim('idle');
+      setBurst(true);
+      playDiceSfx('land');
+      const t = window.setTimeout(() => setBurst(false), 400);
+      return () => clearTimeout(t);
+    }
+
+    setDiceAnim('settling');
+    diceSettleTimer.current = window.setTimeout(() => {
+      setDiceAnim('idle');
+      setBurst(true);
+      playDiceSfx('land');
+      window.setTimeout(() => setBurst(false), 650);
+      diceSettleTimer.current = null;
+    }, 1050);
+  }, [state.lastDice, rollKey, tokenSig, reduce]);
+
+  useEffect(
+    () => () => {
+      if (diceSettleTimer.current) window.clearTimeout(diceSettleTimer.current);
+    },
+    []
+  );
 
   // Advance walk steps; commit snapshot when the move is done (or instantly if no walk)
   useLayoutEffect(() => {
@@ -820,17 +807,30 @@ export function LudoBoard({
     walkTimers.current.forEach((id) => window.clearTimeout(id));
     walkTimers.current = [];
 
-    const { walks, finishedColors } = walkPlanRef.current;
+    const { walks, finishedColors, captures } = walkPlanRef.current;
+    const captureMs = reduce ? 0 : captures.length ? 380 : 0;
+
+    if (captureMs) {
+      setCapturing(true);
+      walkTimers.current.push(window.setTimeout(() => setCapturing(false), captureMs));
+    } else {
+      setCapturing(false);
+    }
 
     if (reduce || walks.length === 0) {
       setWalking(false);
       setWalkStep(0);
-      commitSnapshot();
-      if (finishedColors.length) {
-        setWinEffect(finishedColors[0]);
-        playDiceSfx('win');
-        walkTimers.current.push(window.setTimeout(() => setWinEffect(null), 2500));
-      }
+      walkTimers.current.push(
+        window.setTimeout(() => {
+          walkPlanRef.current = { sig: tokenSig, walks: [], finishedColors: [], captures: [] };
+          commitSnapshot();
+          if (finishedColors.length) {
+            setWinEffect(finishedColors[0]);
+            playDiceSfx('win');
+            window.setTimeout(() => setWinEffect(null), 2500);
+          }
+        }, captureMs)
+      );
       return () => walkTimers.current.forEach((id) => window.clearTimeout(id));
     }
 
@@ -850,10 +850,10 @@ export function LudoBoard({
 
     walkTimers.current.push(
       window.setTimeout(() => {
-        // Clear plan so overrides drop; snapshot matches server board
-        walkPlanRef.current = { sig: tokenSig, walks: [], finishedColors: [] };
+        walkPlanRef.current = { sig: tokenSig, walks: [], finishedColors: [], captures: [] };
         setWalking(false);
         setWalkStep(0);
+        setCapturing(false);
         commitSnapshot();
         setBounceKeys(new Set(walks.map((w) => w.key)));
         playDiceSfx('land');
@@ -863,7 +863,7 @@ export function LudoBoard({
           playDiceSfx('win');
           window.setTimeout(() => setWinEffect(null), 2500);
         }
-      }, maxSteps * STEP_MS)
+      }, Math.max(maxSteps * STEP_MS, captureMs))
     );
 
     return () => walkTimers.current.forEach((id) => window.clearTimeout(id));
@@ -884,33 +884,41 @@ export function LudoBoard({
   const dice = state.lastDice || 0;
   // Server-authoritative: after rolling, must move before rolling again
   const mustMove = Boolean(isMyTurn && state.hasRolled && dice);
-  const canRoll = Boolean(isMyTurn && !disabled && !mustMove && !rolling && !walking);
-  const canSelect = Boolean(isMyTurn && !disabled && mustMove && !rolling && !walking && dice);
+  const canRoll = Boolean(isMyTurn && !disabled && !mustMove && !rolling && !walking && !capturing);
+  const canSelect = Boolean(isMyTurn && !disabled && mustMove && !rolling && !walking && !capturing && dice);
 
   const movableIds = useMemo(() => {
     if (!canSelect || !myPlayer) return new Set<number>();
     return new Set(myPlayer.tokens.filter((t) => canMoveToken(t, dice)).map((t) => t.id));
   }, [canSelect, myPlayer, dice]);
 
+  const finishedCounts = useMemo(() => {
+    const counts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
+    for (const player of state.players || []) {
+      counts[player.color] = player.tokens.filter((t) => t.status === 'finished').length;
+    }
+    return counts;
+  }, [state.players]);
+
   const tokenMap = useMemo(() => {
-    const map = new Map<string, Array<{ player: LudoPlayer; token: Token }>>();
+    const map = new Map<string, Array<{ player: LudoPlayer; token: Token; capturing?: boolean }>>();
     for (const player of state.players || []) {
       for (const token of player.tokens || []) {
         const pieceKey = `${player.playerId}-${token.id}`;
-        const cell = walkCells.get(pieceKey) ?? tokenCell(player.color, token);
+        const isCapturing = captureCells.has(pieceKey);
+        if (token.status === 'finished' && !walkCells.has(pieceKey)) continue;
+        const cell = walkCells.get(pieceKey) ?? captureCells.get(pieceKey) ?? tokenCell(player.color, token);
         if (!cell) continue;
         const key = cellKey(cell[0], cell[1]);
         const list = map.get(key) || [];
-        // While walking, show pawn style (not home marble)
-        const displayToken = walkCells.has(pieceKey)
-          ? { ...token, status: 'active' as const }
-          : token;
-        list.push({ player, token: displayToken });
+        const displayToken =
+          walkCells.has(pieceKey) || isCapturing ? { ...token, status: 'active' as const } : token;
+        list.push({ player, token: displayToken, capturing: isCapturing });
         map.set(key, list);
       }
     }
     return map;
-  }, [state.players, walkCells]);
+  }, [state.players, walkCells, captureCells]);
 
   const statusText = useMemo(() => {
     if (turnPhase === 'waiting') return 'Waiting to start';
@@ -946,27 +954,47 @@ export function LudoBoard({
     playersMeta?.find((p) => toId(p.userId) === toId(playerId))?.username ||
     `P-${playerId.slice(-4)}`;
 
+  const orderedPlayers = useMemo(() => {
+    const list = [...(state.players || [])];
+    return BOARD_COLORS.map((color) => list.find((p) => p.color === color)).filter(Boolean) as LudoPlayer[];
+  }, [state.players]);
+
   return (
-    <div className="ludo-aaa-wrapper w-full max-w-[620px] mx-auto space-y-4 sm:space-y-5">
+    <div className="ludo-aaa-wrapper w-full max-w-[700px] mx-auto space-y-3 sm:space-y-4">
+      {orderedPlayers.length > 0 && (
+        <div className="ludo-player-strip">
+          {orderedPlayers.map((player) => {
+            const theme = COLOR_THEME[player.color] || COLOR_THEME.red;
+            const finished = player.tokens.filter((t) => t.status === 'finished').length;
+            const isMe = myPlayer?.playerId === player.playerId;
+            const isActive = activeTurnColor === player.color;
+            return (
+              <div
+                key={player.playerId}
+                className={cn('ludo-player-chip', isActive && 'is-active')}
+              >
+                <span className={cn('ludo-player-dot', theme.fill)} />
+                <span className="ludo-player-chip-name">
+                  {isMe ? 'You' : nameFor(player.playerId)}
+                </span>
+                <span className="ludo-player-chip-count">{finished}/4</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <motion.div
-        initial={reduce ? false : { opacity: 0, scale: 0.96, y: 18 }}
+        initial={reduce ? false : { opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        className="ludo-aaa-stage relative mx-auto w-full aspect-square max-w-[540px] z-10"
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="ludo-aaa-stage relative mx-auto w-full aspect-square max-w-[640px] z-10"
       >
-        <div className={cn('ludo-aaa-float', reduce && 'is-static')} aria-hidden={false}>
+        <div className="ludo-aaa-float is-static" aria-hidden={false}>
           <div className="ludo-aaa-board-shadow" aria-hidden />
           <div className="ludo-aaa-board-shell">
             <div className="ludo-aaa-wood-bevel" aria-hidden />
             <div className="ludo-aaa-surface">
-              {/* Yards sit under the play grid; transparent yard cells let them show through */}
-              <div
-                className="ludo-aaa-grid ludo-aaa-overlay pointer-events-none absolute inset-0 z-[1] grid"
-                style={{ gridTemplateColumns: 'repeat(15, 1fr)', gridTemplateRows: 'repeat(15, 1fr)' }}
-                aria-hidden
-              >
-                <YardPlatforms activeColor={activeTurnColor} reduce={reduce} />
-              </div>
               <LayoutGroup id="ludo-tokens">
               <div
                 className="ludo-aaa-grid relative z-[2] grid w-full h-full"
@@ -974,13 +1002,13 @@ export function LudoBoard({
                 role="grid"
                 aria-label="Ludo board"
               >
-                {/* Same 15×15 metrics — crystal locks to center 3×3, under tokens */}
                 <div
                   className="ludo-aaa-grid ludo-aaa-overlay pointer-events-none absolute inset-0 z-[1] grid"
                   style={{ gridTemplateColumns: 'repeat(15, 1fr)', gridTemplateRows: 'repeat(15, 1fr)' }}
                   aria-hidden
                 >
-                  <CrystalCenter />
+                  <YardPlatforms activeColor={activeTurnColor} reduce={reduce} />
+                  <FinishHub finished={finishedCounts} />
                 </div>
                 {Array.from({ length: 225 }).map((_, idx) => {
                   const r = Math.floor(idx / 15);
@@ -1005,6 +1033,7 @@ export function LudoBoard({
                       myPlayer?.playerId === player.playerId && movableIds.has(token.id)
                   );
                   const isTokenSlot = yardColor ? isYardTokenSlot(yardColor, r, c) : false;
+                  const yardInner = yardColor ? isYardInnerCell(yardColor, r, c) : false;
                   // Center 3×3 is covered by the crystal overlay — keep cells clear so it shows through
                   const underCrystal = inCenter;
                   const isPathTile =
@@ -1019,11 +1048,13 @@ export function LudoBoard({
                       className={cn(
                         'ludo-aaa-cell relative z-[2] flex items-center justify-center',
                         yardColor && 'ludo-yard-cell',
+                        yardColor && !yardInner && `ludo-yard-outer ludo-yard-outer-${yardColor}`,
+                        yardColor && yardInner && `ludo-yard-inner-cell ludo-yard-inner-${yardColor}`,
                         !underCrystal && stretchColor && `ludo-stretch ludo-stretch-${stretchColor}`,
                         isPathTile && !startColor && 'ludo-path-cell',
                         !underCrystal && onTrack && startColor && `ludo-start-square ludo-start-${startColor}`,
                         underCrystal && 'ludo-center-bg',
-                        !underCrystal && isSafe && 'ludo-safe-cell',
+                        !underCrystal && isSafe && !startColor && 'ludo-safe-cell',
                         hasMoveTarget && 'ludo-move-target'
                       )}
                     >
@@ -1034,10 +1065,19 @@ export function LudoBoard({
                         />
                       )}
 
-                      {isSafe && !underCrystal && !pieces.length && <SafeStar />}
+                      {isSafe && !underCrystal && !pieces.length && !startColor && (
+                        <SafeStar tone="silver" />
+                      )}
 
-                      {isHomeStretchEntry && stretchColor && !underCrystal && (
-                        <EntryArrow direction={HOME_ARROW[stretchColor]} />
+                      {startColor && !underCrystal && !pieces.length && (
+                        <>
+                          <SafeStar tone="color" color={startColor} />
+                          <BoardArrow direction={HOME_ARROW[startColor]} color={startColor} />
+                        </>
+                      )}
+
+                      {isHomeStretchEntry && stretchColor && !underCrystal && !pieces.length && (
+                        <BoardArrow direction={HOME_ARROW[stretchColor]} color={stretchColor} />
                       )}
 
                       {hasMoveTarget && !reduce && (
@@ -1048,7 +1088,7 @@ export function LudoBoard({
                         />
                       )}
 
-                      {pieces.map(({ player, token }, i) => {
+                      {pieces.map(({ player, token, capturing: isCapturing }, i) => {
                         const mine = myPlayer?.playerId === player.playerId;
                         const movable = mine && movableIds.has(token.id);
                         const pieceKey = `${player.playerId}-${token.id}`;
@@ -1067,12 +1107,12 @@ export function LudoBoard({
                             <TokenPiece
                               color={player.color}
                               layoutId={`ludo-token-${pieceKey}`}
-                              atHome={token.status === 'home'}
-                              movable={movable && !walking}
+                              movable={movable && !walking && !capturing}
                               finished={token.status === 'finished' && !walkCells.has(pieceKey)}
                               bouncing={bounceKeys.has(pieceKey)}
+                              capturing={isCapturing}
                               selected={selectedToken === token.id && mine}
-                              disabled={disabled || !movable || walking}
+                              disabled={disabled || !movable || walking || capturing}
                               onClick={
                                 movable ? () => handleToken(token.id, player.playerId) : undefined
                               }
@@ -1132,14 +1172,10 @@ export function LudoBoard({
         </AnimatePresence>
       </motion.div>
 
-      {/* Premium Dice Control */}
       <div className="ludo-dice-control z-10 relative">
         <TurnBadge text={statusText} isMyTurn={Boolean(isMyTurn)} reduce={reduce} />
 
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
+        <div
           className={cn(
             'ludo-dice-panel',
             isMyTurn && !rolling && 'is-my-turn',
@@ -1147,145 +1183,29 @@ export function LudoBoard({
           )}
         >
           <div className="ludo-dice-panel-inner">
-            {/* Left — Dice */}
             <div className={cn('ludo-dice-stage', burst && 'is-burst', rolling && 'is-rolling')}>
               <DiceFace value={displayDice || 1} anim={diceAnim} spinKey={spinKey} />
-              <AnimatePresence>
-                {burst && !reduce && (
-                  <motion.div
-                    key="dice-burst"
-                    className="pointer-events-none absolute inset-0"
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <motion.span
-                        key={i}
-                        initial={{ opacity: 1, scale: 0, x: '50%', y: '45%' }}
-                        animate={{
-                          opacity: 0,
-                          scale: 1.1,
-                          x: `calc(50% + ${Math.cos((i / 10) * Math.PI * 2) * 42}px)`,
-                          y: `calc(45% + ${Math.sin((i / 10) * Math.PI * 2) * 42}px)`,
-                        }}
-                        transition={{ duration: 0.5 }}
-                        className="absolute w-1.5 h-1.5 rounded-full bg-primary-400"
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
 
-            {/* Center — Last + history */}
-            <div className="ludo-dice-center">
-              <p className="ludo-dice-last-label">Last</p>
-              <motion.p
-                key={revealedDice || 'empty'}
-                initial={reduce ? false : { scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.25 }}
-                className="ludo-dice-last-value"
-              >
-                {revealedDice || '—'}
-              </motion.p>
-              <div className="ludo-dice-history" aria-label="Recent rolls">
-                {rollHistory.length > 0
-                  ? rollHistory.map((n, i) => (
-                      <span
-                        key={`${n}-${i}-${revealedDice}`}
-                        className={cn('ludo-history-pill', i === 0 && 'is-latest')}
-                      >
-                        {n}
-                      </span>
-                    ))
-                  : Array.from({ length: 6 }).map((_, i) => (
-                      <span key={`empty-${i}`} className="ludo-history-pill is-empty">
-                        –
-                      </span>
-                    ))}
-              </div>
-            </div>
-
-            {/* Right — Roll */}
             <motion.button
               type="button"
               onClick={handleRoll}
               disabled={!canRoll}
-              whileHover={canRoll && !reduce ? { y: -4, scale: 1.03 } : undefined}
-              whileTap={canRoll && !reduce ? { scale: 0.96 } : undefined}
-              transition={{ duration: 0.25 }}
+              whileHover={canRoll && !reduce ? { y: -2, scale: 1.02 } : undefined}
+              whileTap={canRoll && !reduce ? { scale: 0.97 } : undefined}
+              transition={{ duration: 0.2 }}
               aria-label="Roll dice"
               className={cn(
                 'ludo-roll-btn',
                 canRoll ? 'ludo-roll-btn-active' : 'ludo-roll-btn-disabled'
               )}
             >
-              {canRoll && !reduce && <span className="pointer-events-none absolute inset-0 ludo-btn-sheen" />}
               <span className="ludo-roll-btn-label">
-                <span className="ludo-roll-btn-emoji" aria-hidden>
-                  🎲
-                </span>
                 {rolling ? 'Rolling...' : 'Roll Dice'}
               </span>
             </motion.button>
           </div>
-        </motion.div>
-      </div>
-
-      {/* Player yards summary */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 z-10 relative">
-        {(state.players || []).map((player) => {
-          const theme = COLOR_THEME[player.color] || COLOR_THEME.red;
-          const finished = player.tokens.filter((t) => t.status === 'finished').length;
-          const active = player.tokens.filter((t) => t.status === 'active').length;
-          const isMe = myPlayer?.playerId === player.playerId;
-          return (
-            <motion.div
-              key={player.playerId}
-              whileHover={{ y: -3, scale: 1.01 }}
-              className={cn(
-                'ludo-player-card rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all',
-                isMe && isMyTurn && 'ludo-player-card-active'
-              )}
-            >
-              <motion.span
-                className={cn(
-                  'w-10 h-10 rounded-xl bg-gradient-to-br shadow-lg border border-white/30 flex items-center justify-center',
-                  theme.gradient
-                )}
-                animate={isMe && isMyTurn && !reduce ? { scale: [1, 1.08, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                {finished >= 4 && <Crown className="w-4 h-4 text-white" />}
-              </motion.span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-theme-primary truncate">
-                  {nameFor(player.playerId)}
-                  {isMe && <span className="ml-1.5 text-[10px] text-violet-500 font-semibold">(You)</span>}
-                </p>
-                <p className="text-[11px] text-theme-muted font-medium">
-                  {finished}/4 home · {active} active
-                </p>
-              </div>
-              <div className="flex -space-x-1.5">
-                {player.tokens.map((t) => (
-                  <span
-                    key={t.id}
-                    className={cn(
-                      'w-3 h-3 rounded-full border-2 border-white/50 transition-all',
-                      t.status === 'finished'
-                        ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                        : t.status === 'active'
-                          ? cn(theme.fill, 'shadow-sm')
-                          : 'bg-theme-muted/30'
-                    )}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          );
-        })}
+        </div>
       </div>
     </div>
   );

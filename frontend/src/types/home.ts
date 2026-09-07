@@ -124,6 +124,7 @@ export const PLATFORM_GAME_SLUGS = [
   'snake-multiplayer',
   'ludo',
   'quiz-battle',
+  'block-master',
 ] as const;
 
 export function isPlatformGame(slug: string): boolean {

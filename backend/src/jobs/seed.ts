@@ -95,6 +95,16 @@ const seedDatabase = async (): Promise<void> => {
         settings: { rounds: 10, timePerQuestion: 20 },
         thumbnail: '/images/games/quiz.png',
       },
+      {
+        name: 'Block Master',
+        slug: 'block-master',
+        description: 'Stack, rotate, and clear under rising pressure.',
+        minPlayers: 1,
+        maxPlayers: 1,
+        category: 'puzzle',
+        settings: { cols: 10, rows: 20 },
+        thumbnail: '/images/games/block-master.jpg',
+      },
     ];
 
     for (const game of games) {

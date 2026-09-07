@@ -16,6 +16,7 @@ import { ChessBoard } from '@/components/game/ChessBoard';
 import { SnakeBoard } from '@/components/game/SnakeBoard';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { ChessApp } from '@/games/chess-arena';
+import { BlockMasterApp } from '@/games/block-master';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -86,6 +87,9 @@ export default function PlayRoute() {
   }
   if ((params.slug as string) === 'chess') {
     return <ChessApp variant="play" />;
+  }
+  if ((params.slug as string) === 'block-master') {
+    return <BlockMasterApp variant="play" />;
   }
   return <GenericPlayPage />;
 }

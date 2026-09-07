@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useGame, useGameRooms, useCreateRoom, useLeaderboard } from '@/hooks';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { ChessApp } from '@/games/chess-arena';
+import { BlockMasterApp } from '@/games/block-master';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -27,6 +28,7 @@ const slugIcons: Record<string, string> = {
   'snake-multiplayer': '🐍',
   'ludo': '🎲',
   'quiz-battle': '🧠',
+  'block-master': '🧱',
 };
 
 interface RoomItem {
@@ -72,6 +74,9 @@ export default function GameDetailPage() {
   }
   if (slug === 'chess') {
     return <ChessApp variant="hub" />;
+  }
+  if (slug === 'block-master') {
+    return <BlockMasterApp variant="hub" />;
   }
 
   const icon = slugIcons[slug] || '🎮';

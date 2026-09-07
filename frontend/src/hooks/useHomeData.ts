@@ -41,6 +41,7 @@ function toneFromSlug(slug: string, index: number): GameArtTone {
     'snake-multiplayer': 'cyber',
     ludo: 'forest',
     'quiz-battle': 'violet',
+    'block-master': 'cyber',
   };
   return mapped[slug] ?? ART_TONES[index % ART_TONES.length];
 }
@@ -91,7 +92,7 @@ function mapApiGame(game: Game, index: number, base?: HomeGame): HomeGame {
     isNew: base?.isNew,
     isTrending: base?.isTrending,
     isFeatured: base?.isFeatured,
-    isMultiplayer: true,
+    isMultiplayer: base?.isMultiplayer ?? true,
     minPlayers: game.minPlayers || base?.minPlayers || 2,
     maxPlayers: game.maxPlayers || base?.maxPlayers || 2,
     tags,

@@ -91,7 +91,7 @@ export const HOME_GAMES: HomeGame[] = [
     id: 'chess',
     slug: 'chess',
     name: 'Chess',
-    description: 'The classic mind sport, rebuilt for ranked play. Outthink opponents and climb the board.',
+    description: 'The classic mind sport, rebuilt for ranked play. Outthink opponents, watch the clock, and climb the board.',
     genres: ['Strategy', 'Multiplayer'],
     category: 'strategy',
     rating: 4.9,

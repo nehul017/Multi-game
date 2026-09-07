@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useGame, useGameRooms, useCreateRoom, useLeaderboard } from '@/hooks';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
+import { ChessApp } from '@/games/chess-arena';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -68,6 +69,9 @@ export default function GameDetailPage() {
 
   if (slug === 'snake-multiplayer') {
     return <CoilRushApp variant="hub" />;
+  }
+  if (slug === 'chess') {
+    return <ChessApp variant="hub" />;
   }
 
   const icon = slugIcons[slug] || '🎮';

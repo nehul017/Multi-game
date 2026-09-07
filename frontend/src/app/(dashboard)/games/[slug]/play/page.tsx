@@ -15,6 +15,7 @@ import { ConnectFourBoard } from '@/components/game/ConnectFourBoard';
 import { ChessBoard } from '@/components/game/ChessBoard';
 import { SnakeBoard } from '@/components/game/SnakeBoard';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
+import { ChessApp } from '@/games/chess-arena';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -82,6 +83,9 @@ export default function PlayRoute() {
   const params = useParams();
   if ((params.slug as string) === 'snake-multiplayer') {
     return <CoilRushApp variant="play" />;
+  }
+  if ((params.slug as string) === 'chess') {
+    return <ChessApp variant="play" />;
   }
   return <GenericPlayPage />;
 }

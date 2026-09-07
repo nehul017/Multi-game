@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Loader2, Gamepad2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Button } from '@/components/ui/Button';
 import { authService } from '@/services/auth.service';
 
@@ -35,9 +36,7 @@ export default function VerifyEmailPage() {
       >
         <div className="bg-surface/80 backdrop-blur-xl border border-surface-lighter/50 rounded-2xl p-8 text-center">
           <div className="flex items-center gap-2 justify-center mb-8">
-            <div className="w-9 h-9 rounded-lg bg-gradient-gaming flex items-center justify-center">
-              <Gamepad2 className="w-5 h-5 text-white" />
-            </div>
+            <BrandLogo size="sm" />
             <span className="font-display text-xl font-bold gradient-text">MultiGame</span>
           </div>
 

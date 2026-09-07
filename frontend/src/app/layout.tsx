@@ -3,8 +3,8 @@ import { Providers } from '@/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'MultiGame Arena - Multiplayer Gaming Platform',
-  description: 'The ultimate multiplayer gaming platform. Play Tic Tac Toe, Connect Four, Chess, and more with players worldwide.',
+  title: 'GAMEHUB — Multiplayer Gaming Platform',
+  description: 'Play. Compete. Connect. Ranked matches, live rooms, tournaments, and friends on GAMEHUB.',
   keywords: ['multiplayer', 'games', 'gaming', 'chess', 'tic-tac-toe', 'connect-four', 'online'],
 };
 

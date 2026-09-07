@@ -10,6 +10,7 @@ import { SOCKET_EVENTS } from '@/constants/socket';
 import { GameState, Message, Notification, Move, RoomPlayer } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { toId } from '@/lib/id';
+import { coilLive, isCoilBoard } from '@/games/coil-rush/net/liveBoard';
 
 const DEFAULT_GAME_TIME_SECONDS = 300;
 
@@ -158,7 +159,7 @@ export function useGameSocket() {
         host: user?.id || '',
         hostUsername: user?.username || '',
         players: [],
-        maxPlayers: 2,
+        maxPlayers: gameType === 'snake-multiplayer' ? 8 : 2,
         isPrivate: false,
         status: 'waiting',
         spectators: [],
@@ -198,7 +199,7 @@ export function useGameSocket() {
         host: '',
         hostUsername: '',
         players: [],
-        maxPlayers: 2,
+        maxPlayers: payload.gameType === 'snake-multiplayer' ? 8 : 2,
         isPrivate: false,
         status: (payload.status as 'waiting' | 'playing' | 'finished') || 'waiting',
         spectators: [],
@@ -250,6 +251,7 @@ export function useGameSocket() {
 
       const serverBoard = payload.gameState?.board;
       const authoritativeMoveCount = serverMoveCount(payload.gameState, moveCount);
+      if (isCoilBoard(serverBoard)) coilLive.set(serverBoard);
       setGameState({
         ...createInitialGameState(),
         status: gameStatus,
@@ -286,6 +288,12 @@ export function useGameSocket() {
         },
       ]);
       setMatchmaking(false);
+      const myId = toId(useAuthStore.getState().user?.id);
+      if (!p.reconnected && userId !== myId && typeof window !== 'undefined') {
+        import('react-hot-toast').then(({ default: toast }) => {
+          toast(`${p.username} joined the match`);
+        });
+      }
     };
 
     const handlePlayerLeft = (data: unknown) => {
@@ -301,7 +309,8 @@ export function useGameSocket() {
         timestamp: Date | string;
       };
       const playerId = m.playerId ? toId(m.playerId) : '';
-      if (playerId) {
+      const action = (move as { action?: string }).action;
+      if (playerId && action !== 'direction' && action !== 'tick' && action !== 'playerJoined') {
         addMove({
           id: `${Date.now()}-${playerId}-${Math.random().toString(36).slice(2, 7)}`,
           playerId,
@@ -314,6 +323,20 @@ export function useGameSocket() {
       const prev = gameState || createInitialGameState();
 
       if (m.gameState) {
+        const incomingBoard = m.gameState.board;
+        if (action === 'tick' && isCoilBoard(incomingBoard)) {
+          coilLive.set(incomingBoard);
+          if (prev.status !== 'playing') {
+            setGameState({
+              ...prev,
+              status: 'playing',
+              board: incomingBoard,
+            });
+            setIsPlaying(true);
+          }
+          return;
+        }
+
         const incomingCount = serverMoveCount(
           m.gameState,
           (prev.moveCount || 0) + (playerId ? 1 : 0)
@@ -322,6 +345,8 @@ export function useGameSocket() {
         if ((prev.moveCount || 0) > incomingCount) {
           return;
         }
+
+        if (isCoilBoard(incomingBoard)) coilLive.set(incomingBoard);
 
         setGameState(
           applyServerGameState(prev, m.gameState, {
@@ -366,10 +391,12 @@ export function useGameSocket() {
 
     const handleGameStart = (data: unknown) => {
       setIsPlaying(true);
+      setMatchmaking(false);
       setCountdown(null);
       const payload = (data || {}) as { gameState?: Record<string, unknown>; players?: string[] };
       const { players } = useGameStore.getState();
       const serverState = payload.gameState || {};
+      if (isCoilBoard(serverState.board)) coilLive.set(serverState.board);
       const currentTurn = toId(
         (serverState.currentPlayer as string) ||
           (serverState.currentTurn as string) ||
@@ -551,13 +578,13 @@ export function useGameSocket() {
   );
 
   const startMatchmaking = useCallback(
-    (gameSlug: string) => {
+    (gameSlug: string, settings?: Record<string, unknown>) => {
       resetGame();
       setMatchmaking(true);
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('activeGameRoom');
       }
-      gameEmit(SOCKET_EVENTS.GAME.MATCHMAKING, { gameSlug });
+      gameEmit(SOCKET_EVENTS.GAME.MATCHMAKING, { gameSlug, settings });
     },
     [gameEmit, resetGame, setMatchmaking]
   );

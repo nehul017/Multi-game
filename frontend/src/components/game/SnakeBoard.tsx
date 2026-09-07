@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { SnakeIoArena, type SnakeSteerInput } from '@/components/game/SnakeIoArena';
 
 interface Point {
   x: number;
@@ -84,7 +85,7 @@ export interface SnakeChatMessage {
 export interface SnakeBoardProps {
   board?: unknown;
   disabled?: boolean;
-  onMove?: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  onMove?: (input: SnakeSteerInput) => void;
   players?: SnakePlayer[];
   spectators?: string[];
   currentUserId?: string;
@@ -101,6 +102,13 @@ export interface SnakeBoardProps {
 }
 
 type Dir = 'up' | 'down' | 'left' | 'right';
+
+const DIR_ANGLE: Record<Dir, number> = {
+  right: 0,
+  down: Math.PI / 2,
+  left: Math.PI,
+  up: -Math.PI / 2,
+};
 
 const DEFAULT_STATE: SnakeState = {
   gridWidth: 30,
@@ -242,6 +250,8 @@ interface ScorePop {
 interface HeaderProps {
   roomId?: string;
   playersCount: number;
+  maxPlayers?: number;
+  openJoin?: boolean;
   latency: number;
   soundOn: boolean;
   onToggleSound: () => void;
@@ -257,6 +267,8 @@ interface HeaderProps {
 function SnakeHeader({
   roomId,
   playersCount,
+  maxPlayers = 4,
+  openJoin = false,
   latency,
   soundOn,
   onToggleSound,
@@ -312,8 +324,11 @@ function SnakeHeader({
           <span className="text-white font-mono">{shortRoom}</span>
         </span>
         <span className="snake-pill snake-pill-cyan">
-          <Users className="w-3 h-3" /> {playersCount}
+          <Users className="w-3 h-3" /> {playersCount}/{maxPlayers}
         </span>
+        {openJoin && (
+          <span className="snake-pill snake-pill-live">OPEN</span>
+        )}
         <span className={cn('snake-pill', pingClass)}>
           <Signal className="w-3 h-3" />
           {connectionOn ? `${latency}ms` : 'OFFLINE'}
@@ -366,8 +381,11 @@ function SnakeHeader({
           <span className="text-white font-mono">{shortRoom}</span>
         </span>
         <span className="snake-pill snake-pill-cyan">
-          <Users className="w-3 h-3" /> {playersCount}
+          <Users className="w-3 h-3" /> {playersCount}/{maxPlayers}
         </span>
+        {openJoin && (
+          <span className="snake-pill snake-pill-live">OPEN</span>
+        )}
         <span className={cn('snake-pill', pingClass)}>
           <Signal className="w-3 h-3" />
           {connectionOn ? `${latency}ms` : 'OFFLINE'}
@@ -939,11 +957,26 @@ export function SnakeBoard({
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeDir, setActiveDir] = useState<Dir | null>(null);
+  const [pendingDir, setPendingDir] = useState<Dir | null>(null);
+  const onMoveRef = useRef(onMove);
+  const pendingDirRef = useRef<Dir | null>(null);
+  const snakesRef = useRef<Snake[]>([]);
+
+  useEffect(() => {
+    onMoveRef.current = onMove;
+  }, [onMove]);
 
   const state = (board || DEFAULT_STATE) as SnakeState;
   const gridWidth = state.gridWidth || 30;
   const gridHeight = state.gridHeight || 30;
-  const snakes = state.snakes || [];
+  const snakes = useMemo(() => {
+    const list = state.snakes || [];
+    if (!currentUserId || !pendingDir) return list;
+    return list.map((snake) =>
+      snake.playerId === currentUserId ? { ...snake, direction: pendingDir } : snake
+    );
+  }, [state.snakes, currentUserId, pendingDir]);
+  snakesRef.current = state.snakes || [];
   const food = state.food || [];
   const tickRate = state.tickRate || 150;
 
@@ -1014,12 +1047,19 @@ export function SnakeBoard({
     return () => clearTimeout(id);
   }, [scorePops]);
 
-  // Track my direction for pad highlight
+  // Track my direction for pad highlight and clear pending once the server agrees
   useEffect(() => {
     if (!currentUserId) return;
-    const me = snakes.find((s) => s.playerId === currentUserId);
-    if (me?.direction) setActiveDir(me.direction as Dir);
-  }, [snakes, currentUserId]);
+    const me = (state.snakes || []).find((s) => s.playerId === currentUserId);
+    if (!me?.direction) return;
+    if (pendingDirRef.current && me.direction === pendingDirRef.current) {
+      pendingDirRef.current = null;
+      setPendingDir(null);
+    }
+    if (!pendingDirRef.current) {
+      setActiveDir(me.direction as Dir);
+    }
+  }, [state.snakes, currentUserId]);
 
   // Cell size responsive to board wrapper
   useEffect(() => {
@@ -1039,33 +1079,11 @@ export function SnakeBoard({
     return () => observer.disconnect();
   }, [gridWidth]);
 
-  // Keyboard controls
-  useEffect(() => {
+  const steer = useCallback((dir: Dir) => {
     if (disabled) return;
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
-
-      const map: Record<string, Dir> = {
-        ArrowUp: 'up',
-        ArrowDown: 'down',
-        ArrowLeft: 'left',
-        ArrowRight: 'right',
-        w: 'up',
-        s: 'down',
-        a: 'left',
-        d: 'right',
-      };
-      const dir = map[e.key] || map[e.key.toLowerCase()];
-      if (dir) {
-        e.preventDefault();
-        setActiveDir(dir);
-        onMove?.(dir);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [disabled, onMove]);
+    setActiveDir(dir);
+    onMoveRef.current?.({ angle: DIR_ANGLE[dir], boost: false });
+  }, [disabled]);
 
   const handleToggleFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -1145,7 +1163,9 @@ export function SnakeBoard({
       <div className="snake-shell space-y-4">
         <SnakeHeader
           roomId={roomId}
-          playersCount={players.length + spectators.length}
+          playersCount={players.length}
+          maxPlayers={4}
+          openJoin={gameStatus === 'playing' && players.length < 4}
           latency={latency}
           soundOn={soundOn}
           onToggleSound={() => setSoundOn((v) => !v)}
@@ -1270,7 +1290,7 @@ export function SnakeBoard({
                 tickRate={tickRate}
                 totalFood={food.length}
                 activePowerups={Object.keys(activePowerups).length}
-                mode="Classic"
+                mode="snake.io"
               />
             </motion.div>
 
@@ -1304,105 +1324,24 @@ export function SnakeBoard({
               <div className="snake-arena-halo" aria-hidden />
               <div
                 ref={boardWrapRef}
-                className={cn('snake-board', shake > 0 && !reduce && 'snake-board-shake')}
+                className={cn('snake-board snake-board-io', shake > 0 && !reduce && 'snake-board-shake')}
                 key={shake}
-                style={
-                  {
-                    ['--sn-cell' as string]: `${cellSize}px`,
-                    ['--sn-board-h' as string]: `${boardSide}px`,
-                  } as React.CSSProperties
-                }
               >
-                <span className="snake-board-scanline" aria-hidden />
-
-                {/* Food */}
-                {food.map((f, i) => {
-                  const isGold = (f.x + f.y) % 11 === 0 && i % 3 === 0;
-                  const foodColor = isGold ? '#FFC857' : '#00FF88';
-                  const foodDark = isGold ? '#a06a00' : '#009a52';
-                  const foodGlow = isGold ? 'rgba(255, 200, 87, 0.7)' : 'rgba(0, 255, 136, 0.7)';
-                  return (
-                    <span
-                      key={`f-${f.x}-${f.y}-${i}`}
-                      className={cn('snake-food', isGold && 'snake-food-gold')}
-                      style={
-                        {
-                          ['--x' as string]: `${f.x * cellSize + 2}px`,
-                          ['--y' as string]: `${f.y * cellSize + 2}px`,
-                          ['--food-bg' as string]: foodColor,
-                          ['--food-dark' as string]: foodDark,
-                          ['--food-glow' as string]: foodGlow,
-                        } as React.CSSProperties
-                      }
-                    />
-                  );
-                })}
-
-                {/* Snakes */}
-                {snakes.map((snake) => {
-                  const eyes = eyeOffsets(snake.direction);
-                  const rot = directionAngle(snake.direction);
-                  const gradient = `radial-gradient(circle at 32% 28%, ${hexToRgba('#ffffff', 0.85)} 0%, ${snake.color} 40%, ${hexToRgba(snake.color, 0.75)} 100%)`;
-                  return snake.body.map((seg, i) => {
-                    const isHead = i === 0;
-                    const isTail = i === snake.body.length - 1 && snake.body.length > 3;
-                    return (
-                      <span
-                        key={`${snake.playerId}-${i}`}
-                        className={cn(
-                          'snake-seg',
-                          isHead && 'snake-seg-head',
-                          isTail && 'snake-seg-tail',
-                          !snake.alive && 'snake-seg-dead'
-                        )}
-                        style={
-                          {
-                            ['--x' as string]: `${seg.x * cellSize + 1}px`,
-                            ['--y' as string]: `${seg.y * cellSize + 1}px`,
-                            ['--seg-bg' as string]: isHead ? gradient : snake.color,
-                            ['--seg-glow' as string]: hexToRgba(snake.color, isHead ? 0.7 : 0.4),
-                            zIndex: isHead ? 3 : 2,
-                          } as React.CSSProperties
-                        }
-                      >
-                        {isHead && snake.alive && (
-                          <span
-                            style={{
-                              position: 'absolute',
-                              inset: 0,
-                              transform: `rotate(${rot}deg)`,
-                              transformOrigin: '50% 50%',
-                            }}
-                          >
-                            <span className="snake-eye" style={{ top: eyes[0].top, left: eyes[0].left }} />
-                            <span className="snake-eye" style={{ top: eyes[1].top, left: eyes[1].left }} />
-                          </span>
-                        )}
-                      </span>
-                    );
-                  });
-                })}
-
-                {/* Score popups */}
-                {scorePops.map((pop) => (
-                  <span
-                    key={`pop-${pop.id}`}
-                    className="snake-score-pop"
-                    style={{
-                      left: `${pop.x * cellSize + cellSize / 2}px`,
-                      top: `${pop.y * cellSize}px`,
-                    }}
-                  >
-                    +10
-                  </span>
-                ))}
+                <SnakeIoArena
+                  board={board}
+                  currentUserId={currentUserId}
+                  disabled={disabled || gameStatus !== 'playing'}
+                  gameStatus={gameStatus}
+                  onSteer={onMove}
+                />
 
                 {/* Waiting / Countdown overlay */}
                 {gameStatus === 'waiting' && (
                   <div className="absolute inset-0 grid place-items-center bg-black/40 backdrop-blur-sm">
                     <div className="text-center">
                       <p className="text-white/60 text-sm tracking-widest uppercase mb-2">Standby</p>
-                      <p className="text-2xl font-extrabold">Waiting for players…</p>
+                      <p className="text-2xl font-extrabold">Starting arena…</p>
+                      <p className="text-white/50 text-sm mt-2">Play solo — others can join mid-game</p>
                     </div>
                   </div>
                 )}
@@ -1518,10 +1457,7 @@ export function SnakeBoard({
             {/* Controls */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <DirectionalPad
-                onMove={(dir) => {
-                  setActiveDir(dir);
-                  onMove?.(dir);
-                }}
+                onMove={steer}
                 disabled={disabled || gameStatus !== 'playing'}
                 activeDir={activeDir}
               />
@@ -1530,12 +1466,11 @@ export function SnakeBoard({
                   Steering
                 </p>
                 <p className="text-xs text-white/70">
-                  Use <span className="font-mono text-white">WASD</span> or{' '}
-                  <span className="font-mono text-white">Arrow keys</span> — or tap the pad on
-                  mobile.
+                  Move the <span className="font-mono text-white">mouse</span> to slither, or use{' '}
+                  <span className="font-mono text-white">WASD</span> / arrows.
                 </p>
                 <p className="text-[11px] text-white/45">
-                  Collect glowing food to grow. Avoid walls, tails, and other snakes.
+                  Hold click or Space to boost. Cut others off, eat pellets, and don&apos;t hit the arena wall.
                 </p>
               </div>
             </div>

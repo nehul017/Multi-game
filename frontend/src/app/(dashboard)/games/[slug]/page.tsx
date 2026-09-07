@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Play, Users, Trophy, Plus, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { Play, Users, Trophy, Plus, RefreshCw, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { GamesBreadcrumb } from '@/components/games/GamesBreadcrumb';
+import { formatGameTitle } from '@/types/home';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -15,6 +17,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useGame, useGameRooms, useCreateRoom, useLeaderboard } from '@/hooks';
+import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -63,8 +66,12 @@ export default function GameDetailPage() {
   const lbPayload = lbData?.data as unknown;
   const leaderboard: LeaderboardPlayer[] = (Array.isArray(lbPayload) ? lbPayload : (lbPayload as Record<string, unknown>)?.data ?? []) as LeaderboardPlayer[];
 
+  if (slug === 'snake-multiplayer') {
+    return <CoilRushApp variant="hub" />;
+  }
+
   const icon = slugIcons[slug] || '🎮';
-  const gameName = (game?.name as string) || slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const gameName = (game?.name as string) || formatGameTitle(slug);
   const gameDescription = (game?.description as string) || '';
   const category = (game?.category as string) || 'Game';
 
@@ -77,7 +84,7 @@ export default function GameDetailPage() {
   const handleCreateRoom = () => {
     createRoom.mutate({
       gameSlug: slug,
-      data: { name: `${gameName} Room`, isPrivate: false, maxPlayers: 2 },
+      data: { name: `${gameName} Room`, isPrivate: false, maxPlayers: slug === 'snake-multiplayer' ? 4 : 2 },
     });
   };
 
@@ -104,7 +111,7 @@ export default function GameDetailPage() {
     )}},
     { key: 'players', label: 'Players', render: (item: Record<string, unknown>) => {
       const playersList = (item.players as unknown[]) || [];
-      const max = (item.maxPlayers as number) || 2;
+      const max = (item.maxPlayers as number) || (slug === 'snake-multiplayer' ? 4 : 2);
       return <span>{playersList.length}/{max}</span>;
     }},
     { key: 'status', label: 'Status', render: (item: Record<string, unknown>) => (
@@ -114,9 +121,15 @@ export default function GameDetailPage() {
     )},
     { key: 'action', label: '', render: (item: Record<string, unknown>) => {
       const roomId = (item.roomId || item.id || item._id) as string;
-      return (item.status as string) === 'waiting' ? (
+      const playersList = (item.players as unknown[]) || [];
+      const max = (item.maxPlayers as number) || (slug === 'snake-multiplayer' ? 4 : 2);
+      const status = item.status as string;
+      const canJoin =
+        status === 'waiting' ||
+        (slug === 'snake-multiplayer' && status === 'playing' && playersList.length < max);
+      return canJoin ? (
         <Link href={`/games/${slug}/play?room=${roomId}`}>
-          <Button size="sm" variant="primary">Join</Button>
+          <Button size="sm" variant="primary">{status === 'playing' ? 'Join Live' : 'Join'}</Button>
         </Link>
       ) : (
         <Button size="sm" variant="ghost">Spectate</Button>
@@ -128,6 +141,7 @@ export default function GameDetailPage() {
     return (
       <DashboardLayout>
         <div className="space-y-6">
+          <GamesBreadcrumb current={gameName} />
           <Card className="bg-gradient-to-br from-primary-500/10 to-secondary-500/10 border-primary-500/20">
             <div className="flex items-center gap-4">
               <Skeleton className="w-16 h-16 rounded-full" />
@@ -146,6 +160,9 @@ export default function GameDetailPage() {
   if (gameError) {
     return (
       <DashboardLayout>
+        <div className="mb-4">
+          <GamesBreadcrumb current={gameName} />
+        </div>
         <div className="text-center py-20">
           <p className="text-theme-muted mb-4">Failed to load game details</p>
           <Button variant="outline" onClick={() => refetchGame()} leftIcon={<RefreshCw className="w-4 h-4" />}>
@@ -160,9 +177,9 @@ export default function GameDetailPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Link href="/games" className="inline-flex items-center gap-2 text-sm text-theme-muted hover:text-theme-primary mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Games
-          </Link>
+          <div className="mb-4">
+            <GamesBreadcrumb current={gameName} />
+          </div>
 
           <Card className="bg-gradient-to-br from-primary-500/10 to-secondary-500/10 border-primary-500/20">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

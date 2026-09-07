@@ -62,4 +62,12 @@ export abstract class GameEngine {
   getCurrentPlayer(): string {
     return this.state.currentPlayer;
   }
+
+  addPlayer(_playerId: string): boolean {
+    return false;
+  }
+
+  eliminatePlayer(_playerId: string): void {
+    // Games that support mid-match drop-out override this
+  }
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Gamepad2, Home, Search } from 'lucide-react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Button } from '@/components/ui/Button';
 
 export default function NotFoundPage() {
@@ -15,9 +16,7 @@ export default function NotFoundPage() {
       <nav className="relative z-10 border-b border-surface-lighter/30 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-gaming flex items-center justify-center">
-              <Gamepad2 className="w-5 h-5 text-white" />
-            </div>
+            <BrandLogo size="sm" />
             <span className="font-display text-xl font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
               MultiGame
             </span>

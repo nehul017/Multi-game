@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2, Send, Swords } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { GamesBreadcrumb } from '@/components/games/GamesBreadcrumb';
+import { formatGameTitle } from '@/types/home';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -12,6 +14,7 @@ import { TicTacToeBoard } from '@/components/game/TicTacToeBoard';
 import { ConnectFourBoard } from '@/components/game/ConnectFourBoard';
 import { ChessBoard } from '@/components/game/ChessBoard';
 import { SnakeBoard } from '@/components/game/SnakeBoard';
+import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -75,7 +78,15 @@ function PlayerBar({
   );
 }
 
-export default function PlayPage() {
+export default function PlayRoute() {
+  const params = useParams();
+  if ((params.slug as string) === 'snake-multiplayer') {
+    return <CoilRushApp variant="play" />;
+  }
+  return <GenericPlayPage />;
+}
+
+function GenericPlayPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
@@ -118,7 +129,7 @@ export default function PlayPage() {
       : players.length >= 2 && toId(players[(gameState?.moveCount ?? 0) % 2]?.userId) === myId);
 
   useEffect(() => {
-    if (!isGameConnected) return;
+    if (!isGameConnected || slug === 'snake-multiplayer') return;
 
     const storedRoom =
       typeof window !== 'undefined' ? sessionStorage.getItem('activeGameRoom') : null;
@@ -140,7 +151,9 @@ export default function PlayPage() {
         sessionStorage.removeItem('activeGameRoom');
       }
     };
-  }, [leaveRoom, cancelMatchmaking]);
+    // Unmount only. Re-running on callback identity calls resetGame in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -233,10 +246,12 @@ export default function PlayPage() {
     emitMove(move, 'move');
   };
 
-  const handleSnakeMove = (direction: 'up' | 'down' | 'left' | 'right') => {
-    if (gameStatus !== 'playing') return;
-    emitMove({ direction }, 'direction');
-  };
+  const handleSnakeMove = useCallback((input: { angle: number; boost: boolean }) => {
+    const room = useGameStore.getState().currentRoom?.id;
+    const status = useGameStore.getState().gameState?.status;
+    if (!room || status !== 'playing') return;
+    makeMove({ roomId: room, action: 'steer', moveData: input });
+  }, [makeMove]);
 
   const handleLudoRoll = () => {
     if (!isMyTurn) return;
@@ -464,11 +479,14 @@ export default function PlayPage() {
 
   const rewards = gameState?.rewards;
   const eloChange = rewards?.eloChange ?? 0;
-  const gameTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const gameTitle = formatGameTitle(slug);
 
   if ((!isGameConnected || isMatchmaking) && !currentRoom) {
     return (
       <DashboardLayout>
+        <div className="mb-4">
+          <GamesBreadcrumb current={gameTitle} />
+        </div>
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
           <motion.div
             animate={{ rotate: 360 }}
@@ -478,12 +496,18 @@ export default function PlayPage() {
           </motion.div>
           <div className="text-center">
             <h2 className="text-xl font-semibold text-theme-primary font-display mb-2">
-              {!isGameConnected ? 'Connecting...' : 'Finding a match...'}
+              {!isGameConnected
+                ? 'Connecting...'
+                : slug === 'snake-multiplayer'
+                  ? 'Starting your arena...'
+                  : 'Finding a match...'}
             </h2>
             <p className="text-theme-muted">
               {!isGameConnected
                 ? 'Establishing game connection'
-                : `Looking for an opponent for ${gameTitle}`}
+                : slug === 'snake-multiplayer'
+                  ? 'Play now — other players can join mid-game'
+                  : `Looking for an opponent for ${gameTitle}`}
             </p>
           </div>
           {isGameConnected && (
@@ -627,32 +651,7 @@ export default function PlayPage() {
   );
 
   if (isSnake) {
-    return (
-      <DashboardLayout>
-        <AnimatePresence>
-          {gameStatus === 'countdown' && countdown !== null && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center"
-              style={{ background: 'var(--overlay)' }}
-            >
-              <motion.span
-                key={countdown}
-                initial={{ scale: 2, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                className="text-6xl sm:text-8xl font-display font-bold gradient-text"
-              >
-                {countdown || 'GO!'}
-              </motion.span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {renderBoard()}
-      </DashboardLayout>
-    );
+    return <CoilRushApp variant="play" />;
   }
 
   return (
@@ -682,6 +681,9 @@ export default function PlayPage() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
+            <div className="mb-1.5">
+              <GamesBreadcrumb current={gameTitle} />
+            </div>
             <h1
               className={cn(
                 'text-lg sm:text-xl font-bold text-theme-primary truncate tracking-tight',

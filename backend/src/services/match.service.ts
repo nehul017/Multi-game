@@ -3,6 +3,7 @@ import { userRepository } from '../repositories/user.repository';
 import { AppError } from '../utils/AppError';
 import { IMatchDocument } from '../interfaces/match.interface';
 import { gameEvents, EVENTS } from '../events';
+import { JOIN_IN_PROGRESS_GAMES, maxPlayersFor } from '../utils/constants';
 import { v4 as uuidv4 } from 'uuid';
 
 class MatchService {
@@ -50,7 +51,16 @@ class MatchService {
     const alreadyJoined = match.players.some((p) => p.userId.toString() === userId);
     if (alreadyJoined) return match;
 
-    if (match.status !== 'waiting') throw new AppError('Match is not accepting players', 400);
+    const canJoinPlaying =
+      match.status === 'playing' && JOIN_IN_PROGRESS_GAMES.has(match.gameType);
+    if (match.status !== 'waiting' && !canJoinPlaying) {
+      throw new AppError('Match is not accepting players', 400);
+    }
+
+    const maxPlayers = maxPlayersFor(match.gameType);
+    if (match.players.length >= maxPlayers) {
+      throw new AppError('Match is full', 400);
+    }
 
     const user = await userRepository.findById(userId);
     if (!user) throw new AppError('User not found', 404);

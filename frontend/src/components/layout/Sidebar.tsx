@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { cn } from '@/lib/utils';
+import { quickPlayHref } from '@/types/home';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -36,7 +37,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     <>
       {navItems.map((item) => {
         const isActive =
-          pathname === item.href || pathname?.startsWith(item.href + '/');
+          item.href === '/dashboard'
+            ? pathname === '/dashboard'
+            : pathname === item.href || Boolean(pathname?.startsWith(item.href + '/'));
         const Icon = item.icon;
         return (
           <Link
@@ -115,7 +118,7 @@ export function Sidebar() {
                 </p>
                 <p className="text-[11px] text-theme-muted mt-1">Find a match instantly</p>
                 <Link
-                  href="/games"
+                  href={quickPlayHref()}
                   onClick={() => setSidebarOpen(false)}
                   className="mt-2.5 inline-flex text-xs font-semibold text-primary-500 hover:text-primary-400 transition-colors"
                 >

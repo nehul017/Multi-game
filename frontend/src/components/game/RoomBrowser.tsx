@@ -45,8 +45,11 @@ export function RoomBrowser({ rooms, onJoinRoom, onSpectate }: RoomBrowserProps)
           <Badge variant={room.status === 'waiting' ? 'success' : room.status === 'playing' ? 'warning' : 'default'}>
             {room.status}
           </Badge>
-          {room.status === 'waiting' ? (
-            <Button size="sm" onClick={() => onJoinRoom(room.id)}>Join</Button>
+          {room.status === 'waiting' ||
+          (room.status === 'playing' && room.players.length < room.maxPlayers && room.gameSlug === 'snake-multiplayer') ? (
+            <Button size="sm" onClick={() => onJoinRoom(room.id)}>
+              {room.status === 'playing' ? 'Join Live' : 'Join'}
+            </Button>
           ) : (
             <Button size="sm" variant="ghost" onClick={() => onSpectate(room.id)}>Watch</Button>
           )}

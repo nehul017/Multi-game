@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Gamepad2, Sun, Moon } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/auth.store';
@@ -69,9 +70,9 @@ export default function LoginPage() {
             <motion.div
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-24 h-24 rounded-3xl bg-gradient-primary flex items-center justify-center mx-auto mb-8 shadow-glow-purple"
+              className="mx-auto mb-8 w-fit"
             >
-              <Gamepad2 className="w-12 h-12 text-white" />
+              <BrandLogo size="lg" />
             </motion.div>
             <h2 className="text-4xl font-display font-bold text-theme-primary mb-4">Welcome Back</h2>
             <p className="text-theme-muted text-lg">Enter the arena and continue your journey to the top</p>
@@ -86,9 +87,7 @@ export default function LoginPage() {
             className="w-full max-w-md surface-card p-5 sm:p-8 rounded-card"
           >
             <div className="lg:hidden flex items-center gap-2.5 mb-8">
-              <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-purple">
-                <Gamepad2 className="w-5 h-5 text-white" />
-              </div>
+              <BrandLogo size="sm" />
               <span className="font-display text-xl font-bold gradient-text">MultiGame</span>
             </div>
 

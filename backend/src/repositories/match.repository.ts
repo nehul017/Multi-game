@@ -21,7 +21,16 @@ class MatchRepository extends BaseRepository<IMatchDocument> {
   }
 
   async findWaitingMatches(gameType: string): Promise<IMatchDocument[]> {
-    return this.model.find({ gameType, status: 'waiting' }).populate('players.userId', 'username avatar elo').exec();
+    const joinablePlaying = gameType === 'snake-multiplayer';
+    return this.model
+      .find({
+        gameType,
+        status: joinablePlaying ? { $in: ['waiting', 'playing'] } : 'waiting',
+        ...(joinablePlaying ? { $expr: { $lt: [{ $size: '$players' }, 4] } } : {}),
+      })
+      .populate('players.userId', 'username avatar elo')
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   async addMove(matchId: string, move: { player: string; action: string; data: Record<string, unknown> }): Promise<IMatchDocument | null> {

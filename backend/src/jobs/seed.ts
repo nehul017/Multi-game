@@ -66,13 +66,13 @@ const seedDatabase = async (): Promise<void> => {
         thumbnail: '/images/games/chess.png',
       },
       {
-        name: 'Snake Multiplayer',
+        name: 'Coil Rush',
         slug: 'snake-multiplayer',
-        description: 'Multiplayer snake game. Eat food, grow longer, and outlast your opponents!',
-        minPlayers: 2,
-        maxPlayers: 4,
+        description: 'Original slither battle. Steer, boost, eat pellets, and cut rival coils. Friends can join a live arena.',
+        minPlayers: 1,
+        maxPlayers: 8,
         category: 'arcade',
-        settings: { gridSize: 30, tickRate: 150 },
+        settings: { worldSize: 2400, tickRate: 50 },
         thumbnail: '/images/games/snake.png',
       },
       {
@@ -102,6 +102,11 @@ const seedDatabase = async (): Promise<void> => {
       if (!existing) {
         await Game.create(game);
         console.log(`Game created: ${game.name}`);
+      } else if (game.slug === 'snake-multiplayer' && existing.minPlayers !== game.minPlayers) {
+        existing.minPlayers = game.minPlayers;
+        existing.description = game.description;
+        await existing.save();
+        console.log(`Game updated: ${game.name}`);
       }
     }
 

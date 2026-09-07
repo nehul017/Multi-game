@@ -126,6 +126,8 @@ export function useMatchHistory(userId?: string, page = 1) {
 }
 
 // Game Hooks
+export { useHomeData } from './useHomeData';
+
 export function useGames() {
   return useQuery({
     queryKey: ['games'],

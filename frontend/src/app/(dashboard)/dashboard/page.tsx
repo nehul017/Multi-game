@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useMatchHistory, useFriends } from '@/hooks';
 import { usePresence } from '@/socket/hooks';
 import { formatRelativeTime } from '@/lib/utils';
+import { quickPlayHref } from '@/types/home';
 import Link from 'next/link';
 
 function AnimatedCounter({ value }: { value: number | string }) {
@@ -91,7 +92,7 @@ export default function DashboardPage() {
               </h1>
               <p className="text-theme-muted mt-2 text-base">Ready for your next challenge?</p>
             </div>
-            <Link href="/games" className="w-full md:w-auto">
+            <Link href={quickPlayHref()} className="w-full md:w-auto">
               <Button size="lg" leftIcon={<Play className="w-4 h-4" />} className="w-full md:w-auto">
                 Quick Play
               </Button>

@@ -49,6 +49,23 @@ export const RANK_TIERS = {
   GRANDMASTER: { min: 2400, max: Infinity, name: 'Grandmaster' },
 };
 
+export const JOIN_IN_PROGRESS_GAMES = new Set(['snake-multiplayer']);
+
+export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = {
+  'snake-multiplayer': { min: 1, max: 8 },
+  'tic-tac-toe': { min: 2, max: 2 },
+  'connect-four': { min: 2, max: 2 },
+  chess: { min: 2, max: 2 },
+  ludo: { min: 2, max: 4 },
+  'quiz-battle': { min: 2, max: 8 },
+};
+
+export const maxPlayersFor = (gameType: string): number =>
+  GAME_PLAYER_LIMITS[gameType]?.max ?? 2;
+
+export const minPlayersToStart = (gameType: string): number =>
+  GAME_PLAYER_LIMITS[gameType]?.min ?? 2;
+
 export const SOCKET_EVENTS = {
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',

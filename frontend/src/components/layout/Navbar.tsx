@@ -13,7 +13,6 @@ import {
   User,
   LogOut,
   Shield,
-  Gamepad2,
   LayoutDashboard,
   Sun,
   Moon,
@@ -26,6 +25,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { CoinDisplay } from '@/components/economy/CoinDisplay';
 import { useWallet } from '@/hooks';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { cn } from '@/lib/utils';
 
 export function Navbar() {
@@ -93,9 +93,8 @@ export function Navbar() {
             <motion.div
               whileHover={{ scale: 1.05, rotate: -5 }}
               transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-              className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-purple"
             >
-              <Gamepad2 className="w-5 h-5 text-white" />
+              <BrandLogo size="sm" />
             </motion.div>
             <span className="font-display text-lg font-bold gradient-text hidden sm:block">
               MultiGame

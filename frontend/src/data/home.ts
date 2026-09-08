@@ -811,6 +811,8 @@ export function sortLibraryGames(games: HomeGame[], sort: LibrarySort): HomeGame
 }
 
 export function getLibraryFeaturedGames(games: HomeGame[], limit = 3): HomeGame[] {
+  const featured = games.filter((game) => game.isFeatured);
+  if (featured.length > 0) return featured.slice(0, limit);
   const playable = games.filter((game) => game.playable);
   if (playable.length > 0) return playable.slice(0, limit);
   return games.slice(0, limit);

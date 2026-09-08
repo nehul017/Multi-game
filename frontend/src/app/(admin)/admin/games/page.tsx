@@ -73,6 +73,8 @@ export default function AdminGamesPage() {
     mutationFn: (data: Record<string, unknown>) => adminService.createGame(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['home', 'games'] });
+      queryClient.invalidateQueries({ queryKey: ['games'] });
       toast.success('Game created');
       closeGameModal();
     },
@@ -83,6 +85,8 @@ export default function AdminGamesPage() {
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => adminService.updateGame(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['home', 'games'] });
+      queryClient.invalidateQueries({ queryKey: ['games'] });
       toast.success('Game updated');
       closeGameModal();
     },
@@ -93,6 +97,8 @@ export default function AdminGamesPage() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => adminService.toggleGame(id, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['home', 'games'] });
+      queryClient.invalidateQueries({ queryKey: ['games'] });
       toast.success('Game status updated');
     },
     onError: () => toast.error('Failed to update game status'),

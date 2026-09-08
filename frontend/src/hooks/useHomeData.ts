@@ -70,11 +70,19 @@ function mapApiCategory(category: string, fallback: HomeGame['category']): HomeG
   return fallback || 'arcade';
 }
 
+const FEATURED_SLUGS = new Set(['chess', 'snake-multiplayer', 'ludo']);
+
+function apiGameId(game: Game): string {
+  return game.id || game._id || game.slug;
+}
+
 function mapApiGame(game: Game, index: number, base?: HomeGame): HomeGame {
   const slug = game.slug;
+  const minPlayers = game.minPlayers || base?.minPlayers || 2;
+  const maxPlayers = game.maxPlayers || base?.maxPlayers || minPlayers;
   const tags = base?.tags || [game.category || 'Multiplayer'];
   return {
-    id: game.id || slug,
+    id: apiGameId(game),
     slug,
     name: slug === 'snake-multiplayer' ? 'Coil Rush' : game.name || base?.name || slug,
     description:
@@ -91,10 +99,10 @@ function mapApiGame(game: Game, index: number, base?: HomeGame): HomeGame {
     artTone: base?.artTone || toneFromSlug(slug, index),
     isNew: base?.isNew,
     isTrending: base?.isTrending,
-    isFeatured: base?.isFeatured,
-    isMultiplayer: base?.isMultiplayer ?? true,
-    minPlayers: game.minPlayers || base?.minPlayers || 2,
-    maxPlayers: game.maxPlayers || base?.maxPlayers || 2,
+    isFeatured: FEATURED_SLUGS.has(slug) || Boolean(base?.isFeatured),
+    isMultiplayer: base?.isMultiplayer ?? maxPlayers > 1,
+    minPlayers,
+    maxPlayers,
     tags,
     playable: isPlatformGame(slug),
   };
@@ -161,16 +169,10 @@ export function useHomeData() {
 
   const data = useMemo<HomeData>(() => {
     const apiGames = unwrapList<Game>(gamesQuery.data?.data);
-    const catalog = MOCK_HOME_DATA.games.map((game, index) => {
-      const live = apiGames.find((item) => item.slug === game.slug);
-      return live ? mapApiGame(live, index, game) : game;
-    });
-
-    const extraApiGames = apiGames
-      .filter((game) => !catalog.some((item) => item.slug === game.slug))
-      .map((game, index) => mapApiGame(game, catalog.length + index));
-
-    const games = extraApiGames.length ? [...catalog, ...extraApiGames] : catalog;
+    const catalogBySlug = new Map(MOCK_HOME_DATA.games.map((game) => [game.slug, game]));
+    const games = apiGames.map((game, index) =>
+      mapApiGame(game, index, catalogBySlug.get(game.slug))
+    );
 
     const apiLeaderboard = unwrapList<LeaderboardEntry>(leaderboardQuery.data?.data)
       .slice(0, 3)
@@ -190,11 +192,13 @@ export function useHomeData() {
       .map(mapRecentMatch)
       .filter((item): item is RecentGame => Boolean(item));
 
-    const featuredBase = games.find((game) => game.isFeatured) || games[0] || MOCK_HOME_DATA.featuredGame;
+    const featuredBase =
+      games.find((game) => game.isFeatured) ||
+      games.find((game) => game.playable) ||
+      games[0] ||
+      MOCK_HOME_DATA.featuredGame;
 
-    const onlinePlayers =
-      games.reduce((sum, game) => sum + game.onlinePlayers, 0) ||
-      MOCK_HOME_DATA.multiplayer.onlinePlayers;
+    const onlinePlayers = games.reduce((sum, game) => sum + game.onlinePlayers, 0);
 
     return {
       featuredGame: {
@@ -223,6 +227,7 @@ export function useHomeData() {
     isAuthenticated,
     user,
     isLoading: gamesQuery.isLoading,
+    isError: gamesQuery.isError,
     isLeaderboardLoading: leaderboardQuery.isLoading,
   };
 }

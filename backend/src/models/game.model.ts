@@ -18,4 +18,13 @@ const gameSchema = new Schema<IGameDocument>(
 
 gameSchema.index({ name: 'text', description: 'text' });
 
+gameSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform(_doc, ret) {
+    ret.id = String(ret._id);
+    return ret;
+  },
+});
+
 export const Game = mongoose.model<IGameDocument>('Game', gameSchema);

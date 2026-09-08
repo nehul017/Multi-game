@@ -23,7 +23,8 @@ export function GamesLibrary() {
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [sort, setSort] = useState<LibrarySort>('popular');
   const category = searchParams.get('category') || 'all';
-  const { data, isLoading } = useHomeData();
+  const { data, isLoading, isError } = useHomeData();
+  const hasActiveFilters = Boolean(search.trim() || (category && category !== 'all'));
 
   const filteredGames = useMemo(() => {
     const bySearch = searchGames(data.games, search);
@@ -67,9 +68,15 @@ export function GamesLibrary() {
         onSearchChange={handleSearchChange}
         onSortChange={setSort}
       />
-      <GameCategories selected={category} onSelect={updateCategory} />
+      <GameCategories selected={category} onSelect={updateCategory} games={data.games} />
       <FeaturedGames games={featuredGames} />
-      <AllGames games={filteredGames} isLoading={isLoading} onReset={resetFilters} />
+      <AllGames
+        games={filteredGames}
+        isLoading={isLoading}
+        isError={isError}
+        hasActiveFilters={hasActiveFilters}
+        onReset={resetFilters}
+      />
     </div>
   );
 }

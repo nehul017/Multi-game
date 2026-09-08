@@ -1,16 +1,22 @@
 'use client';
 
-import { LIBRARY_CATEGORIES } from '@/data/home';
+import { LIBRARY_CATEGORIES, gameMatchesCategory } from '@/data/home';
 import { cn } from '@/lib/utils';
-import type { LibraryCategoryId } from '@/types/home';
+import type { HomeGame, LibraryCategoryId } from '@/types/home';
 
 interface GameCategoriesProps {
   selected: string;
   onSelect: (category: LibraryCategoryId) => void;
+  games?: HomeGame[];
 }
 
-export function GameCategories({ selected, onSelect }: GameCategoriesProps) {
+export function GameCategories({ selected, onSelect, games }: GameCategoriesProps) {
   const active = selected || 'all';
+  const categories = games
+    ? LIBRARY_CATEGORIES.filter(
+        (item) => item.id === 'all' || games.some((game) => gameMatchesCategory(game, item.id))
+      )
+    : LIBRARY_CATEGORIES;
 
   return (
     <div
@@ -18,7 +24,7 @@ export function GameCategories({ selected, onSelect }: GameCategoriesProps) {
       role="tablist"
       aria-label="Game categories"
     >
-      {LIBRARY_CATEGORIES.map((item) => {
+      {categories.map((item) => {
         const isSelected = active === item.id;
         return (
           <button

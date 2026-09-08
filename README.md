@@ -4,7 +4,7 @@ A production-ready multiplayer gaming platform built with Next.js, Express, Sock
 
 ## Features
 
-- **Multiple Games**: Tic Tac Toe, Connect Four, Chess, Snake Multiplayer, Ludo, Quiz Battle
+- **Multiple Games**: Tic Tac Toe, Connect Four, Chess, Snake Multiplayer, Ludo, Quiz Battle, Block Master, Classic Fruit Slots
 - **Real-time Multiplayer**: Socket.IO powered real-time gameplay
 - **Matchmaking**: Random matching, private rooms, friend invites
 - **Chat System**: Global chat, private messaging, in-game chat
@@ -122,19 +122,81 @@ API documentation is available at `http://localhost:5000/api-docs` when the back
 | GET | /api/chat/conversations | Get conversations |
 | GET | /api/notifications | Get notifications |
 | GET | /api/admin/dashboard | Admin dashboard stats |
+| GET | /api/games/classic-fruit-slots | Fruit slots catalog + public config |
+| GET | /api/games/classic-fruit-slots/config | Public paytable, paylines, bet limits |
+| GET | /api/games/classic-fruit-slots/history | Authenticated spin history |
 
 ### Socket Events
 
 | Namespace | Events |
 |-----------|--------|
 | /game | createRoom, joinRoom, makeMove, gameOver |
+| /game | game:join, game:state, game:spin, game:spin:result, game:balance, game:history, game:leave, game:error |
 | /chat | sendMessage, typing, joinRoom |
 | /notification | subscribe, newNotification |
 | /presence | heartbeat, userOnline, userOffline |
 
-## Environment Variables
+## Classic Fruit Slots
 
-See `.env.example` for all required variables.
+Server-authoritative 5x3 fruit slot machine. The browser animates reels; it never generates the result, payout, or new balance.
+
+### Architecture
+
+- Engine: `backend/src/games/fruit-slots/` (`config.ts`, `symbols.ts`, `paylines.ts`, `engine.ts`)
+- Transport: Socket.IO `/game` namespace, plus REST for config/history
+- Wallet: existing `economyService` coin balance (`slot_bet` / `slot_win` transactions)
+- Persistence: MongoDB `GameSession` and `Spin` collections
+- Locks / cache: Redis with in-memory fallback (`slots:lock:*`, `slots:idem:*`, `slots:session:*`, `slots:state:*`, `slots:rate:*`)
+
+### Local setup
+
+1. Start MongoDB and Redis (Docker Compose or local).
+2. Copy `.env.example` to `.env`. Required variables:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+MONGODB_URI=mongodb://localhost:27017/multigame
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+```
+
+Never commit real credentials.
+
+3. Seed the catalog (adds Classic Fruit Slots):
+
+```bash
+cd backend && npm run seed
+```
+
+4. Backend: `cd backend && npm run dev`
+5. Frontend: `cd frontend && npm run dev`
+6. Open `http://localhost:3000/games/classic-fruit-slots`
+
+### Game engine configuration
+
+Tune weights, paylines, and multipliers in `backend/src/games/fruit-slots/`. REST `/config` exposes names, assets, rarities, paylines, and payout multipliers — not symbol weights.
+
+- 3 matching symbols: base payout
+- 4 matching symbols: higher payout
+- 5 matching symbols: highest payout
+- Nine configurable paylines (horizontals, V, inverted V, diagonals, zigzags)
+
+The generator uses weighted `Math.random()`. It is not advertised as a certified RNG or fair casino game.
+
+### Testing
+
+```bash
+cd backend && npm test
+```
+
+Engine tests cover reel generation, symbol selection, payline detection, payouts, zero-win, maximum win, and invalid bets. Service tests cover insufficient balance, duplicate `requestId`, and concurrent spin locks.
+
+### Production notes
+
+- Redis should be available in production so spin locks and idempotency survive multiple API instances.
+- Do not expose engine weights or Mongo/Redis URLs to Next.js client code.
+- Rate-limit is 30 spins/minute/user. Duplicate socket `requestId`s replay the stored result instead of paying again.
 
 ## Default Admin Account
 

@@ -157,7 +157,7 @@ export function ConnectFourBoard({
   const winnerColor =
     winningCells.size > 0
       ? (() => {
-          const [key] = winningCells;
+          const key = Array.from(winningCells)[0];
           const [r, c] = key.split('-').map(Number);
           return board[r]?.[c] ?? null;
         })()

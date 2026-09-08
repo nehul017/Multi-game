@@ -106,6 +106,16 @@ const seedDatabase = async (): Promise<void> => {
         thumbnail: '/images/games/block-master.jpg',
       },
       {
+        name: 'Classic Fruit Slots',
+        slug: 'classic-fruit-slots',
+        description: 'A classic 5-reel fruit slot machine. Spin cherries, bells, and lucky sevens for line wins.',
+        minPlayers: 1,
+        maxPlayers: 1,
+        category: 'arcade',
+        settings: { reels: 5, rows: 3, minBet: 10, maxBet: 500 },
+        thumbnail: '/images/games/classic-fruit-slots.svg',
+      },
+      {
         name: 'Cyber Strike',
         slug: 'cyber-strike',
         description: 'Breach neon megacities in fast tactical raids with live squads.',

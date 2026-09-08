@@ -21,6 +21,8 @@ const transactionSchema = new Schema<ITransactionDocument>(
         'admin_deduct',
         'refund',
         'welcome',
+        'slot_bet',
+        'slot_win',
       ],
     },
     amount: { type: Number, required: true },

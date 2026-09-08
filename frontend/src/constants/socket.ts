@@ -34,6 +34,14 @@ export const SOCKET_EVENTS = {
     SPECTATOR_JOINED: 'game:spectatorJoined',
     COUNTDOWN: 'game:countdown',
     RECONNECTED: 'game:reconnected',
+    JOIN: 'game:join',
+    LEAVE: 'game:leave',
+    STATE: 'game:state',
+    SPIN: 'game:spin',
+    SPIN_RESULT: 'game:spin:result',
+    BALANCE: 'game:balance',
+    HISTORY: 'game:history',
+    ERROR: 'game:error',
   },
 
   NOTIFICATION: {

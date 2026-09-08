@@ -40,7 +40,13 @@ export default function LoginPage() {
       await login(data.email, data.password);
       const user = useAuthStore.getState().user;
       toast.success('Welcome back!');
-      router.push(user?.role === 'admin' ? '/admin' : '/dashboard');
+      const next =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('next')
+          : null;
+      const safeNext =
+        next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+      router.push(safeNext || (user?.role === 'admin' ? '/admin' : '/dashboard'));
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message || 'Invalid credentials');

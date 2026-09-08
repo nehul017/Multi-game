@@ -59,6 +59,20 @@ class UserRepository extends BaseRepository<IUserDocument> {
     return this.model.find().sort({ elo: -1 }).limit(limit).select('username avatar elo level wins losses').exec();
   }
 
+  async debitCoinsIfSufficient(userId: string, amount: number): Promise<IUserDocument | null> {
+    return this.model
+      .findOneAndUpdate(
+        { _id: userId, coins: { $gte: amount } },
+        { $inc: { coins: -amount } },
+        { new: true }
+      )
+      .exec();
+  }
+
+  async creditCoinsAtomic(userId: string, amount: number): Promise<IUserDocument | null> {
+    return this.model.findByIdAndUpdate(userId, { $inc: { coins: amount } }, { new: true }).exec();
+  }
+
   async incrementStats(userId: string, field: 'wins' | 'losses' | 'draws' | 'gamesPlayed', amount = 1): Promise<void> {
     await this.model.findByIdAndUpdate(userId, {
       $inc: { [field]: amount },

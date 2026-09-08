@@ -85,6 +85,64 @@ class EconomyService {
     return { coins: nextBalance, transactionId: tx._id.toString() };
   }
 
+  async debitCoinsAtomic(
+    userId: string,
+    amount: number,
+    type: TransactionType,
+    description: string,
+    metadata: Record<string, unknown> = {}
+  ): Promise<{ coins: number; transactionId: string; balanceBefore: number }> {
+    if (amount <= 0) throw new AppError('Debit amount must be positive', 400);
+
+    const updated = await userRepository.debitCoinsIfSufficient(userId, amount);
+    if (!updated) {
+      const user = await userRepository.findById(userId);
+      if (!user) throw new AppError('User not found', 404);
+      throw new AppError('Insufficient coin balance', 400);
+    }
+
+    const coins = updated.coins ?? 0;
+    const tx = await transactionRepository.create({
+      userId,
+      type,
+      amount: -amount,
+      balanceAfter: coins,
+      description,
+      metadata,
+    } as any);
+
+    return {
+      coins,
+      transactionId: tx._id.toString(),
+      balanceBefore: coins + amount,
+    };
+  }
+
+  async creditCoinsAtomic(
+    userId: string,
+    amount: number,
+    type: TransactionType,
+    description: string,
+    metadata: Record<string, unknown> = {}
+  ): Promise<{ coins: number; transactionId: string }> {
+    if (amount <= 0) throw new AppError('Credit amount must be positive', 400);
+
+    const updated = await userRepository.creditCoinsAtomic(userId, amount);
+    if (!updated) throw new AppError('User not found', 404);
+
+    const coins = updated.coins ?? 0;
+    const tx = await transactionRepository.create({
+      userId,
+      type,
+      amount,
+      balanceAfter: coins,
+      description,
+      metadata,
+    } as any);
+
+    return { coins, transactionId: tx._id.toString() };
+  }
+
   async grantWelcomeBonus(userId: string): Promise<void> {
     const existing = await transactionRepository.findOne({ userId, type: 'welcome' });
     if (existing) return;

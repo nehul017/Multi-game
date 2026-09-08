@@ -36,6 +36,7 @@ export const GAME_ARTWORK: Record<string, string> = {
   'street-cricket': '/images/games/street-cricket.jpg',
   'puzzle-world': '/images/games/puzzle-world.jpg',
   'block-master': '/images/games/block-master.jpg',
+  'classic-fruit-slots': '/images/games/classic-fruit-slots.svg',
   'brain-challenge': '/images/games/brain-challenge.jpg',
   'color-quest': '/images/games/color-quest.jpg',
   'pixel-builder': '/images/games/pixel-builder.jpg',

@@ -17,6 +17,7 @@ import { SnakeBoard } from '@/components/game/SnakeBoard';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { ChessApp } from '@/games/chess-arena';
 import { BlockMasterApp } from '@/games/block-master';
+import { FruitSlotsApp } from '@/games/classic-fruit-slots';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -90,6 +91,9 @@ export default function PlayRoute() {
   }
   if ((params.slug as string) === 'block-master') {
     return <BlockMasterApp variant="play" />;
+  }
+  if ((params.slug as string) === 'classic-fruit-slots') {
+    return <FruitSlotsApp variant="play" />;
   }
   return <GenericPlayPage />;
 }

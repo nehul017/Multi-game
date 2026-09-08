@@ -125,6 +125,7 @@ export const PLATFORM_GAME_SLUGS = [
   'ludo',
   'quiz-battle',
   'block-master',
+  'classic-fruit-slots',
 ] as const;
 
 export function isPlatformGame(slug: string): boolean {
@@ -145,5 +146,6 @@ export function quickPlayHref(): string {
 
 export function formatGameTitle(slug: string): string {
   if (slug === 'snake-multiplayer') return 'Coil Rush';
+  if (slug === 'classic-fruit-slots') return 'Classic Fruit Slots';
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }

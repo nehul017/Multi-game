@@ -20,6 +20,7 @@ import { useGame, useGameRooms, useCreateRoom, useLeaderboard } from '@/hooks';
 import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { ChessApp } from '@/games/chess-arena';
 import { BlockMasterApp } from '@/games/block-master';
+import { FruitSlotsApp } from '@/games/classic-fruit-slots';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -29,6 +30,7 @@ const slugIcons: Record<string, string> = {
   'ludo': '🎲',
   'quiz-battle': '🧠',
   'block-master': '🧱',
+  'classic-fruit-slots': '🍒',
 };
 
 interface RoomItem {
@@ -52,9 +54,27 @@ interface LeaderboardPlayer {
   userId?: string;
 }
 
-export default function GameDetailPage() {
+export default function GameDetailRoute() {
   const params = useParams();
   const slug = params.slug as string;
+
+  if (slug === 'snake-multiplayer') {
+    return <CoilRushApp variant="hub" />;
+  }
+  if (slug === 'chess') {
+    return <ChessApp variant="hub" />;
+  }
+  if (slug === 'block-master') {
+    return <BlockMasterApp variant="hub" />;
+  }
+  if (slug === 'classic-fruit-slots') {
+    return <FruitSlotsApp variant="hub" />;
+  }
+
+  return <GenericGameDetailPage slug={slug} />;
+}
+
+function GenericGameDetailPage({ slug }: { slug: string }) {
   const [activeTab, setActiveTab] = useState('rooms');
 
   const { data: gameData, isLoading: gameLoading, isError: gameError, refetch: refetchGame } = useGame(slug);
@@ -68,16 +88,6 @@ export default function GameDetailPage() {
   const rooms: RoomItem[] = (Array.isArray(roomsPayload) ? roomsPayload : (roomsPayload as Record<string, unknown>)?.data ?? []) as RoomItem[];
   const lbPayload = lbData?.data as unknown;
   const leaderboard: LeaderboardPlayer[] = (Array.isArray(lbPayload) ? lbPayload : (lbPayload as Record<string, unknown>)?.data ?? []) as LeaderboardPlayer[];
-
-  if (slug === 'snake-multiplayer') {
-    return <CoilRushApp variant="hub" />;
-  }
-  if (slug === 'chess') {
-    return <ChessApp variant="hub" />;
-  }
-  if (slug === 'block-master') {
-    return <BlockMasterApp variant="hub" />;
-  }
 
   const icon = slugIcons[slug] || '🎮';
   const gameName = (game?.name as string) || formatGameTitle(slug);

@@ -378,7 +378,9 @@ export type TransactionType =
   | 'admin_grant'
   | 'admin_deduct'
   | 'refund'
-  | 'welcome';
+  | 'welcome'
+  | 'slot_bet'
+  | 'slot_win';
 
 export interface CoinTransaction {
   _id: string;

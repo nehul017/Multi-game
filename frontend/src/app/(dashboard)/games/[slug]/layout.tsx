@@ -7,6 +7,10 @@ const GAME_META: Record<string, Metadata> = {
     title: 'Block Master | Games',
     description: 'Stack, rotate, and clear under rising pressure in Block Master.',
   },
+  'classic-fruit-slots': {
+    title: 'Classic Fruit Slots | Games',
+    description: 'Spin a classic 5-reel fruit slot machine with server-authoritative results.',
+  },
 };
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {

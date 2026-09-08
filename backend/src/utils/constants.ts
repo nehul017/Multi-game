@@ -60,6 +60,7 @@ export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = 
   chess: { min: 2, max: 2 },
   ludo: { min: 2, max: 4 },
   'quiz-battle': { min: 2, max: 8 },
+  'classic-fruit-slots': { min: 1, max: 1 },
 };
 
 export const maxPlayersFor = (gameType: string): number =>
@@ -111,6 +112,14 @@ export const SOCKET_EVENTS = {
     CANCEL_MATCHMAKING: 'game:cancelMatchmaking',
     MATCH_FOUND: 'game:matchFound',
     FILL_BOT: 'game:fillBot',
+    JOIN: 'game:join',
+    LEAVE: 'game:leave',
+    STATE: 'game:state',
+    SPIN: 'game:spin',
+    SPIN_RESULT: 'game:spin:result',
+    BALANCE: 'game:balance',
+    HISTORY: 'game:history',
+    ERROR: 'game:error',
   },
 
   NOTIFICATION: {

@@ -11,6 +11,10 @@ const GAME_META: Record<string, Metadata> = {
     title: 'Classic Fruit Slots | Games',
     description: 'Spin a classic 5-reel fruit slot machine with server-authoritative results.',
   },
+  poker: {
+    title: 'Poker Room | Games',
+    description: "Play Texas Hold'em, Omaha, Omaha Hi-Lo, and 5 Card Draw on a live casino table.",
+  },
 };
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {

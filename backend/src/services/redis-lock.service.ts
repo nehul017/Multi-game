@@ -93,6 +93,18 @@ class RedisLockService {
     }
   }
 
+  async deleteKey(key: string): Promise<void> {
+    if (isRedisAvailable()) {
+      try {
+        await getRedisClient().del(key);
+        return;
+      } catch (error) {
+        console.warn('[redis-lock] deleteKey redis failed, using memory', error);
+      }
+    }
+    memoryStore.delete(key);
+  }
+
   async setJson(key: string, value: unknown, ttlSec: number): Promise<void> {
     const serialized = JSON.stringify(value);
     if (isRedisAvailable()) {
@@ -142,4 +154,14 @@ export const SLOT_REDIS_KEYS = {
   session: (userId: string, gameId: string) => `slots:session:${userId}:${gameId}`,
   state: (userId: string, gameId: string) => `slots:state:${userId}:${gameId}`,
   rate: (userId: string) => `slots:rate:${userId}`,
+};
+
+export const POKER_REDIS_KEYS = {
+  table: (tableId: string) => `poker:table:${tableId}`,
+  players: (tableId: string) => `poker:table:${tableId}:players`,
+  state: (tableId: string) => `poker:table:${tableId}:state`,
+  timer: (tableId: string) => `poker:table:${tableId}:timer`,
+  lock: (tableId: string) => `poker:table:${tableId}:lock`,
+  hand: (handId: string) => `poker:hand:${handId}`,
+  lobby: () => 'poker:lobby',
 };

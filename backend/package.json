@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest --forceExit --detectOpenHandles",
-    "seed": "ts-node src/jobs/seed.ts"
+    "seed": "ts-node src/jobs/seed.ts",
+    "seed:poker": "ts-node --transpile-only src/jobs/seed-poker.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.1",

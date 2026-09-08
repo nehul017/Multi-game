@@ -61,6 +61,7 @@ export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = 
   ludo: { min: 2, max: 4 },
   'quiz-battle': { min: 2, max: 8 },
   'classic-fruit-slots': { min: 1, max: 1 },
+  poker: { min: 2, max: 9 },
 };
 
 export const maxPlayersFor = (gameType: string): number =>
@@ -120,6 +121,38 @@ export const SOCKET_EVENTS = {
     BALANCE: 'game:balance',
     HISTORY: 'game:history',
     ERROR: 'game:error',
+  },
+
+  POKER: {
+    LOBBY: 'poker:lobby',
+    TABLE_CREATE: 'poker:table:create',
+    TABLE_JOIN: 'poker:table:join',
+    TABLE_LEAVE: 'poker:table:leave',
+    TABLE_STATE: 'poker:table:state',
+    PLAYER_JOINED: 'poker:player:joined',
+    PLAYER_LEFT: 'poker:player:left',
+    HAND_START: 'poker:hand:start',
+    CARDS_DEALT: 'poker:cards:dealt',
+    COMMUNITY_UPDATE: 'poker:community:update',
+    ACTION: 'poker:action',
+    ACTION_ACCEPTED: 'poker:action:accepted',
+    ACTION_REJECTED: 'poker:action:rejected',
+    TURN: 'poker:turn',
+    BET: 'poker:bet',
+    RAISE: 'poker:raise',
+    CALL: 'poker:call',
+    CHECK: 'poker:check',
+    FOLD: 'poker:fold',
+    ALL_IN: 'poker:all-in',
+    DRAW: 'poker:draw',
+    DRAW_COMPLETE: 'poker:draw:complete',
+    SHOWDOWN: 'poker:showdown',
+    HAND_RESULT: 'poker:hand:result',
+    POT_UPDATE: 'poker:pot:update',
+    BALANCE_UPDATE: 'poker:balance:update',
+    TIMER: 'poker:timer',
+    ERROR: 'poker:error',
+    RECONNECT: 'poker:reconnect',
   },
 
   NOTIFICATION: {

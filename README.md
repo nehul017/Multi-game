@@ -4,7 +4,7 @@ A production-ready multiplayer gaming platform built with Next.js, Express, Sock
 
 ## Features
 
-- **Multiple Games**: Tic Tac Toe, Connect Four, Chess, Snake Multiplayer, Ludo, Quiz Battle, Block Master, Classic Fruit Slots
+- **Multiple Games**: Tic Tac Toe, Connect Four, Chess, Snake Multiplayer, Ludo, Quiz Battle, Block Master, Classic Fruit Slots, Poker Room
 - **Real-time Multiplayer**: Socket.IO powered real-time gameplay
 - **Matchmaking**: Random matching, private rooms, friend invites
 - **Chat System**: Global chat, private messaging, in-game chat
@@ -125,6 +125,11 @@ API documentation is available at `http://localhost:5000/api-docs` when the back
 | GET | /api/games/classic-fruit-slots | Fruit slots catalog + public config |
 | GET | /api/games/classic-fruit-slots/config | Public paytable, paylines, bet limits |
 | GET | /api/games/classic-fruit-slots/history | Authenticated spin history |
+| GET | /api/games/poker | Poker catalog + public variants |
+| GET | /api/games/poker/tables | Open poker tables |
+| POST | /api/games/poker/tables | Create a poker table |
+| POST | /api/games/poker/sit | Buy in and sit |
+| GET | /api/games/poker/history | Authenticated hand history |
 
 ### Socket Events
 
@@ -132,6 +137,7 @@ API documentation is available at `http://localhost:5000/api-docs` when the back
 |-----------|--------|
 | /game | createRoom, joinRoom, makeMove, gameOver |
 | /game | game:join, game:state, game:spin, game:spin:result, game:balance, game:history, game:leave, game:error |
+| /game | poker:lobby, poker:table:*, poker:action, poker:draw, poker:showdown, poker:reconnect |
 | /chat | sendMessage, typing, joinRoom |
 | /notification | subscribe, newNotification |
 | /presence | heartbeat, userOnline, userOffline |
@@ -197,6 +203,65 @@ Engine tests cover reel generation, symbol selection, payline detection, payouts
 - Redis should be available in production so spin locks and idempotency survive multiple API instances.
 - Do not expose engine weights or Mongo/Redis URLs to Next.js client code.
 - Rate-limit is 30 spins/minute/user. Duplicate socket `requestId`s replay the stored result instead of paying again.
+
+## Poker Room
+
+Server-authoritative multiplayer poker with four variants on one shared engine: Texas Hold’em, Omaha, Omaha Hi-Lo, and 5 Card Draw.
+
+The browser never shuffles, deals, evaluates hands, or moves chips. It only renders the sanitized table snapshot and sends `poker:action` / `poker:draw`.
+
+### Architecture
+
+- Shared engine: `backend/src/games/poker/core/` (cards, deck, evaluator, betting, pots, table)
+- Variants: `backend/src/games/poker/variants/` — Hold’em, Omaha, Omaha Hi-Lo, Five Card Draw
+- Service: `backend/src/services/poker.service.ts` (Redis locks, wallet buy-in/cash-out, timers, bots)
+- Transport: Socket.IO `/game` namespace (`poker:*` events) plus REST under `/api/games/poker`
+- Wallet: existing `economyService` (`poker_buyin`, `poker_win`, `poker_refund`)
+- Persistence: MongoDB `PokerTable`, `PokerHand`, `PokerAction`, `PokerPlayerSession`
+- Realtime state: Redis keys `poker:table:{id}:state`, `poker:table:{id}:lock`, `poker:table:{id}:timer`
+
+### Variants
+
+| Game | Hole cards | Board | Evaluation |
+|------|------------|-------|------------|
+| Texas Hold’em | 2 | 5 | Best 5 from any 7 |
+| Omaha | 4 | 5 | Exactly 2 hole + 3 board |
+| Omaha Hi-Lo | 4 | 5 | High + 8-or-better low, 50/50 split |
+| 5 Card Draw | 5 | none | Draw 0–5, then second betting round |
+
+Omaha Hi-Lo lows must be five unpaired ranks of 8 or lower (Ace is low). No qualifying low means high takes the pot. Tied halves are split (quartered when applicable).
+
+### Socket events
+
+Client → server: `poker:lobby`, `poker:table:create`, `poker:table:join`, `poker:table:leave`, `poker:action`, `poker:draw`, `poker:reconnect`
+
+Server → client: `poker:table:state`, `poker:action:accepted`, `poker:action:rejected`, `poker:turn`, `poker:community:update`, `poker:showdown`, `poker:hand:result`, `poker:balance:update`, `poker:timer`, `poker:error`
+
+Each seated player receives a sanitized state: own hole cards, public board, allowed actions. Opponent hole cards are omitted until showdown. The deck is never sent.
+
+### Local setup
+
+Same stack as the rest of the platform. After backend + frontend are running:
+
+1. Seed the catalog if needed: `cd backend && npm run seed`
+2. Open `http://localhost:3000/games/poker`
+3. Sign in (welcome coins cover a default 400 buy-in)
+4. Choose a variant and sit. Practice tables fill empty seats with server-side bots.
+
+### Adding a new poker variant
+
+1. Add rules in `backend/src/games/poker/variants/<name>/rules.ts` implementing `VariantRules`.
+2. Register it in `variants/shared.ts` and `POKER_VARIANTS` in `config.ts`.
+3. Reuse `core/table.ts` — do not copy betting, pots, or turn logic.
+4. Add evaluator coverage in `backend/src/__tests__/unit/poker.test.ts`.
+
+### Testing
+
+```bash
+cd backend && npm test -- --testPathPattern=poker.test.ts
+```
+
+Engine tests cover dealing, streets, fold/check/call/raise/all-in, showdown, ties, side pots, Omaha 2+3 enforcement, Hi-Lo qualification and splits, draw replacements, hidden opponent cards, and illegal actions.
 
 ## Default Admin Account
 

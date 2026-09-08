@@ -7,6 +7,9 @@ import { Settings } from '../models/settings.model';
 import { StoreItem } from '../models/store-item.model';
 import { CoinPack } from '../models/coin-pack.model';
 import { Mission } from '../models/mission.model';
+import { PokerTable } from '../models/poker-table.model';
+import { PokerPlayerSession } from '../models/poker-player-session.model';
+import { CASH_LOBBY_TABLES } from '../games/poker/config';
 import { generateReferralCode } from '../utils/helpers';
 
 const seedDatabase = async (): Promise<void> => {
@@ -114,6 +117,16 @@ const seedDatabase = async (): Promise<void> => {
         category: 'arcade',
         settings: { reels: 5, rows: 3, minBet: 10, maxBet: 500 },
         thumbnail: '/images/games/classic-fruit-slots.svg',
+      },
+      {
+        name: 'Poker Room',
+        slug: 'poker',
+        description: 'Texas Hold’em, Omaha, Omaha Hi-Lo, and 5 Card Draw on a shared casino table.',
+        minPlayers: 2,
+        maxPlayers: 9,
+        category: 'arcade',
+        settings: { variants: ['texas-holdem', 'omaha', 'omaha-hi-lo', 'five-card-draw'], smallBlind: 5, bigBlind: 10 },
+        thumbnail: '/images/games/poker.svg',
       },
       {
         name: 'Cyber Strike',
@@ -462,6 +475,51 @@ const seedDatabase = async (): Promise<void> => {
       await existing.save();
       console.log(`Game updated: ${game.name}`);
     }
+
+    const pokerTables = CASH_LOBBY_TABLES.map((table) => ({
+      ...table,
+      smallBlind: 5,
+      bigBlind: 10,
+      buyInMin: 200,
+      buyInMax: 2000,
+      actionTimeoutMs: 15000,
+      fillBots: false,
+      status: 'open' as const,
+      seatedCount: 0,
+    }));
+
+    for (const table of pokerTables) {
+      const existing = await PokerTable.findOne({ tableId: table.tableId });
+      if (!existing) {
+        await PokerTable.create(table);
+        console.log(`Poker table created: ${table.name}`);
+        continue;
+      }
+      existing.name = table.name;
+      existing.gameType = table.gameType;
+      existing.maxSeats = table.maxSeats;
+      existing.smallBlind = table.smallBlind;
+      existing.bigBlind = table.bigBlind;
+      existing.buyInMin = table.buyInMin;
+      existing.buyInMax = table.buyInMax;
+      existing.actionTimeoutMs = table.actionTimeoutMs;
+      existing.fillBots = table.fillBots;
+      existing.status = table.status;
+      await existing.save();
+      console.log(`Poker table updated: ${table.name}`);
+    }
+
+    const retired = await PokerTable.updateMany(
+      { $or: [{ fillBots: true }, { tableId: /practice/i }] },
+      { $set: { status: 'closed', fillBots: false, seatedCount: 0 } }
+    );
+    if (retired.modifiedCount) {
+      console.log(`Closed ${retired.modifiedCount} practice poker table(s)`);
+    }
+    await PokerPlayerSession.updateMany(
+      { userId: /^bot:/, status: 'seated' },
+      { $set: { status: 'left', leftAt: new Date() } }
+    );
 
     const achievements = [
       { name: 'First Blood', description: 'Win your first game', icon: '🎯', category: 'general', condition: { type: 'wins', value: 1 }, xpReward: 50, coinReward: 50, rarity: 'common' },

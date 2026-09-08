@@ -26,6 +26,7 @@ import adminRoutes from './routes/admin.routes';
 import platformRoutes from './routes/platform.routes';
 import economyRoutes from './routes/economy.routes';
 import fruitSlotsRoutes from './routes/fruit-slots.routes';
+import pokerRoutes from './routes/poker.routes';
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/games/classic-fruit-slots', fruitSlotsRoutes);
+app.use('/api/games/poker', pokerRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/tournaments', tournamentRoutes);

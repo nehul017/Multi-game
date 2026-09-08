@@ -21,6 +21,7 @@ import { CoilRushApp } from '@/games/coil-rush/CoilRushApp';
 import { ChessApp } from '@/games/chess-arena';
 import { BlockMasterApp } from '@/games/block-master';
 import { FruitSlotsApp } from '@/games/classic-fruit-slots';
+import { PokerApp } from '@/games/poker';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -31,6 +32,7 @@ const slugIcons: Record<string, string> = {
   'quiz-battle': '🧠',
   'block-master': '🧱',
   'classic-fruit-slots': '🍒',
+  poker: '♠',
 };
 
 interface RoomItem {
@@ -69,6 +71,9 @@ export default function GameDetailRoute() {
   }
   if (slug === 'classic-fruit-slots') {
     return <FruitSlotsApp variant="hub" />;
+  }
+  if (slug === 'poker') {
+    return <PokerApp variant="hub" />;
   }
 
   return <GenericGameDetailPage slug={slug} />;

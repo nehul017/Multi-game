@@ -8,6 +8,7 @@ import { setupGameNamespace } from './namespaces/game';
 import { setupNotificationNamespace } from './namespaces/notification';
 import { setupPresenceNamespace } from './namespaces/presence';
 import { setupFruitSlotsHandlers } from './namespaces/fruit-slots';
+import { setupPokerHandlers } from './namespaces/poker';
 import { env } from '../config/env';
 
 let io: Server;
@@ -48,6 +49,7 @@ export const setupSocketIO = (httpServer: HttpServer): Server => {
   setupNotificationNamespace(io);
   setupPresenceNamespace(io);
   setupFruitSlotsHandlers(io);
+  setupPokerHandlers(io);
 
   io.on('connection', (socket) => {
     console.log(`Main: User connected - ${socket.user?.username} (${socket.id})`);

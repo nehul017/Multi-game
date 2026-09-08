@@ -15,7 +15,10 @@ export type TransactionType =
   | 'refund'
   | 'welcome'
   | 'slot_bet'
-  | 'slot_win';
+  | 'slot_win'
+  | 'poker_buyin'
+  | 'poker_win'
+  | 'poker_refund';
 
 export interface ITransaction {
   _id: string;

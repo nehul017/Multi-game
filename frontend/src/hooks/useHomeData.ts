@@ -43,6 +43,7 @@ function toneFromSlug(slug: string, index: number): GameArtTone {
     'quiz-battle': 'violet',
     'block-master': 'cyber',
     'classic-fruit-slots': 'ember',
+    poker: 'forest',
   };
   return mapped[slug] ?? ART_TONES[index % ART_TONES.length];
 }

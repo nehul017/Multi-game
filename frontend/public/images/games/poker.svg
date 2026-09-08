@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Poker Room">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1f6a3d"/>
+      <stop offset="70%" stop-color="#0d3b24"/>
+      <stop offset="100%" stop-color="#081910"/>
+    </radialGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b2a18"/>
+      <stop offset="100%" stop-color="#120c08"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="#0b0907"/>
+  <ellipse cx="320" cy="210" rx="250" ry="140" fill="url(#rail)"/>
+  <ellipse cx="320" cy="210" rx="220" ry="118" fill="url(#felt)" stroke="#c9a24a" stroke-width="6"/>
+  <rect x="248" y="176" width="36" height="52" rx="5" fill="#f7f1e4"/>
+  <rect x="292" y="176" width="36" height="52" rx="5" fill="#f7f1e4"/>
+  <rect x="336" y="176" width="36" height="52" rx="5" fill="#3a0c12" stroke="#d4af37"/>
+  <rect x="380" y="176" width="36" height="52" rx="5" fill="#3a0c12" stroke="#d4af37"/>
+  <circle cx="320" cy="250" r="14" fill="#9d1c1c" stroke="#f3e6c0"/>
+  <text x="320" y="86" text-anchor="middle" fill="#d4af37" font-family="Georgia, serif" font-size="28">POKER ROOM</text>
+</svg>

@@ -67,6 +67,37 @@ function holePreview(count: number, suit: PokerCard['suit']) {
   }));
 }
 
+const HERO_FLOP: Array<{ rank: string; suit: PokerCard['suit'] }> = [
+  { rank: 'A', suit: 'hearts' },
+  { rank: 'K', suit: 'spades' },
+  { rank: 'Q', suit: 'diamonds' },
+];
+
+function HeroBoardCard({ rank, suit }: { rank: string; suit: PokerCard['suit'] }) {
+  const red = suit === 'hearts' || suit === 'diamonds';
+  return (
+    <span className={`pk-hero-board-card ${red ? 'is-red' : 'is-black'}`}>
+      <span className="pk-hero-board-corner is-tl">
+        <b>{rank}</b>
+        <SuitIcon suit={suit} />
+      </span>
+      <SuitIcon suit={suit} className="pk-hero-board-suit" />
+      <span className="pk-hero-board-corner is-br">
+        <b>{rank}</b>
+        <SuitIcon suit={suit} />
+      </span>
+    </span>
+  );
+}
+
+function seatStyle(index: number, total: number): { left: string; top: string } {
+  const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
+  return {
+    left: `${50 + Math.cos(angle) * 43}%`,
+    top: `${50 + Math.sin(angle) * 36}%`,
+  };
+}
+
 export function PokerModeSelector({
   variants,
   config,
@@ -151,24 +182,73 @@ export function PokerModeSelector({
 
         {hottest && (
           <motion.aside
-            className="pk-hero-felt"
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
+            className="pk-hero-stage"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.08 }}
           >
-            <div className="pk-hero-rail">
-              <div className="pk-hero-felt-inner">
-                <div className="pk-hero-community">
-                  {holePreview(Math.min(3, variants?.[hottest.gameType]?.holeCards || 2), 'spades').map((card, index) => (
-                    <FanCard key={`${card.rank}-${index}`} rank={card.rank} suit={card.suit} index={index} total={3} />
-                  ))}
-                </div>
-                <p className="pk-hero-felt-label">{hottest.name}</p>
-                <p className="pk-hero-felt-meta">
-                  {hottest.blinds.small}/{hottest.blinds.big} · {hottest.playersSeated}/{hottest.maxSeats} seated
-                </p>
+            <div className="pk-hero-stage-glow" aria-hidden />
+            <button
+              type="button"
+              className="pk-hero-stage-card"
+              disabled={busy}
+              onClick={() => onJoin(hottest.tableId)}
+            >
+              <div className="pk-hero-stage-head">
+                <span className="pk-hero-live">
+                  <i />
+                  Open · Cash
+                </span>
+                <span className="pk-hero-blinds">
+                  Blinds {hottest.blinds.small}/{hottest.blinds.big}
+                </span>
               </div>
-            </div>
+
+              <div className="pk-hero-table" aria-hidden>
+                <div className="pk-hero-lamp" />
+                <div className="pk-hero-table-shadow" />
+                <div className="pk-hero-rail">
+                  <div className="pk-hero-felt-inner">
+                    <p className="pk-hero-brand">
+                      <span>GAMEHUB</span>
+                      <strong>Poker Room</strong>
+                    </p>
+                    <div className="pk-hero-seats">
+                      {Array.from({ length: Math.min(hottest.maxSeats, 9) }, (_, index) => (
+                        <span
+                          key={index}
+                          className={`pk-hero-seat ${index < hottest.playersSeated ? 'is-filled' : ''}`}
+                          style={seatStyle(index, Math.min(hottest.maxSeats, 9))}
+                        />
+                      ))}
+                    </div>
+                    <span className="pk-hero-dealer">D</span>
+                    <div className="pk-hero-pot">
+                      <span className="pk-hero-chip is-red" />
+                      <span className="pk-hero-chip is-gold" />
+                      <span className="pk-hero-chip is-black" />
+                    </div>
+                    <div className="pk-hero-board">
+                      {HERO_FLOP.map((card) => (
+                        <HeroBoardCard key={`${card.rank}-${card.suit}`} rank={card.rank} suit={card.suit} />
+                      ))}
+                      <span className="pk-hero-slot" />
+                      <span className="pk-hero-slot" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pk-hero-stage-foot">
+                <div>
+                  <strong>{hottest.name}</strong>
+                  <p>
+                    {hottest.playersSeated}/{hottest.maxSeats} seated · Buy-in {hottest.buyIn.min}–{hottest.buyIn.max}
+                  </p>
+                </div>
+                <span className="pk-hero-sit">Sit down</span>
+              </div>
+            </button>
           </motion.aside>
         )}
       </div>

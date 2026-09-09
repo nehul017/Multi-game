@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { gameService } from '../services/game.service';
+import { gameRegistry } from '../games/core/registry';
+import { registerBuiltInGames } from '../games/core/register-games';
+
+registerBuiltInGames();
 
 class GameController {
   async createGame(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -16,6 +20,14 @@ class GameController {
       const { page = '1', limit = '100' } = req.query;
       const result = await gameService.getGames(parseInt(page as string), parseInt(limit as string));
       res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPlayableGames(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.json({ success: true, data: gameRegistry.toPublicCatalog() });
     } catch (error) {
       next(error);
     }

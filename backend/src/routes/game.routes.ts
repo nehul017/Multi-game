@@ -13,6 +13,7 @@ const router = Router();
  *     tags: [Games]
  */
 router.get('/', gameController.getGames);
+router.get('/playable', gameController.getPlayableGames);
 
 /**
  * @swagger

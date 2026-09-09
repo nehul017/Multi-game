@@ -36,8 +36,8 @@ export function GameOverModal({
   const reduce = useReducedMotion();
   const isWin = !!winner && toId(winner) === toId(currentUser);
   const isDraw = !winner;
-  const xp = xpGained ?? (isDraw ? 30 : isWin ? 55 : 15);
-  const coins = coinsEarned ?? (isDraw ? 20 : isWin ? 50 : 10);
+  const xp = xpGained;
+  const coins = coinsEarned;
   const confetti = useMemo(
     () =>
       Array.from({ length: 18 }).map((_, i) => ({
@@ -147,12 +147,13 @@ export function GameOverModal({
           </div>
           <div className="text-center">
             <p className="text-xs text-theme-muted mb-1">XP</p>
-            <p className="text-base sm:text-lg font-bold text-primary-500">+{xp}</p>
+            <p className="text-base sm:text-lg font-bold text-primary-500">{xp != null ? `+${xp}` : '—'}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-theme-muted mb-1">Coins</p>
             <p className="text-base sm:text-lg font-bold text-theme-warning flex items-center justify-center gap-1">
-              <Coins className="w-4 h-4 shrink-0" />+{coins}
+              <Coins className="w-4 h-4 shrink-0" />
+              {coins != null ? `+${coins}` : '—'}
             </p>
           </div>
         </div>

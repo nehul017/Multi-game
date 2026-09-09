@@ -62,6 +62,29 @@ class LeaderboardService {
     }
   }
 
+  async recordHighScore(userId: string, gameType: string, score: number): Promise<void> {
+    if (!Number.isFinite(score) || score <= 0) return;
+    const periods: LeaderboardPeriod[] = ['daily', 'weekly', 'monthly', 'all_time'];
+    const user = await userRepository.findById(userId);
+    if (!user) return;
+
+    for (const period of periods) {
+      const entry = await leaderboardRepository.getUserEntry(userId, gameType, period);
+      const nextScore = Math.max(Number(entry?.score || 0), Math.floor(score));
+      await leaderboardRepository.upsertEntry(userId, gameType, period, {
+        elo: gameType === 'block-master' ? nextScore : entry?.elo || user.elo,
+        score: nextScore,
+        wins: entry?.wins || 0,
+        losses: entry?.losses || 0,
+        draws: entry?.draws || 0,
+        winRate: entry?.winRate || 0,
+        xp: entry?.xp || user.xp,
+        level: entry?.level || user.level,
+      } as never);
+      await leaderboardRepository.recalculateRanks(gameType, period, gameType === 'block-master' ? 'score' : 'elo');
+    }
+  }
+
   async getRank(userId: string, gameType: string, period: LeaderboardPeriod = 'all_time'): Promise<number> {
     return leaderboardRepository.getRank(userId, gameType, period);
   }

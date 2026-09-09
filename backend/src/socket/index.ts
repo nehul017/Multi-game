@@ -10,6 +10,7 @@ import { setupPresenceNamespace } from './namespaces/presence';
 import { setupFruitSlotsHandlers } from './namespaces/fruit-slots';
 import { setupPokerHandlers } from './namespaces/poker';
 import { env } from '../config/env';
+import { gameLogger } from '../games/core/logger';
 
 let io: Server;
 
@@ -52,10 +53,14 @@ export const setupSocketIO = (httpServer: HttpServer): Server => {
   setupPokerHandlers(io);
 
   io.on('connection', (socket) => {
-    console.log(`Main: User connected - ${socket.user?.username} (${socket.id})`);
+    gameLogger.info('SOCKET_CONNECTED', { socketId: socket.id, userId: socket.user?._id?.toString() });
 
     socket.on('disconnect', (reason) => {
-      console.log(`Main: User disconnected - ${socket.user?.username} (${reason})`);
+      gameLogger.info('SOCKET_DISCONNECTED', {
+        socketId: socket.id,
+        userId: socket.user?._id?.toString(),
+        reason,
+      });
     });
   });
 

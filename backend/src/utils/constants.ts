@@ -49,26 +49,16 @@ export const RANK_TIERS = {
   GRANDMASTER: { min: 2400, max: Infinity, name: 'Grandmaster' },
 };
 
-export const JOIN_IN_PROGRESS_GAMES = new Set(['snake-multiplayer']);
-export const FILL_BOT_GAMES = new Set(['ludo']);
+export {
+  FILL_BOT_GAMES,
+  GAME_PLAYER_LIMITS,
+  HIGH_FREQUENCY_GAMES,
+  JOIN_IN_PROGRESS_GAMES,
+  maxPlayersFor,
+  minPlayersToStart,
+} from '../games/core/limits';
+
 export const BOT_FILL_MS = 60_000;
-
-export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = {
-  'snake-multiplayer': { min: 1, max: 8 },
-  'tic-tac-toe': { min: 2, max: 2 },
-  'connect-four': { min: 2, max: 2 },
-  chess: { min: 2, max: 2 },
-  ludo: { min: 2, max: 4 },
-  'quiz-battle': { min: 2, max: 8 },
-  'classic-fruit-slots': { min: 1, max: 1 },
-  poker: { min: 2, max: 9 },
-};
-
-export const maxPlayersFor = (gameType: string): number =>
-  GAME_PLAYER_LIMITS[gameType]?.max ?? 2;
-
-export const minPlayersToStart = (gameType: string): number =>
-  GAME_PLAYER_LIMITS[gameType]?.min ?? 2;
 
 export const SOCKET_EVENTS = {
   CONNECT: 'connect',
@@ -121,6 +111,19 @@ export const SOCKET_EVENTS = {
     BALANCE: 'game:balance',
     HISTORY: 'game:history',
     ERROR: 'game:error',
+    CREATE: 'game:create',
+    ACTION: 'game:action',
+    RECONNECT: 'game:reconnect',
+    START: 'game:start',
+    FINISH: 'game:finish',
+    PAUSE: 'game:pause',
+    RESUME: 'game:resume',
+    CREATED: 'game:created',
+    STARTED: 'game:started',
+    FINISHED: 'game:finished',
+    PLAYER_JOINED_ALIAS: 'game:player_joined',
+    PLAYER_LEFT_ALIAS: 'game:player_left',
+    SCORE: 'game:score',
   },
 
   POKER: {

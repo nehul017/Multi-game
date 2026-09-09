@@ -269,6 +269,7 @@ export interface LeaderboardEntry {
   username: string;
   avatar?: string;
   elo: number;
+  score?: number;
   wins: number;
   losses: number;
   winRate: number;

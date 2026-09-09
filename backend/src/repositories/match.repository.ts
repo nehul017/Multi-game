@@ -20,6 +20,21 @@ class MatchRepository extends BaseRepository<IMatchDocument> {
     return this.findMany({ gameType }, { page, limit, sort: '-createdAt' });
   }
 
+  async abortPlayingSolo(userId: string, gameType: string): Promise<number> {
+    const result = await this.model
+      .updateMany(
+        {
+          gameType,
+          status: 'playing',
+          'settings.solo': true,
+          'players.userId': userId,
+        },
+        { $set: { status: 'aborted', finishedAt: new Date() } }
+      )
+      .exec();
+    return result.modifiedCount;
+  }
+
   async findWaitingMatches(gameType: string): Promise<IMatchDocument[]> {
     const joinablePlaying = gameType === 'snake-multiplayer';
     return this.model

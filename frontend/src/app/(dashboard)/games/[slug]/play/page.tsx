@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2, Send, Swords } from 'lucide-react';
+import { Flag, RotateCcw, MessageSquare, Eye, Clock, Loader2, Send, Swords, Bot } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { GamesBreadcrumb } from '@/components/games/GamesBreadcrumb';
 import { formatGameTitle } from '@/types/home';
@@ -36,6 +36,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useGameStore } from '@/store/game.store';
 import { useSocketStore } from '@/store/socket.store';
 import { useGameSocket, useChatSocket, useGameTimer } from '@/socket/hooks';
+import { useGameClient } from '@/games/sdk';
 import { SOCKET_EVENTS } from '@/constants/socket';
 import { toId } from '@/lib/id';
 import { cn } from '@/lib/utils';
@@ -122,6 +123,7 @@ function GenericPlayPage() {
     fillBot,
     isGameConnected,
   } = useGameSocket();
+  useGameClient(slug, roomParam || undefined);
   const { sendMessage: sendChatMessage, joinChatRoom, leaveChatRoom } = useChatSocket();
   const { chatOn, chatOff, chatSocket } = useSocketStore();
   useGameTimer();
@@ -133,6 +135,8 @@ function GenericPlayPage() {
   const [botEta, setBotEta] = useState(60);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pendingBotFill = useRef(false);
+  const botFillRequested = useRef(false);
+  const quizRoundStarted = useRef(Date.now());
 
   const roomId = currentRoom?.id || '';
   const gameStatus = gameState?.status || (isMatchmaking ? 'waiting' : 'waiting');
@@ -148,8 +152,9 @@ function GenericPlayPage() {
       ? toId(gameState.currentTurn) === myId
       : players.length >= 2 && toId(players[(gameState?.moveCount ?? 0) % 2]?.userId) === myId);
 
+  const supportsBotFill = slug === 'ludo' || slug === 'connect-four' || slug === 'tic-tac-toe';
   const waitingForOpponent =
-    slug === 'ludo' &&
+    supportsBotFill &&
     gameStatus !== 'playing' &&
     gameStatus !== 'finished' &&
     gameStatus !== 'countdown' &&
@@ -172,13 +177,23 @@ function GenericPlayPage() {
   }, [roomId, fillBot, isGameConnected, isMatchmaking, startMatchmaking, slug]);
 
   useEffect(() => {
-    if (!waitingForOpponent) return;
+    if (!waitingForOpponent || !currentRoom?.id) return;
     setBotEta(60);
     const tick = window.setInterval(() => {
       setBotEta((left) => Math.max(0, left - 1));
     }, 1000);
     return () => window.clearInterval(tick);
   }, [waitingForOpponent, currentRoom?.id]);
+
+  useEffect(() => {
+    if (!waitingForOpponent) {
+      botFillRequested.current = false;
+      return;
+    }
+    if (botEta > 0 || botFillRequested.current) return;
+    botFillRequested.current = true;
+    requestBotFill();
+  }, [waitingForOpponent, botEta, requestBotFill]);
 
   useEffect(() => {
     if (!isGameConnected || slug === 'snake-multiplayer') return;
@@ -323,9 +338,18 @@ function GenericPlayPage() {
     emitMove({ action: 'move', tokenId }, 'move');
   };
 
+  const quizQuestionNumber = Number(
+    (gameState?.board as { questionNumber?: number } | undefined)?.questionNumber || 0
+  );
+
+  useEffect(() => {
+    if (slug !== 'quiz-battle') return;
+    quizRoundStarted.current = Date.now();
+  }, [slug, quizQuestionNumber]);
+
   const handleQuizAnswer = (answer: number) => {
     if (gameStatus !== 'playing') return;
-    emitMove({ action: 'answer', answer, timeMs: 5000 }, 'answer');
+    emitMove({ action: 'answer', answer, timeMs: Date.now() - quizRoundStarted.current }, 'answer');
   };
 
   const handleSurrender = () => {
@@ -433,7 +457,7 @@ function GenericPlayPage() {
             board={board}
             onMove={handleTttMove}
             disabled={disabled}
-            isMyTurn={isMyTurn}
+            isMyTurn={gameStatus === 'playing' ? isMyTurn : undefined}
             myMark={myMark}
           />
         );
@@ -443,7 +467,7 @@ function GenericPlayPage() {
             board={board}
             onMove={handleConnectFourMove}
             disabled={disabled}
-            isMyTurn={isMyTurn}
+            isMyTurn={gameStatus === 'playing' ? isMyTurn : undefined}
           />
         );
       case 'chess':
@@ -530,7 +554,7 @@ function GenericPlayPage() {
             board={board}
             onMove={handleTttMove}
             disabled={disabled}
-            isMyTurn={isMyTurn}
+            isMyTurn={gameStatus === 'playing' ? isMyTurn : undefined}
             myMark={myMark}
           />
         );
@@ -541,7 +565,7 @@ function GenericPlayPage() {
   const eloChange = rewards?.eloChange ?? 0;
   const gameTitle = formatGameTitle(slug);
 
-  if ((!isGameConnected || isMatchmaking) && !currentRoom) {
+  if (!isGameConnected || (isMatchmaking && !supportsBotFill && !currentRoom)) {
     return (
       <DashboardLayout>
         <div className="mb-4">
@@ -567,12 +591,12 @@ function GenericPlayPage() {
                 ? 'Establishing game connection'
                 : slug === 'snake-multiplayer'
                   ? 'Play now — other players can join mid-game'
-                  : slug === 'ludo'
+                  : supportsBotFill
                     ? `Looking for a player. A bot joins in ${botEta}s.`
                     : `Looking for an opponent for ${gameTitle}`}
             </p>
           </div>
-          {isGameConnected && slug === 'ludo' && (
+          {isGameConnected && supportsBotFill && (
             <Button variant="primary" onClick={requestBotFill}>
               Play vs Bot now
             </Button>
@@ -681,7 +705,7 @@ function GenericPlayPage() {
   ) : (
     <div
       className={cn(
-        isChess ? 'chess-glass rounded-xl border border-theme' : 'game-panel',
+        isChess ? 'chess-glass rounded-xl border border-theme' : isTtt ? 'ttt-actions' : 'game-panel',
         'p-4 flex flex-col h-72'
       )}
     >
@@ -697,22 +721,31 @@ function GenericPlayPage() {
           </div>
         ))}
         {chatMessages.length === 0 && (
-          <p className="text-xs text-theme-muted text-center py-6">No messages yet</p>
+          <p className="text-xs text-theme-muted text-center py-6">No messages yet.</p>
         )}
         <div ref={chatEndRef} />
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <input
           type="text"
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
           placeholder="Type a message..."
-          className="input-glass flex-1 px-3 py-2 text-xs"
+          className={cn('input-glass flex-1 px-3 py-2 text-xs', isTtt && 'ttt-chat-input')}
         />
-        <Button size="sm" onClick={() => handleSendChat()} aria-label="Send message">
+        <button
+          type="button"
+          onClick={() => handleSendChat()}
+          aria-label="Send message"
+          className={cn(
+            isTtt
+              ? 'ttt-send-btn'
+              : 'inline-flex items-center justify-center rounded-xl bg-primary-500 text-white px-3 py-2'
+          )}
+        >
           <Send className="w-3.5 h-3.5" />
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -760,7 +793,13 @@ function GenericPlayPage() {
               {gameTitle}
             </h1>
             <p className="text-sm text-theme-muted capitalize">
-              {gameStatus === 'playing' ? 'Match in progress' : gameStatus}
+              {waitingForOpponent
+                ? `Waiting for a player · bot in ${botEta}s`
+                : gameStatus === 'playing'
+                  ? hasBotOpponent
+                    ? 'Match vs Bot'
+                    : 'Match in progress'
+                  : gameStatus}
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
@@ -823,6 +862,7 @@ function GenericPlayPage() {
               premium
               showTurnBadge
               winStreak={user?.winStreak}
+              className="ttt-actions border-white/60"
             />
             <div className="flex items-center justify-center px-2 py-1">
               <motion.div
@@ -849,10 +889,15 @@ function GenericPlayPage() {
               username={opponent?.username || 'Waiting...'}
               avatar={opponent?.avatar}
               elo={opponent?.elo ?? '---'}
-              timeLeft={opponentTime}
+              timeLeft={waitingForOpponent ? botEta : opponentTime}
               isActive={gameStatus === 'playing' && !isMyTurn && !!opponent}
               side="right"
               premium
+              waiting={waitingForOpponent}
+              isBot={hasBotOpponent}
+              botEta={waitingForOpponent ? botEta : undefined}
+              maxSeconds={waitingForOpponent ? 60 : 300}
+              className="ttt-actions border-white/60"
             />
           </div>
         ) : isLudo ? null : (
@@ -930,17 +975,53 @@ function GenericPlayPage() {
                 <span className="ttt-particle" style={{ left: '78%', bottom: '-6px', animationDelay: '1.6s' }} />
                 <span className="ttt-particle" style={{ left: '90%', bottom: '-6px', animationDelay: '9.2s' }} />
               </div>
-              <div className="relative z-[1] w-full flex items-center justify-center">
+              <div className="relative z-[1] w-full flex flex-col items-center justify-center gap-5">
+                {waitingForOpponent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="ttt-wait-card w-full max-w-[360px] px-5 py-4 text-center"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-sm font-semibold text-theme-primary">
+                      <Bot className="w-4 h-4 text-primary-500" />
+                      Waiting for a player
+                    </div>
+                    <p className="text-xs text-theme-muted mt-1.5">
+                      {currentRoom
+                        ? <>A bot joins automatically in <span className="font-mono font-semibold text-primary-500">{botEta}s</span></>
+                        : 'Finding a match...'}
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="mt-3"
+                      onClick={requestBotFill}
+                    >
+                      Play vs Bot now
+                    </Button>
+                  </motion.div>
+                )}
                 {renderBoard()}
               </div>
             </motion.div>
           ) : (
             <div
               className={cn(
-                'game-arena flex items-center justify-center min-h-[280px] sm:min-h-[360px] lg:min-h-[420px] p-3 sm:p-6 md:p-10 overflow-x-auto',
+                'game-arena relative flex flex-col items-center justify-center min-h-[280px] sm:min-h-[360px] lg:min-h-[420px] p-3 sm:p-6 md:p-10 overflow-x-auto',
                 slug === 'connect-four' && 'c4-arena'
               )}
             >
+              {waitingForOpponent && (
+                <div className="w-full max-w-[420px] mb-4 rounded-2xl bg-white/90 dark:bg-white/10 border border-black/5 dark:border-white/10 px-4 py-3 text-center shadow-sm">
+                  <p className="text-sm font-semibold text-theme-primary">Waiting for a player</p>
+                  <p className="text-xs text-theme-muted mt-1">
+                    A bot joins automatically in <span className="font-mono font-semibold">{botEta}s</span>
+                  </p>
+                  <Button variant="primary" size="sm" className="mt-3" onClick={requestBotFill}>
+                    Play vs Bot now
+                  </Button>
+                </div>
+              )}
               {renderBoard()}
             </div>
           )}
@@ -958,7 +1039,7 @@ function GenericPlayPage() {
                 }))}
               />
             ) : (
-              <div className={cn(isChess ? 'chess-glass rounded-xl border border-theme' : 'game-panel', 'p-4')}>
+              <div className={cn(isChess ? 'chess-glass rounded-xl border border-theme' : isTtt ? 'ttt-actions' : 'game-panel', 'p-4')}>
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4 text-theme-muted" />
                   <span className="text-sm text-theme-muted">

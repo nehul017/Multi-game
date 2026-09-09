@@ -8,6 +8,7 @@ export interface ILeaderboard {
   gameType: string;
   period: LeaderboardPeriod;
   elo: number;
+  score?: number;
   wins: number;
   losses: number;
   draws: number;

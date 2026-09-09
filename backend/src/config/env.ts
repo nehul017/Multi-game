@@ -31,4 +31,7 @@ export const env = {
   fromName: process.env.FROM_NAME || 'MultiGame',
 
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+
+  instanceId: process.env.INSTANCE_ID || `node-${process.pid}-${Math.random().toString(36).slice(2, 8)}`,
+  gameReconnectGraceMs: parseInt(process.env.GAME_RECONNECT_GRACE_MS || '30000', 10),
 };

@@ -22,6 +22,7 @@ interface LeaderboardPlayer {
   username: string;
   avatar?: string;
   elo: number;
+  score?: number;
   wins: number;
   losses: number;
   winRate: number;
@@ -56,6 +57,11 @@ export default function LeaderboardPage() {
     { id: 'all', label: 'All Time' },
   ];
 
+  const scoreBased = gameFilter === 'block-master';
+  const rankValue = (player: LeaderboardPlayer) =>
+    scoreBased ? player.score ?? player.elo : player.elo;
+  const rankLabel = scoreBased ? 'Score' : 'ELO';
+
   const top3 = leaderboard.slice(0, 3);
 
   return (
@@ -63,7 +69,9 @@ export default function LeaderboardPage() {
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl md:text-3xl font-bold text-theme-primary">Leaderboard</h1>
-          <p className="text-theme-muted mt-1">Top players ranked by ELO rating</p>
+          <p className="text-theme-muted mt-1">
+            {scoreBased ? 'Top players ranked by high score' : 'Top players ranked by ELO rating'}
+          </p>
         </motion.div>
 
         {/* Top 3 Podium */}
@@ -90,7 +98,9 @@ export default function LeaderboardPage() {
                     {idx === 0 && <Crown className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />}
                   </div>
                   <p className="text-xs sm:text-sm font-semibold text-theme-primary text-center truncate max-w-full px-1">{player.username}</p>
-                  <p className="text-[10px] sm:text-xs text-theme-muted">{player.elo} ELO</p>
+                  <p className="text-[10px] sm:text-xs text-theme-muted">
+                    {rankValue(player)} {rankLabel}
+                  </p>
                   <div className={cn(
                     'w-full mt-2 rounded-t-xl bg-gradient-to-b border-t border-x flex items-center justify-center',
                     style.height, style.bg, style.border
@@ -144,7 +154,7 @@ export default function LeaderboardPage() {
                 <tr className="border-b border-surface-lighter/30">
                   <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Rank</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Player</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">ELO</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">{rankLabel}</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">W/L</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Win Rate</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-theme-muted uppercase">Level</th>
@@ -169,7 +179,7 @@ export default function LeaderboardPage() {
                         <span className="text-sm font-medium text-theme-primary">{player.username}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-primary-400">{player.elo}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-primary-400">{rankValue(player)}</td>
                     <td className="px-4 py-3 text-sm text-theme-muted">{player.wins}/{player.losses}</td>
                     <td className="px-4 py-3">
                       <span className={cn('text-sm font-medium', player.winRate >= 60 ? 'text-green-400' : 'text-theme-muted')}>

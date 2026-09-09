@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { useGameSession } from '@/games/sdk';
 import { GameBoard } from './components/GameBoard';
 import { GameControls } from './components/GameControls';
 import { GameOverOverlay } from './components/GameOverOverlay';
@@ -24,7 +26,19 @@ const REPEAT_DELAY = 160;
 const REPEAT_MS = 40;
 
 export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
+  return (
+    <AuthGuard>
+      <BlockMasterInner variant={variant} />
+    </AuthGuard>
+  );
+}
+
+function BlockMasterInner({ variant = 'hub' }: BlockMasterAppProps) {
   const [engine] = useState(() => new BlockMasterEngine());
+  const { start, complete, error: saveError, saving, lastResult } = useGameSession('block-master');
+  const startedAt = useRef(0);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [snap, setSnap] = useState<BlockMasterSnapshot>(() => engine.getSnapshot());
   const snapRef = useRef(snap);
   const repeatRef = useRef<number | null>(null);
@@ -43,9 +57,18 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
     if (snap.clearTick !== prev.clearTick) playBlockMasterCue('clear');
     if (snap.dropTick !== prev.dropTick) playBlockMasterCue('drop');
     if (snap.levelTick !== prev.levelTick) playBlockMasterCue('level');
-    if (snap.status === 'over' && prev.status !== 'over') playBlockMasterCue('over');
+    if (snap.status === 'over' && prev.status !== 'over') {
+      playBlockMasterCue('over');
+      void complete({
+        score: snap.score,
+        lines: snap.lines,
+        level: snap.level,
+        durationMs: startedAt.current ? Date.now() - startedAt.current : 0,
+        result: 'completed',
+      }).catch(() => undefined);
+    }
     prevSnap.current = snap;
-  }, [snap]);
+  }, [snap, complete]);
 
   useEffect(() => {
     if (snap.status !== 'playing') return undefined;
@@ -107,13 +130,34 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
           break;
         case 'r':
         case 'R':
-          engine.restart();
           break;
         default:
           break;
       }
     },
     [engine]
+  );
+
+  const beginRun = useCallback(
+    async (restart = false) => {
+      if (starting) return;
+      setStarting(true);
+      setStartError(null);
+      try {
+        await start();
+        startedAt.current = Date.now();
+        if (restart || snapRef.current.status === 'over' || snapRef.current.status === 'playing') {
+          engine.restart();
+        } else {
+          engine.start();
+        }
+      } catch (err) {
+        setStartError(err instanceof Error ? err.message : 'Could not start game session');
+      } finally {
+        setStarting(false);
+      }
+    },
+    [engine, start, starting]
   );
 
   useEffect(() => {
@@ -125,13 +169,13 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
 
       if (status === 'ready' && (key === 'Enter' || key === ' ')) {
         event.preventDefault();
-        engine.start();
+        void beginRun();
         return;
       }
 
       if (status === 'over' && (key === 'r' || key === 'R' || key === 'Enter')) {
         event.preventDefault();
-        engine.restart();
+        void beginRun(true);
         return;
       }
 
@@ -144,6 +188,11 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
       if (event.repeat) return;
 
       if (status === 'paused' && key !== 'p' && key !== 'P' && key !== 'r' && key !== 'R') return;
+
+      if (key === 'r' || key === 'R') {
+        void beginRun(true);
+        return;
+      }
 
       runKey(key);
 
@@ -172,7 +221,7 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
       window.removeEventListener('blur', stopRepeat);
       stopRepeat();
     };
-  }, [engine, runKey, stopRepeat]);
+  }, [engine, runKey, stopRepeat, beginRun]);
 
   const playing = snap.status === 'playing';
   const showControls = playing || snap.status === 'paused';
@@ -206,7 +255,7 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => engine.restart()}
+                  onClick={() => void beginRun(true)}
                   leftIcon={<RotateCcw className="w-4 h-4" aria-hidden="true" />}
                   aria-label="Restart game"
                 >
@@ -263,10 +312,15 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
       </div>
 
       {snap.status === 'ready' && (
-        <ReadyScreen highScore={snap.highScore} onStart={() => engine.start()} />
+        <ReadyScreen
+          highScore={snap.highScore}
+          onStart={() => void beginRun()}
+          error={startError}
+          starting={starting}
+        />
       )}
       {snap.status === 'paused' && (
-        <PauseOverlay onResume={() => engine.resume()} onRestart={() => engine.restart()} />
+        <PauseOverlay onResume={() => engine.resume()} onRestart={() => void beginRun(true)} />
       )}
       {snap.status === 'over' && (
         <GameOverOverlay
@@ -275,7 +329,11 @@ export function BlockMasterApp({ variant = 'hub' }: BlockMasterAppProps) {
           lines={snap.lines}
           highScore={snap.highScore}
           isNewHigh={snap.isNewHigh}
-          onPlayAgain={() => engine.restart()}
+          onPlayAgain={() => void beginRun(true)}
+          saving={saving}
+          saveError={saveError}
+          coins={lastResult?.rewards?.coins}
+          xp={lastResult?.rewards?.xp}
         />
       )}
     </div>

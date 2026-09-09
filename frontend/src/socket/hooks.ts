@@ -11,6 +11,7 @@ import { GameState, Message, Notification, Move, RoomPlayer } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { toId } from '@/lib/id';
 import { coilLive, isCoilBoard } from '@/games/coil-rush/net/liveBoard';
+import { createActionId } from '@/games/sdk';
 
 const DEFAULT_GAME_TIME_SECONDS = 300;
 
@@ -297,7 +298,8 @@ export function useGameSocket() {
     };
 
     const handlePlayerLeft = (data: unknown) => {
-      const { userId } = data as { userId: unknown };
+      const { userId, temporary } = data as { userId: unknown; temporary?: boolean };
+      if (temporary) return;
       setPlayers(useGameStore.getState().players.filter((p) => p.userId !== toId(userId)));
     };
 
@@ -476,8 +478,13 @@ export function useGameSocket() {
     };
 
     const handleError = (data: unknown) => {
-      console.error('Game socket error:', data);
-      setMatchmaking(false);
+      const payload = data as { message?: string; code?: string };
+      if (payload?.code !== 'DUPLICATE_ACTION') {
+        console.error('Game socket error:', payload?.code || payload?.message || data);
+      }
+      if (payload?.code !== 'INVALID_ACTION' && payload?.code !== 'DUPLICATE_ACTION') {
+        setMatchmaking(false);
+      }
     };
 
     gameOn(SOCKET_EVENTS.GAME.ROOM_CREATED, handleRoomCreated);
@@ -491,6 +498,9 @@ export function useGameSocket() {
     gameOn(SOCKET_EVENTS.GAME.GAME_OVER, handleGameOver);
     gameOn(SOCKET_EVENTS.GAME.SPECTATOR_JOINED, handleSpectatorJoin);
     gameOn(SOCKET_EVENTS.GAME.DRAW_OFFERED, handleDrawOffered);
+    gameOn(SOCKET_EVENTS.GAME.ERROR, handleError);
+    gameOn(SOCKET_EVENTS.GAME.FINISHED, handleGameOver);
+    gameOn(SOCKET_EVENTS.GAME.STARTED, handleGameStart);
     gameOn('error', handleError);
 
     return () => {
@@ -505,6 +515,9 @@ export function useGameSocket() {
       gameOff(SOCKET_EVENTS.GAME.GAME_OVER, handleGameOver);
       gameOff(SOCKET_EVENTS.GAME.SPECTATOR_JOINED, handleSpectatorJoin);
       gameOff(SOCKET_EVENTS.GAME.DRAW_OFFERED, handleDrawOffered);
+      gameOff(SOCKET_EVENTS.GAME.ERROR, handleError);
+      gameOff(SOCKET_EVENTS.GAME.FINISHED, handleGameOver);
+      gameOff(SOCKET_EVENTS.GAME.STARTED, handleGameStart);
       gameOff('error', handleError);
     };
   }, [
@@ -541,9 +554,15 @@ export function useGameSocket() {
   const makeMove = useCallback(
     (move: { roomId: string; action?: string; moveData: Record<string, unknown> }) =>
       gameEmit(SOCKET_EVENTS.GAME.MAKE_MOVE, {
+        gameId: useGameStore.getState().currentRoom?.gameSlug,
+        matchId: useGameStore.getState().currentRoom?.gameId,
         roomId: move.roomId,
         action: move.action || 'move',
+        type: move.action || 'move',
+        payload: move.moveData,
         moveData: move.moveData,
+        actionId: createActionId(),
+        timestamp: Date.now(),
       }),
     [gameEmit]
   );

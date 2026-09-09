@@ -46,6 +46,8 @@ export function ChessResultDialog({ open, stats, onAgain, onNewGame, onAnalyze }
                 : `${stats.eloChange > 0 ? '+' : ''}${stats.eloChange}`
             }
           />
+          {stats.coins != null && <Stat label="Coins" value={`+${stats.coins}`} />}
+          {stats.xp != null && <Stat label="XP" value={`+${stats.xp}`} />}
         </div>
         <p className="text-xs text-theme-muted mb-5">
           Engine analysis is ready to connect. No estimated accuracy is shown.

@@ -11,6 +11,10 @@ interface GameOverOverlayProps {
   highScore: number;
   isNewHigh: boolean;
   onPlayAgain: () => void;
+  saving?: boolean;
+  saveError?: string | null;
+  coins?: number;
+  xp?: number;
 }
 
 export function GameOverOverlay({
@@ -20,6 +24,10 @@ export function GameOverOverlay({
   highScore,
   isNewHigh,
   onPlayAgain,
+  saving,
+  saveError,
+  coins,
+  xp,
 }: GameOverOverlayProps) {
   const router = useRouter();
 
@@ -46,7 +54,19 @@ export function GameOverOverlay({
           <span>
             Best score <b>{highScore.toLocaleString('en-US')}</b>
           </span>
+          {coins != null && (
+            <span>
+              Coins <b>+{coins}</b>
+            </span>
+          )}
+          {xp != null && (
+            <span>
+              XP <b>+{xp}</b>
+            </span>
+          )}
         </div>
+        {saving && <p className="bm-copy">Saving result…</p>}
+        {saveError && <p className="bm-copy" role="alert">{saveError}</p>}
         <div className="bm-dialog-actions">
           <Button size="lg" onClick={onPlayAgain} className="w-full">
             Play Again

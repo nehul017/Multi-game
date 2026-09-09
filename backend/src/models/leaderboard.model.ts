@@ -11,6 +11,7 @@ const leaderboardSchema = new Schema<ILeaderboardDocument>(
       required: true,
     },
     elo: { type: Number, default: 1000 },
+    score: { type: Number, default: 0 },
     wins: { type: Number, default: 0 },
     losses: { type: Number, default: 0 },
     draws: { type: Number, default: 0 },
@@ -23,6 +24,7 @@ const leaderboardSchema = new Schema<ILeaderboardDocument>(
 );
 
 leaderboardSchema.index({ gameType: 1, period: 1, elo: -1 });
+leaderboardSchema.index({ gameType: 1, period: 1, score: -1 });
 leaderboardSchema.index({ user: 1, gameType: 1, period: 1 }, { unique: true });
 leaderboardSchema.index({ rank: 1 });
 

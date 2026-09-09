@@ -9,8 +9,10 @@ import { useAuthStore } from '@/store/auth.store';
 import { useGameStore } from '@/store/game.store';
 import { useSocketStore } from '@/store/socket.store';
 import { useChatSocket, useGameSocket, useGameTimer } from '@/socket/hooks';
+import { useGameClient, useGameSession } from '@/games/sdk';
 import { SOCKET_EVENTS } from '@/constants/socket';
 import { toId } from '@/lib/id';
+import toast from 'react-hot-toast';
 import { CHESS_BRAND } from '../brand';
 import { chessAudio } from '../audio/chessAudio';
 import { ChessRules } from '../engine/chessRules';
@@ -72,6 +74,8 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
     cancelMatchmaking,
     isGameConnected,
   } = useGameSocket();
+  useGameClient('chess', room);
+  const { start: startSolo, complete: completeSolo } = useGameSession('chess');
   const { sendMessage, joinChatRoom, leaveChatRoom } = useChatSocket();
   const { chatOn, chatOff, chatSocket } = useSocketStore();
   useGameTimer();
@@ -99,11 +103,13 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
   const [localCheck, setLocalCheck] = useState(false);
   const [localMate, setLocalMate] = useState(false);
   const [lastMove, setLastMove] = useState<{ from: ChessPos; to: ChessPos } | null>(null);
-  const [playing, setPlaying] = useState(!online);
+  const [playing, setPlaying] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [botThinking, setBotThinking] = useState(false);
   const rulesRef = useRef(new ChessRules());
   const startedAt = useRef(Date.now());
   const sessionStarted = useRef(false);
+  const soloBooted = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const myId = toId(user?.id);
   const net = useMemo(
@@ -182,12 +188,29 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
             : 'disconnected';
 
   useEffect(() => {
-    if (online || playing) return;
-    setPlaying(true);
-    startedAt.current = Date.now();
-    chessAudio.unlock();
-    chessAudio.play('start');
-  }, [online, playing]);
+    if (online || soloBooted.current) return;
+    soloBooted.current = true;
+    let cancelled = false;
+    setSessionError(null);
+    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds })
+      .then(() => {
+        if (cancelled) return;
+        setPlaying(true);
+        startedAt.current = Date.now();
+        chessAudio.unlock();
+        chessAudio.play('start');
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        soloBooted.current = false;
+        const message = err instanceof Error ? err.message : 'Could not start game session';
+        setSessionError(message);
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [online, playMode, difficulty, timeSeconds, startSolo]);
 
   useEffect(() => {
     if (!intro || intro.phase !== 'count') return;
@@ -336,13 +359,36 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
     if (result) return;
     chessAudio.play(outcome === 'win' ? 'victory' : outcome === 'loss' ? 'defeat' : 'draw');
     setPlaying(false);
-    setResult({
+    const stats: ChessResultStats = {
       outcome,
       reason,
       moves: rulesRef.current.history().length,
       captures: rulesRef.current.history().filter((m) => m.captured).length,
       durationMs: Date.now() - startedAt.current,
-    });
+    };
+    setResult(stats);
+    void completeSolo({
+      result: outcome,
+      reason,
+      moves: stats.moves,
+      captures: stats.captures,
+      durationMs: stats.durationMs,
+      mode: playMode,
+    })
+      .then((saved) => {
+        if (!saved?.rewards) return;
+        setResult((prev) =>
+          prev
+            ? {
+                ...prev,
+                eloChange: saved.rewards?.eloChange,
+                xp: saved.rewards?.xp,
+                coins: saved.rewards?.coins,
+              }
+            : prev
+        );
+      })
+      .catch(() => undefined);
   };
 
   const applyLocal = (move: ChessMoveInput) => {
@@ -423,8 +469,18 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
     setResult(null);
     setBotThinking(false);
     setIntro(null);
-    setPlaying(true);
-    startedAt.current = Date.now();
+    setPlaying(false);
+    setSessionError(null);
+    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds })
+      .then(() => {
+        setPlaying(true);
+        startedAt.current = Date.now();
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Could not start game session';
+        setSessionError(message);
+        toast.error(message);
+      });
   };
 
   const startBotGame = () => {
@@ -445,7 +501,9 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
       : result.outcome === 'loss'
         ? 'Defeat'
         : 'Drawn'
-    : !playing
+    : sessionError
+      ? 'Session failed'
+      : !playing
       ? isMatchmaking
         ? 'Finding opponent'
         : 'Getting ready'

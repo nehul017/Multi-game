@@ -30,6 +30,11 @@ export function GameOverScreen({ stats, onAgain, onHome, onSkins, onLeaderboard 
           <span>Time <b>{Math.floor(stats.timeMs / 1000)}s</b></span>
           <span>Food <b>{stats.foodEaten}</b></span>
           <span>Cuts <b>{stats.kills}</b></span>
+          {stats.coins != null && <span>Coins <b>+{stats.coins}</b></span>}
+          {stats.xp != null && <span>XP <b>+{stats.xp}</b></span>}
+          {stats.eloChange != null && (
+            <span>ELO <b>{stats.eloChange > 0 ? `+${stats.eloChange}` : stats.eloChange}</b></span>
+          )}
         </div>
         <p className="coil-over-best">Best mass {Math.floor(stats.bestScore)}</p>
         <div className="coil-over-actions">

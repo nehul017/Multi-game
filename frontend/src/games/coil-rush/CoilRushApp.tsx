@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useGameStore } from '@/store/game.store';
 import { useSocketStore } from '@/store/socket.store';
 import { useGameSocket } from '@/socket/hooks';
+import { useGameClient, useGameSession } from '@/games/sdk';
 import { SOCKET_EVENTS } from '@/constants/socket';
 import { useClaimDailyLogin, useDailyLoginStatus, useWallet } from '@/hooks';
 import { toId } from '@/lib/id';
@@ -62,10 +63,14 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
   const query = readQuery();
   const { user } = useAuthStore();
   const status = useGameStore((s) => s.gameState?.status);
+  const rewards = useGameStore((s) => s.gameState?.rewards);
   const players = useGameStore((s) => s.players);
   const roomId = useGameStore((s) => s.currentRoom?.id);
+  const matchId = useGameStore((s) => s.currentRoom?.gameId);
   const isMatchmaking = useGameStore((s) => s.isMatchmaking);
   const { startMatchmaking, cancelMatchmaking, makeMove, joinRoom } = useGameSocket();
+  useGameClient('snake-multiplayer');
+  const { recordScore } = useGameSession('snake-multiplayer');
   const { data: walletRes } = useWallet();
   const { data: dailyRes } = useDailyLoginStatus();
   const claimDaily = useClaimDailyLogin();
@@ -152,19 +157,50 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
       if (died.current) return;
       died.current = true;
       const ranked = [...(board.snakes || [])].sort((a, b) => b.score - a.score);
-      setOver(
-        closeRun({
+      const stats = closeRun({
+        score: me.score,
+        length: me.body.length,
+        rank: ranked.findIndex((s) => s.playerId === me.playerId) + 1,
+        timeMs: board.elapsedMs || 0,
+        foodEaten: me.foodEaten || 0,
+        kills: me.kills || 0,
+      });
+      const liveRewards = useGameStore.getState().gameState?.rewards;
+      setOver({
+        ...stats,
+        coins: liveRewards?.coins,
+        xp: liveRewards?.xp,
+        eloChange: liveRewards?.eloChange,
+      });
+      const liveRoom = useGameStore.getState().currentRoom;
+      void recordScore(
+        {
           score: me.score,
-          length: me.body.length,
-          rank: ranked.findIndex((s) => s.playerId === me.playerId) + 1,
-          timeMs: board.elapsedMs || 0,
+          durationMs: board.elapsedMs || 0,
           foodEaten: me.foodEaten || 0,
           kills: me.kills || 0,
-        })
+          length: me.body.length,
+          mode,
+        },
+        liveRoom?.gameId || liveRoom?.id
       );
       coilAudio.play('death');
     });
-  }, [playing, over, myId]);
+  }, [playing, over, myId, mode, recordScore]);
+
+  useEffect(() => {
+    if (!over || !rewards) return;
+    setOver((prev) =>
+      prev
+        ? {
+            ...prev,
+            coins: rewards.coins,
+            xp: rewards.xp,
+            eloChange: rewards.eloChange,
+          }
+        : prev
+    );
+  }, [over, rewards]);
 
   const steer = useCallback(
     (input: { angle: number; boost: boolean }) => {
@@ -288,6 +324,8 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     user,
     names,
     roomId,
+    matchId,
+    rewards,
     coins,
     dailyReady,
     claimDaily,

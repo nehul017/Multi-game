@@ -174,6 +174,61 @@ class RewardService {
 
     return summaries;
   }
+
+  async settleSoloVersusBot(
+    matchId: string,
+    userId: string,
+    result: 'win' | 'loss' | 'draw',
+    opponentElo: number
+  ): Promise<MatchRewardSummary[]> {
+    const match = await matchService.getMatch(matchId);
+    if (['finished', 'draw', 'aborted'].includes(match.status)) {
+      return [];
+    }
+
+    const winnerId = result === 'win' ? userId : result === 'loss' ? null : null;
+    if (result === 'draw' || result === 'loss') {
+      if (result === 'loss') {
+        await matchService.finishSolo(matchId, userId, 'loss', { versus: 'bot', opponentElo });
+      } else {
+        await matchService.setDraw(matchId);
+      }
+    } else {
+      await matchService.setWinner(matchId, userId);
+    }
+
+    const user = await userRepository.findById(userId);
+    const beforeElo = user?.elo ?? 1000;
+    const beforeXp = user?.xp ?? 0;
+    const beforeLevel = user?.level ?? 1;
+
+    await leaderboardService.updateLeaderboard(userId, match.gameType, result, opponentElo);
+    await leaderboardService.updateLeaderboard(userId, 'general', result, opponentElo);
+
+    const coinAmount =
+      result === 'win' ? COIN_REWARDS.WIN : result === 'draw' ? COIN_REWARDS.DRAW : COIN_REWARDS.LOSS;
+    const coinResult = await economyService.rewardMatchResult(userId, result, matchId, match.gameType);
+
+    let xpGain = XP_REWARDS.GAME_PLAYED;
+    if (result === 'win') xpGain += XP_REWARDS.WIN;
+    else if (result === 'loss') xpGain += XP_REWARDS.LOSS;
+    else xpGain += XP_REWARDS.DRAW;
+
+    const userAfter = await userRepository.findById(userId);
+    return [
+      {
+        userId,
+        result,
+        coins: coinAmount,
+        xp: xpGain,
+        eloChange: (userAfter?.elo ?? beforeElo) - beforeElo,
+        newElo: userAfter?.elo ?? beforeElo,
+        newLevel: userAfter?.level ?? beforeLevel,
+        balance: coinResult.coins,
+        achievements: [],
+      },
+    ];
+  }
 }
 
 export const rewardService = new RewardService();

@@ -9,7 +9,8 @@ class LeaderboardRepository extends BaseRepository<ILeaderboardDocument> {
   }
 
   async getLeaderboard(gameType: string, period: LeaderboardPeriod, page: number, limit: number): Promise<{ data: ILeaderboardDocument[]; total: number; page: number; pages: number }> {
-    return this.findMany({ gameType, period }, { page, limit, sort: '-elo', populate: 'user' });
+    const sort = gameType === 'block-master' ? '-score' : '-elo';
+    return this.findMany({ gameType, period }, { page, limit, sort, populate: 'user' });
   }
 
   async getUserEntry(userId: string, gameType: string, period: LeaderboardPeriod = 'all_time'): Promise<ILeaderboardDocument | null> {
@@ -24,8 +25,12 @@ class LeaderboardRepository extends BaseRepository<ILeaderboardDocument> {
     ).exec() as Promise<ILeaderboardDocument>;
   }
 
-  async recalculateRanks(gameType: string, period: LeaderboardPeriod): Promise<void> {
-    const entries = await this.model.find({ gameType, period }).sort({ elo: -1 }).exec();
+  async recalculateRanks(
+    gameType: string,
+    period: LeaderboardPeriod,
+    rankBy: 'elo' | 'score' = 'elo'
+  ): Promise<void> {
+    const entries = await this.model.find({ gameType, period }).sort({ [rankBy]: -1 }).exec();
     const bulkOps = entries.map((entry, index) => ({
       updateOne: {
         filter: { _id: entry._id },

@@ -102,4 +102,7 @@ export interface CoilRunStats {
   kills: number;
   bestScore: number;
   isRecord: boolean;
+  coins?: number;
+  xp?: number;
+  eloChange?: number;
 }

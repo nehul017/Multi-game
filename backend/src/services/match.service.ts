@@ -71,6 +71,10 @@ class MatchService {
     return match;
   }
 
+  async abortPlayingSolo(userId: string, gameType: string): Promise<number> {
+    return matchRepository.abortPlayingSolo(userId, gameType);
+  }
+
   async updateMatchStatus(matchId: string, status: 'waiting' | 'playing' | 'finished' | 'draw' | 'aborted'): Promise<IMatchDocument> {
     const updateData: Record<string, unknown> = { status };
 
@@ -154,6 +158,87 @@ class MatchService {
 
   async getWaitingMatches(gameType: string): Promise<IMatchDocument[]> {
     return matchRepository.findWaitingMatches(gameType);
+  }
+
+  async leaveMatch(matchId: string, userId: string): Promise<IMatchDocument> {
+    const match = await matchRepository.findById(matchId);
+    if (!match) throw new AppError('Match not found', 404);
+
+    if (match.status === 'playing') {
+      throw new AppError('Leave a live match through the game socket', 400);
+    }
+
+    match.players = match.players.filter((player) => player.userId.toString() !== userId) as typeof match.players;
+    if (match.players.length === 0) {
+      match.status = 'aborted';
+      match.finishedAt = new Date();
+    }
+    await match.save();
+    return match;
+  }
+
+  async finishSolo(
+    matchId: string,
+    userId: string,
+    result: 'win' | 'loss' | 'draw' | 'completed',
+    replayData: Record<string, unknown>
+  ): Promise<IMatchDocument> {
+    const match = await matchRepository.findById(matchId);
+    if (!match) throw new AppError('Match not found', 404);
+    if (['finished', 'draw', 'aborted'].includes(match.status)) return match;
+
+    match.replayData = { ...(match.replayData || {}), ...replayData };
+    match.finishedAt = new Date();
+
+    const player = match.players.find((entry) => entry.userId.toString() === userId);
+    if (result === 'win') {
+      match.status = 'finished';
+      match.winner = userId as IMatchDocument['winner'];
+      if (player) player.result = 'win';
+      await userRepository.incrementStats(userId, 'wins');
+    } else if (result === 'loss') {
+      match.status = 'finished';
+      if (player) player.result = 'loss';
+      await userRepository.incrementStats(userId, 'losses');
+    } else {
+      match.status = result === 'draw' ? 'draw' : 'finished';
+      if (player) player.result = result === 'draw' ? 'draw' : 'draw';
+      await userRepository.incrementStats(userId, 'draws');
+    }
+
+    await userRepository.incrementStats(userId, 'gamesPlayed');
+    await match.save();
+    gameEvents.emit(EVENTS.MATCH_ENDED, { matchId, status: match.status });
+    return match;
+  }
+
+  async patchReplayData(matchId: string, replayData: Record<string, unknown>): Promise<IMatchDocument> {
+    const match = await matchRepository.findById(matchId);
+    if (!match) throw new AppError('Match not found', 404);
+    match.replayData = { ...(match.replayData || {}), ...replayData };
+    await match.save();
+    return match;
+  }
+
+  async getMatchResult(matchId: string) {
+    const match = await this.getMatch(matchId);
+    if (!['finished', 'draw', 'aborted'].includes(match.status)) {
+      throw new AppError('Match result is not available yet', 409);
+    }
+
+    return {
+      matchId,
+      gameType: match.gameType,
+      status: match.status,
+      winner: match.winner,
+      players: match.players,
+      roomId: match.roomId,
+      startedAt: match.startedAt,
+      finishedAt: match.finishedAt,
+      settings: match.settings,
+      createdAt: match.createdAt,
+      updatedAt: match.updatedAt,
+    };
   }
 }
 

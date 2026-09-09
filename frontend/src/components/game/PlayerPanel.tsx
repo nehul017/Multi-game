@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { Flame, Zap } from 'lucide-react';
+import { Flame, Zap, Bot } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { ChessTimer } from './chess/ChessTimer';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,9 @@ interface PlayerPanelProps {
   countryFlag?: string;
   showTurnBadge?: boolean;
   premium?: boolean;
+  waiting?: boolean;
+  isBot?: boolean;
+  botEta?: number;
 }
 
 export function PlayerPanel({
@@ -34,6 +37,9 @@ export function PlayerPanel({
   countryFlag,
   showTurnBadge = false,
   premium = false,
+  waiting = false,
+  isBot = false,
+  botEta,
 }: PlayerPanelProps) {
   const reduce = useReducedMotion();
 
@@ -47,6 +53,7 @@ export function PlayerPanel({
           (premium
             ? 'ring-2 ring-primary-400/60 shadow-[0_0_28px_rgba(124,58,237,0.28)]'
             : 'ring-1 ring-sky-400/50 shadow-[0_0_24px_rgba(56,189,248,0.18)]'),
+        waiting && 'ttt-player-waiting',
         side === 'right' && 'flex-row-reverse',
         className
       )}
@@ -73,8 +80,16 @@ export function PlayerPanel({
             {username}
           </p>
         </div>
-        <p className="text-xs text-theme-muted font-medium">{elo} ELO</p>
+        <p className="text-xs text-theme-muted font-medium">
+          {waiting && typeof botEta === 'number' ? `Bot in ${botEta}s` : `${elo} ELO`}
+        </p>
         <div className={cn('mt-1.5 flex flex-wrap items-center gap-1.5', side === 'right' && 'justify-end')}>
+          {isBot && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-500/12 text-primary-500 border border-primary-500/25">
+              <Bot className="w-3 h-3" />
+              Bot
+            </span>
+          )}
           {typeof winStreak === 'number' && winStreak > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/15 text-orange-500 border border-orange-500/25">
               <Flame className="w-3 h-3" />

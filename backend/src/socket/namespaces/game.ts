@@ -2,9 +2,12 @@ import { Server, Socket } from 'socket.io';
 import { matchService } from '../../services/match.service';
 import { rewardService } from '../../services/reward.service';
 import { notificationService } from '../../services/notification.service';
+import { gameRedisService } from '../../services/game-redis.service';
+import { env } from '../../config/env';
 import {
   BOT_FILL_MS,
   FILL_BOT_GAMES,
+  HIGH_FREQUENCY_GAMES,
   JOIN_IN_PROGRESS_GAMES,
   SOCKET_EVENTS,
   maxPlayersFor,
@@ -13,26 +16,21 @@ import {
 import { createGameEngine, serializeGameState, serializeSnakeTick } from '../../games/factory';
 import { GameEngine } from '../../games/engine';
 import { SNAKE_TICK_MS } from '../../games/snake-multiplayer';
-import { isBotPlayerId, ludoBotId, pickLudoBotMove } from '../../games/ludo-bot';
+import { gameBotId, isBotPlayerId, pickLudoBotMove } from '../../games/ludo-bot';
+import { pickConnectFourBotMove } from '../../games/connect-four-bot';
+import { pickTicTacToeBotMove } from '../../games/tic-tac-toe-bot';
+import { GameError, GAME_ERROR_CODES } from '../../games/core/errors';
+import { gameLogger } from '../../games/core/logger';
+import { gameSessionStore } from '../../games/core/session-store';
+import { parseIncomingAction, validateGameAction } from '../../games/core/validator';
+import type { GameRoom } from '../../games/core/types';
+import { bindInboundAliases, emitCanonical, emitGameError } from '../game-runtime';
 
-interface GameRoom {
-  matchId: string;
-  roomId: string;
-  gameType: string;
-  players: Map<string, { socketId: string; ready: boolean; connected: boolean }>;
-  gameState: Record<string, unknown>;
-  spectators: Set<string>;
-  engine: GameEngine | null;
-  drawOfferFrom?: string;
-  tickTimer?: ReturnType<typeof setInterval>;
-  botFillTimer?: ReturnType<typeof setTimeout>;
-  botPlayTimer?: ReturnType<typeof setTimeout>;
-  settings?: Record<string, unknown>;
-}
-
-const activeRooms = new Map<string, GameRoom>();
 const matchmakingQueue = new Map<string, Set<string>>();
 const hydratingRooms = new Map<string, Promise<GameRoom | null>>();
+const persistRoom = (room: GameRoom): void => {
+  void gameRedisService.saveSession(room);
+};
 
 const toPlayerId = (userId: unknown): string => {
   if (userId == null) return '';
@@ -62,14 +60,14 @@ const replayMatchMoves = (engine: GameEngine, moves: Array<{ player: unknown; ac
 };
 
 const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
-  const existing = activeRooms.get(roomId);
+  const existing = gameSessionStore.get(roomId);
   if (existing) return existing;
 
   const pending = hydratingRooms.get(roomId);
   if (pending) return pending;
 
   const work = (async (): Promise<GameRoom | null> => {
-    const already = activeRooms.get(roomId);
+    const already = gameSessionStore.get(roomId);
     if (already) return already;
 
     const match = await matchService.getMatchByRoom(roomId);
@@ -106,7 +104,8 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
       });
     }
 
-    activeRooms.set(roomId, room);
+    gameSessionStore.set(room);
+    persistRoom(room);
     return room;
   })().finally(() => {
     hydratingRooms.delete(roomId);
@@ -166,7 +165,8 @@ const emitRoomState = (
   isRejoin: boolean
 ): void => {
   const payload = buildMatchPayload(room, match);
-  socket.emit(
+  emitCanonical(
+    socket,
     isRejoin ? SOCKET_EVENTS.GAME.RECONNECTED : SOCKET_EVENTS.GAME.MATCH_FOUND,
     payload
   );
@@ -206,14 +206,23 @@ const finishMatch = async (
     }
   }
 
-  gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_OVER, {
+  emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_OVER, {
     winner: winnerId,
     reason,
     rewards,
     gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
   });
 
-  activeRooms.delete(room.roomId);
+  gameLogger.info('game_finished', {
+    roomId: room.roomId,
+    matchId: room.matchId,
+    gameType: room.gameType,
+    winner: winnerId,
+    reason,
+  });
+  gameLogger.info('result_persisted', { matchId: room.matchId, roomId: room.roomId, botWon });
+  void gameRedisService.deleteSession(room);
+  gameSessionStore.delete(room.roomId);
 };
 
 const startSnakeLoop = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
@@ -225,7 +234,7 @@ const startSnakeLoop = (gameNs: ReturnType<Server['of']>, room: GameRoom): void 
     if (!room.engine || typeof engine.tick !== 'function') return;
     engine.tick();
     room.gameState = serializeSnakeTick(room.engine);
-    gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+    emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
       playerId: null,
       action: 'tick',
       data: {},
@@ -253,11 +262,13 @@ const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): v
   }
 
   if (JOIN_IN_PROGRESS_GAMES.has(room.gameType)) {
-    gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_START, {
+    emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_START, {
       matchId: room.matchId,
       players: playerIds,
       gameState: room.gameState,
     });
+    gameLogger.info('game_started', { roomId: room.roomId, matchId: room.matchId, gameType: room.gameType });
+    persistRoom(room);
     startSnakeLoop(gameNs, room);
     void matchService.getMatch(room.matchId).then((match) => {
       gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MATCH_FOUND, buildMatchPayload(room, match));
@@ -274,11 +285,13 @@ const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): v
       if (room.engine) {
         room.gameState = serializeGameState(room.engine);
       }
-      gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.GAME_START, {
+      emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_START, {
         matchId: room.matchId,
         players: playerIds,
         gameState: room.gameState,
       });
+      gameLogger.info('game_started', { roomId: room.roomId, matchId: room.matchId, gameType: room.gameType });
+      persistRoom(room);
       startSnakeLoop(gameNs, room);
       scheduleBotTurn(gameNs, room, 1100);
     }
@@ -293,7 +306,7 @@ const broadcastEngineState = (
 ): void => {
   if (!room.engine) return;
   room.gameState = serializeGameState(room.engine);
-  gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+  emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
     playerId,
     action,
     data: playerId ? { playerId } : {},
@@ -341,8 +354,8 @@ const emitToRoomAndSocket = (
   payload: unknown,
   notifySocket?: Socket
 ): void => {
-  gameNs.to(room.roomId).emit(event, payload);
-  notifySocket?.emit(event, payload);
+  emitCanonical(gameNs.to(room.roomId), event, payload);
+  if (notifySocket) emitCanonical(notifySocket, event, payload);
 };
 
 const resolveBotFillRoom = async (userId: string, roomId?: string): Promise<GameRoom | null> => {
@@ -356,7 +369,7 @@ const resolveBotFillRoom = async (userId: string, roomId?: string): Promise<Game
   }
 
   return (
-    Array.from(activeRooms.values()).find(
+    Array.from(gameSessionStore.values()).find(
       (entry) => canFillBot(entry) && entry.players.has(userId)
     ) || null
   );
@@ -376,7 +389,7 @@ const fillBotIntoRoom = async (
     room.botFillTimer = undefined;
   }
 
-  const botId = ludoBotId(room.roomId);
+  const botId = gameBotId(room.gameType, room.roomId);
   room.players.set(botId, { socketId: '', ready: true, connected: true });
   for (const player of room.players.values()) {
     player.ready = true;
@@ -436,7 +449,7 @@ const applyEngineMove = async (
 
   const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
   if (historyChanged) {
-    gameNs.to(room.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
+    emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
       playerId,
       username,
       action: lastApplied?.action || (movePayload.action as string) || 'move',
@@ -479,6 +492,20 @@ const scheduleBotTurn = (gameNs: ReturnType<Server['of']>, room: GameRoom, delay
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+const pickBotMove = (room: GameRoom, botId: string): Record<string, unknown> | null => {
+  if (!room.engine) return null;
+  switch (room.gameType) {
+    case 'ludo':
+      return pickLudoBotMove(room.engine, botId);
+    case 'connect-four':
+      return pickConnectFourBotMove(room.engine, botId);
+    case 'tic-tac-toe':
+      return pickTicTacToeBotMove(room.engine, botId);
+    default:
+      return null;
+  }
+};
+
 const runBotTurn = async (
   gameNs: ReturnType<Server['of']>,
   room: GameRoom
@@ -488,7 +515,7 @@ const runBotTurn = async (
     const botId = room.engine.getGameState().currentPlayer;
     if (!botId || !isBotPlayerId(botId)) return;
 
-    const move = pickLudoBotMove(room.engine, botId);
+    const move = pickBotMove(room, botId);
     if (!move) return;
 
     const accepted = await applyEngineMove(gameNs, room, botId, move, 'Bot');
@@ -515,8 +542,20 @@ const admitPlayerToLiveGame = (
 export const setupGameNamespace = (io: Server): void => {
   const gameNs = io.of('/game');
 
+  void gameRedisService.subscribeCommands();
+  gameRedisService.onRemoteCommand((command) => {
+    const room = gameSessionStore.get(command.roomId);
+    if (!room?.engine) return;
+    void applyEngineMove(gameNs, room, command.userId, command.moveData, command.username);
+  });
+
   gameNs.on('connection', (socket: Socket) => {
     console.log(`Game: ${socket.user?.username} connected`);
+    if (socket.user) {
+      const userId = socket.user._id.toString();
+      void gameRedisService.mapSocket(socket.id, userId);
+      void gameRedisService.setPresence(userId, true);
+    }
 
     socket.on(SOCKET_EVENTS.GAME.MATCHMAKING, async (data: { gameSlug: string; settings?: Record<string, unknown> }) => {
       try {
@@ -530,7 +569,7 @@ export const setupGameNamespace = (io: Server): void => {
         }
         const queue = matchmakingQueue.get(gameType)!;
 
-        for (const [roomId, room] of activeRooms.entries()) {
+        for (const [roomId, room] of gameSessionStore.entries()) {
           if (room.gameType !== gameType || room.players.has(userId)) {
             continue;
           }
@@ -554,6 +593,9 @@ export const setupGameNamespace = (io: Server): void => {
           room.players.set(userId, { socketId: socket.id, ready: true, connected: true });
           socket.join(roomId);
           queue.delete(userId);
+          void gameRedisService.dequeueMatchmaking(gameType, userId);
+          persistRoom(room);
+          gameLogger.info('player_joined', { roomId, userId, gameType });
 
           const creatorId = Array.from(room.players.keys()).find((id) => id !== userId);
           if (creatorId) {
@@ -585,11 +627,11 @@ export const setupGameNamespace = (io: Server): void => {
           return;
         }
 
-        for (const [, room] of activeRooms.entries()) {
+        for (const [, room] of gameSessionStore.entries()) {
           if (room.gameType === gameType && room.players.size === 1 && room.players.has(userId)) {
             socket.join(room.roomId);
             queue.add(userId);
-            socket.emit(SOCKET_EVENTS.GAME.ROOM_CREATED, {
+            emitCanonical(socket, SOCKET_EVENTS.GAME.ROOM_CREATED, {
               roomId: room.roomId,
               matchId: room.matchId,
               gameType,
@@ -599,6 +641,7 @@ export const setupGameNamespace = (io: Server): void => {
         }
 
         queue.add(userId);
+        void gameRedisService.enqueueMatchmaking(gameType, userId);
 
         const match = await matchService.createMatch(gameType, userId, data.settings || {});
         const roomId = match.roomId;
@@ -615,10 +658,12 @@ export const setupGameNamespace = (io: Server): void => {
           settings: data.settings || {},
         };
 
-        activeRooms.set(roomId, room);
+        gameSessionStore.set(room);
+        persistRoom(room);
         socket.join(roomId);
+        gameLogger.info('game_created', { roomId, matchId: room.matchId, gameType, userId });
 
-        socket.emit(SOCKET_EVENTS.GAME.ROOM_CREATED, {
+        emitCanonical(socket, SOCKET_EVENTS.GAME.ROOM_CREATED, {
           roomId,
           matchId: match._id,
           gameType,
@@ -631,7 +676,7 @@ export const setupGameNamespace = (io: Server): void => {
         }
       } catch (error) {
         console.error('Matchmaking error:', error);
-        socket.emit('error', { message: 'Failed to find match' });
+        emitGameError(socket, { code: GAME_ERROR_CODES.ROOM_NOT_FOUND, message: 'Failed to find match' });
       }
     });
 
@@ -643,10 +688,11 @@ export const setupGameNamespace = (io: Server): void => {
         queue.delete(userId);
         if (queue.size === 0) matchmakingQueue.delete(gameType);
       }
+      void gameRedisService.dequeueUser(userId);
 
       const roomId = data?.roomId;
       if (!roomId) {
-        for (const [id, room] of activeRooms.entries()) {
+        for (const [id, room] of gameSessionStore.entries()) {
           if (room.players.size === 1 && room.players.has(userId)) {
             await handleLeaveRoom(gameNs, socket, id, room);
             break;
@@ -655,7 +701,7 @@ export const setupGameNamespace = (io: Server): void => {
         return;
       }
 
-      const room = activeRooms.get(roomId);
+      const room = gameSessionStore.get(roomId);
       if (room) {
         await handleLeaveRoom(gameNs, socket, roomId, room);
       }
@@ -679,10 +725,12 @@ export const setupGameNamespace = (io: Server): void => {
           engine: null,
         };
 
-        activeRooms.set(roomId, room);
+        gameSessionStore.set(room);
+        persistRoom(room);
         socket.join(roomId);
+        gameLogger.info('game_created', { roomId, matchId: room.matchId, gameType: data.gameType });
 
-        socket.emit(SOCKET_EVENTS.GAME.ROOM_CREATED, {
+        emitCanonical(socket, SOCKET_EVENTS.GAME.ROOM_CREATED, {
           roomId,
           matchId: match._id,
           gameType: data.gameType,
@@ -694,7 +742,7 @@ export const setupGameNamespace = (io: Server): void => {
           scheduleBotFill(gameNs, room);
         }
       } catch (error) {
-        socket.emit('error', { message: 'Failed to create room' });
+        emitGameError(socket, { code: GAME_ERROR_CODES.ROOM_NOT_FOUND, message: 'Failed to create room' });
       }
     });
 
@@ -706,19 +754,23 @@ export const setupGameNamespace = (io: Server): void => {
         const room = await hydrateRoomFromDb(data.roomId);
 
         if (!room) {
-          socket.emit('error', { message: 'Room not found' });
+          emitGameError(socket, { code: GAME_ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found', roomId: data.roomId });
           return;
         }
 
         const match = await matchService.getMatch(room.matchId);
         const isExistingPlayer = match.players.some((player) => toPlayerId(player.userId) === userId);
+        gameSessionStore.clearReconnect(room.roomId, userId);
+        void gameRedisService.clearReconnectState(userId);
 
         if (isExistingPlayer) {
           room.players.set(userId, {
             socketId: socket.id,
             ready: room.players.get(userId)?.ready ?? match.status === 'playing',
             connected: true,
+            disconnectedAt: undefined,
           });
+          gameLogger.info('player_reconnected', { roomId: room.roomId, userId, gameType: room.gameType });
         } else {
           await matchService.joinMatch(room.matchId, userId);
           room.players.set(userId, {
@@ -726,9 +778,11 @@ export const setupGameNamespace = (io: Server): void => {
             ready: JOIN_IN_PROGRESS_GAMES.has(room.gameType) || match.status === 'playing',
             connected: true,
           });
+          gameLogger.info('player_joined', { roomId: room.roomId, userId, gameType: room.gameType });
         }
 
         socket.join(data.roomId);
+        persistRoom(room);
 
         if (!isExistingPlayer && room.engine && JOIN_IN_PROGRESS_GAMES.has(room.gameType)) {
           admitPlayerToLiveGame(gameNs, room, userId);
@@ -744,7 +798,7 @@ export const setupGameNamespace = (io: Server): void => {
           );
         }
 
-        gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.PLAYER_JOINED, {
+        emitCanonical(gameNs.to(data.roomId), SOCKET_EVENTS.GAME.PLAYER_JOINED, {
           userId: socket.user._id,
           username: socket.user.username,
           avatar: socket.user.avatar,
@@ -767,20 +821,20 @@ export const setupGameNamespace = (io: Server): void => {
         }
       } catch (error) {
         console.error('Join room error:', error);
-        socket.emit('error', { message: 'Failed to join room' });
+        emitGameError(socket, { code: GAME_ERROR_CODES.ROOM_NOT_FOUND, message: 'Failed to join room' });
       }
     });
 
     socket.on(SOCKET_EVENTS.GAME.LEAVE_ROOM, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      const room = gameSessionStore.get(data.roomId);
       if (!room) return;
       await handleLeaveRoom(gameNs, socket, data.roomId, room);
     });
 
     socket.on(SOCKET_EVENTS.GAME.READY, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      const room = gameSessionStore.get(data.roomId);
       if (!room) return;
 
       const player = room.players.get(socket.user._id.toString());
@@ -797,7 +851,7 @@ export const setupGameNamespace = (io: Server): void => {
       try {
         const room = await resolveBotFillRoom(userId, data?.roomId);
         if (!room) {
-          socket.emit('error', { message: 'No waiting Ludo match to fill with a bot' });
+          socket.emit('error', { message: 'No waiting match to fill with a bot' });
           return;
         }
         socket.join(room.roomId);
@@ -808,104 +862,206 @@ export const setupGameNamespace = (io: Server): void => {
       }
     });
 
-    socket.on(SOCKET_EVENTS.GAME.MAKE_MOVE, async (data: { roomId: string; action: string; moveData: Record<string, unknown> }) => {
+    socket.on(SOCKET_EVENTS.GAME.MAKE_MOVE, async (data: unknown) => {
       try {
-        if (!socket.user) return;
-        const room = activeRooms.get(data.roomId);
-        if (!room) return;
-
-        const userId = socket.user._id.toString();
-        // Never trust client-forced dice / replay flags
-        const movePayload: Record<string, unknown> = { ...(data.moveData || {}) };
-        delete movePayload._forcedDice;
-
-        if (room.engine) {
-          const historyBefore = room.engine.getGameState().moveHistory.length;
-          const accepted = room.engine.makeMove(userId, movePayload);
-          if (!accepted) {
-            if (room.gameType !== 'snake-multiplayer') {
-              socket.emit('error', { message: 'Invalid move' });
-            }
-            return;
-          }
-
-          // Snapshot after the move — server is the single source of truth
-          const snapshot = serializeGameState(room.engine);
-          room.gameState = snapshot;
-
-          const isSnakeSteer =
-            room.gameType === 'snake-multiplayer' &&
-            (data.action === 'steer' || data.action === 'direction');
-          if (isSnakeSteer) {
-            return;
-          }
-
-          const lastApplied = room.engine.getGameState().moveHistory.slice(-1)[0];
-          const persistData: Record<string, unknown> = {
-            ...movePayload,
-            ...(lastApplied?.data || {}),
-          };
-          if (lastApplied?.action && !persistData.action) {
-            persistData.action = lastApplied.action;
-          }
-
-          const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
-
-          if (historyChanged) {
-            // Broadcast first so snake steering is not blocked on Mongo
-            gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
-              playerId: userId,
-              username: socket.user.username,
-              action: data.action || lastApplied?.action || 'move',
-              data: persistData,
-              gameState: snapshot,
-              timestamp: new Date(),
-            });
-
-            const persist = matchService.addMove(
-              room.matchId,
-              userId,
-              data.action || lastApplied?.action || 'move',
-              persistData
-            );
-            if (room.gameType === 'snake-multiplayer') {
-              void persist.catch((error) => console.error('Failed to persist snake turn:', error));
-            } else {
-              await persist;
-            }
-          }
-
-          if (room.engine.isGameOver()) {
-            const state = room.engine.getGameState();
-            await finishMatch(
-              gameNs,
-              room,
-              state.winner,
-              state.status === 'draw' ? 'draw' : 'finished'
-            );
-          } else {
-            scheduleBotTurn(gameNs, room);
-          }
+        if (!socket.user) {
+          emitGameError(socket, { code: GAME_ERROR_CODES.UNAUTHENTICATED, message: 'Authentication required' });
           return;
         }
 
-        // Fallback for games without an engine instance
-        await matchService.addMove(room.matchId, userId, data.action, movePayload);
-        gameNs.to(data.roomId).emit(SOCKET_EVENTS.GAME.MOVE_MADE, {
-          playerId: userId,
-          username: socket.user.username,
-          action: data.action,
-          data: movePayload,
-          timestamp: new Date(),
-        });
+        const parsed = parseIncomingAction(data);
+        if (!parsed) {
+          emitGameError(socket, { code: GAME_ERROR_CODES.INVALID_ACTION, message: 'Invalid action payload' });
+          return;
+        }
+
+        const userId = socket.user._id.toString();
+        let room = gameSessionStore.get(parsed.roomId);
+        if (!room) {
+          const remote = await gameRedisService.getSession(parsed.roomId);
+          if (remote && remote.ownerInstanceId !== gameRedisService.instanceId) {
+            await gameRedisService.publishCommand({
+              roomId: parsed.roomId,
+              userId,
+              username: socket.user.username,
+              action: parsed.action,
+              moveData: parsed.moveData,
+              actionId: parsed.actionId,
+              timestamp: parsed.timestamp,
+            });
+            return;
+          }
+          room = (await hydrateRoomFromDb(parsed.roomId)) || undefined;
+        }
+        if (!room) {
+          emitGameError(socket, {
+            code: GAME_ERROR_CODES.ROOM_NOT_FOUND,
+            message: 'Room not found',
+            roomId: parsed.roomId,
+            actionId: parsed.actionId,
+          });
+          return;
+        }
+
+        const allowed = await gameRedisService.rateLimit(
+          userId,
+          HIGH_FREQUENCY_GAMES.has(room.gameType) ? 80 : 40
+        );
+        if (!allowed) {
+          emitGameError(socket, new GameError(GAME_ERROR_CODES.RATE_LIMITED, 'Too many actions', {
+            actionId: parsed.actionId,
+            gameId: room.gameType,
+            roomId: room.roomId,
+          }));
+          return;
+        }
+
+        const seen = parsed.actionId ? await gameRedisService.wasActionSeen(room.roomId, parsed.actionId) : false;
+        try {
+          validateGameAction({
+            userId,
+            room,
+            action: {
+              actionId: parsed.actionId,
+              type: parsed.action,
+              payload: parsed.moveData,
+              timestamp: parsed.timestamp ?? Date.now(),
+            },
+            seenAction: seen,
+          });
+        } catch (error) {
+          if (error instanceof GameError) {
+            gameLogger.warn('action_rejected', {
+              code: error.code,
+              roomId: room.roomId,
+              userId,
+              actionId: parsed.actionId,
+            });
+            if (error.code === GAME_ERROR_CODES.DUPLICATE_ACTION) return;
+            if (room.gameType === 'snake-multiplayer' && error.code === GAME_ERROR_CODES.ACTION_NOT_ALLOWED) return;
+            emitGameError(socket, error);
+            return;
+          }
+          throw error;
+        }
+
+        if (parsed.actionId) {
+          await gameRedisService.markActionSeen(room.roomId, parsed.actionId);
+        }
+
+        const lockToken = HIGH_FREQUENCY_GAMES.has(room.gameType)
+          ? null
+          : await gameRedisService.acquireActionLock(room.roomId);
+
+        try {
+          const movePayload = parsed.moveData;
+
+          if (room.engine) {
+            const historyBefore = room.engine.getGameState().moveHistory.length;
+            const accepted = room.engine.makeMove(userId, movePayload);
+            if (!accepted) {
+              gameLogger.warn('action_rejected', { roomId: room.roomId, userId, reason: 'engine_rejected' });
+              if (room.gameType !== 'snake-multiplayer') {
+                emitGameError(socket, {
+                  code: GAME_ERROR_CODES.INVALID_ACTION,
+                  message: 'Invalid move',
+                  gameId: room.gameType,
+                  roomId: room.roomId,
+                  actionId: parsed.actionId,
+                });
+              }
+              return;
+            }
+
+            const snapshot = serializeGameState(room.engine);
+            room.gameState = snapshot;
+            gameLogger.info('action_accepted', {
+              roomId: room.roomId,
+              userId,
+              action: parsed.action,
+              actionId: parsed.actionId,
+            });
+
+            const isSnakeSteer =
+              room.gameType === 'snake-multiplayer' &&
+              (parsed.action === 'steer' || parsed.action === 'direction');
+            if (isSnakeSteer) {
+              return;
+            }
+
+            const lastApplied = room.engine.getGameState().moveHistory.slice(-1)[0];
+            const persistData: Record<string, unknown> = {
+              ...movePayload,
+              ...(lastApplied?.data || {}),
+            };
+            if (lastApplied?.action && !persistData.action) {
+              persistData.action = lastApplied.action;
+            }
+
+            const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
+
+            if (historyChanged) {
+              emitCanonical(gameNs.to(parsed.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
+                playerId: userId,
+                username: socket.user.username,
+                action: parsed.action || lastApplied?.action || 'move',
+                data: persistData,
+                gameState: snapshot,
+                actionId: parsed.actionId,
+                timestamp: new Date(),
+              });
+
+              const persist = matchService.addMove(
+                room.matchId,
+                userId,
+                parsed.action || lastApplied?.action || 'move',
+                persistData
+              );
+              if (HIGH_FREQUENCY_GAMES.has(room.gameType)) {
+                void persist.catch((error) => {
+                  gameLogger.error('mongodb_error', { op: 'addMove', error: String(error) });
+                });
+              } else {
+                await persist;
+                void gameRedisService.saveCheckpoint(room.roomId, snapshot);
+              }
+            }
+
+            if (room.engine.isGameOver()) {
+              const state = room.engine.getGameState();
+              await finishMatch(
+                gameNs,
+                room,
+                state.winner,
+                state.status === 'draw' ? 'draw' : 'finished'
+              );
+            } else {
+              scheduleBotTurn(gameNs, room);
+            }
+            return;
+          }
+
+          await matchService.addMove(room.matchId, userId, parsed.action, movePayload);
+          emitCanonical(gameNs.to(parsed.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
+            playerId: userId,
+            username: socket.user.username,
+            action: parsed.action,
+            data: movePayload,
+            actionId: parsed.actionId,
+            timestamp: new Date(),
+          });
+        } finally {
+          if (lockToken) await gameRedisService.releaseActionLock(room.roomId, lockToken);
+        }
       } catch (error) {
-        socket.emit('error', { message: 'Failed to make move' });
+        gameLogger.error('socket_error', { op: 'makeMove', error: String(error) });
+        emitGameError(socket, { code: GAME_ERROR_CODES.INVALID_ACTION, message: 'Failed to make move' });
       }
     });
 
     socket.on(SOCKET_EVENTS.GAME.SURRENDER, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      const room = gameSessionStore.get(data.roomId);
       if (!room) return;
 
       const otherPlayers = Array.from(room.players.keys()).filter(
@@ -924,7 +1080,7 @@ export const setupGameNamespace = (io: Server): void => {
 
     socket.on(SOCKET_EVENTS.GAME.OFFER_DRAW, (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      const room = gameSessionStore.get(data.roomId);
       if (!room) return;
 
       room.drawOfferFrom = socket.user._id.toString();
@@ -936,7 +1092,7 @@ export const setupGameNamespace = (io: Server): void => {
 
     socket.on(SOCKET_EVENTS.GAME.ACCEPT_DRAW, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      const room = activeRooms.get(data.roomId);
+      const room = gameSessionStore.get(data.roomId);
       if (!room) return;
 
       if (!room.drawOfferFrom || room.drawOfferFrom === socket.user._id.toString()) {
@@ -949,7 +1105,7 @@ export const setupGameNamespace = (io: Server): void => {
 
     socket.on(SOCKET_EVENTS.GAME.SPECTATE, async (data: { roomId: string }) => {
       if (!socket.user) return;
-      let room = activeRooms.get(data.roomId);
+      let room = gameSessionStore.get(data.roomId);
       if (!room) {
         room = (await hydrateRoomFromDb(data.roomId)) || undefined;
       }
@@ -1005,42 +1161,91 @@ export const setupGameNamespace = (io: Server): void => {
       }
     });
 
+    socket.on(SOCKET_EVENTS.GAME.PAUSE, (data: { roomId: string }) => {
+      if (!socket.user) return;
+      const room = gameSessionStore.get(data?.roomId);
+      if (!room?.players.has(socket.user._id.toString())) {
+        emitGameError(socket, { code: GAME_ERROR_CODES.PLAYER_NOT_IN_GAME, message: 'Player is not in this game' });
+        return;
+      }
+      emitGameError(socket, {
+        code: GAME_ERROR_CODES.NOT_SUPPORTED,
+        message: 'Pause is not supported for this game',
+        gameId: room.gameType,
+        roomId: room.roomId,
+      });
+    });
+
+    socket.on(SOCKET_EVENTS.GAME.RESUME, (data: { roomId: string }) => {
+      if (!socket.user) return;
+      const room = gameSessionStore.get(data?.roomId);
+      if (!room?.players.has(socket.user._id.toString())) {
+        emitGameError(socket, { code: GAME_ERROR_CODES.PLAYER_NOT_IN_GAME, message: 'Player is not in this game' });
+        return;
+      }
+      emitGameError(socket, {
+        code: GAME_ERROR_CODES.NOT_SUPPORTED,
+        message: 'Resume is not supported for this game',
+        gameId: room.gameType,
+        roomId: room.roomId,
+      });
+    });
+
+    bindInboundAliases(socket);
+
     socket.on('disconnect', async () => {
       if (!socket.user) return;
       const userId = socket.user._id.toString();
+      void gameRedisService.unmapSocket(socket.id);
+      void gameRedisService.setPresence(userId, false);
+      void gameRedisService.dequeueUser(userId);
 
       for (const [, queue] of matchmakingQueue.entries()) {
         queue.delete(userId);
       }
 
-      for (const [roomId, room] of activeRooms.entries()) {
+      for (const [roomId, room] of gameSessionStore.entries()) {
         if (room.players.has(userId)) {
-          let matchStatus: string | null = null;
-          try {
-            const match = await matchService.getMatch(room.matchId);
-            matchStatus = match.status;
-          } catch {
-            matchStatus = null;
+          const player = room.players.get(userId);
+          if (player) {
+            player.socketId = '';
+            player.connected = false;
+            player.disconnectedAt = Date.now();
           }
 
-          if (matchStatus === 'playing') {
-            const player = room.players.get(userId);
-            if (player) {
-              player.socketId = '';
-              player.connected = false;
-            }
-          } else {
-            room.players.delete(userId);
-          }
+          void gameRedisService.setReconnectState(userId, room.roomId, room.matchId, room.gameType);
+          persistRoom(room);
+          gameLogger.info('player_disconnected', { roomId, userId, gameType: room.gameType });
 
-          gameNs.to(roomId).emit(SOCKET_EVENTS.GAME.PLAYER_LEFT, {
+          emitCanonical(gameNs.to(roomId), SOCKET_EVENTS.GAME.PLAYER_LEFT, {
             userId,
             username: socket.user.username,
             reason: 'disconnect',
+            temporary: true,
           });
 
-          if (room.players.size === 0) {
-            activeRooms.delete(roomId);
+          const keepPlaying = Boolean(room.engine && !room.engine.isGameOver());
+          if (!keepPlaying) {
+            gameSessionStore.scheduleReconnect(roomId, userId, env.gameReconnectGraceMs, () => {
+              const current = gameSessionStore.get(roomId);
+              const slot = current?.players.get(userId);
+              if (!current || !slot || slot.connected) return;
+              current.players.delete(userId);
+              gameLogger.info('player_left', { roomId, userId, reason: 'reconnect_expired' });
+              emitCanonical(gameNs.to(roomId), SOCKET_EVENTS.GAME.PLAYER_LEFT, {
+                userId,
+                reason: 'timeout',
+                temporary: false,
+              });
+              if (current.players.size === 0) {
+                clearRoomTimers(current);
+                void gameRedisService.deleteSession(current);
+                gameSessionStore.delete(roomId);
+                void matchService.updateMatchStatus(current.matchId, 'aborted').catch(() => undefined);
+              } else {
+                persistRoom(current);
+              }
+            });
           }
         }
         room.spectators.delete(userId);
@@ -1075,15 +1280,20 @@ async function handleLeaveRoom(
 
   room.players.delete(userId);
   socket.leave(roomId);
+  gameSessionStore.clearReconnect(roomId, userId);
+  gameLogger.info('player_left', { roomId, userId, gameType: room.gameType });
 
-  gameNs.to(roomId).emit(SOCKET_EVENTS.GAME.PLAYER_LEFT, {
+  emitCanonical(gameNs.to(roomId), SOCKET_EVENTS.GAME.PLAYER_LEFT, {
     userId: socket.user._id,
     username: socket.user.username,
   });
 
   if (room.players.size === 0) {
     clearRoomTimers(room);
-    activeRooms.delete(roomId);
+    void gameRedisService.deleteSession(room);
+    gameSessionStore.delete(roomId);
     await matchService.updateMatchStatus(room.matchId, 'aborted');
+  } else {
+    persistRoom(room);
   }
 }

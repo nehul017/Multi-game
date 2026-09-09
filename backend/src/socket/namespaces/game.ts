@@ -7,6 +7,7 @@ import { env } from '../../config/env';
 import {
   BOT_FILL_MS,
   FILL_BOT_GAMES,
+  FILL_EMPTY_SEAT_GAMES,
   HIGH_FREQUENCY_GAMES,
   JOIN_IN_PROGRESS_GAMES,
   SOCKET_EVENTS,
@@ -19,6 +20,22 @@ import { SNAKE_TICK_MS } from '../../games/snake-multiplayer';
 import { gameBotId, isBotPlayerId, pickLudoBotMove } from '../../games/ludo-bot';
 import { pickConnectFourBotMove } from '../../games/connect-four-bot';
 import { pickTicTacToeBotMove } from '../../games/tic-tac-toe-bot';
+import {
+  appendMindiReplay,
+  clearBotControlled,
+  emitAuthorized,
+  fillMindiBots,
+  hydrateMindiPlayers,
+  isBotControlled,
+  isMindiRoom,
+  markBotControlled,
+  mindiBotDelay,
+  mindiEngineSettings,
+  persistMindiSecrets,
+  pickMindiBotMove,
+  rejectReasonFromEngine,
+} from '../../games/mindi/runtime';
+import { isMindiEngine } from '../../games/mindi';
 import { GameError, GAME_ERROR_CODES } from '../../games/core/errors';
 import { gameLogger } from '../../games/core/logger';
 import { gameSessionStore } from '../../games/core/session-store';
@@ -73,14 +90,25 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
     const match = await matchService.getMatchByRoom(roomId);
     if (!['waiting', 'playing'].includes(match.status)) return null;
 
+    const settings = (match.settings || {}) as Record<string, unknown>;
     const playerIds = match.players.map((p) => toPlayerId(p.userId));
+    const seatOrder = Array.isArray(settings.seatOrder) ? settings.seatOrder.map(String) : playerIds;
     const canHydrateSolo = JOIN_IN_PROGRESS_GAMES.has(match.gameType);
+    const enginePlayers = seatOrder.length >= minPlayersToStart(match.gameType) ? seatOrder : playerIds;
+    const engineSettings =
+      match.gameType === 'mindi' ? mindiEngineSettings(settings) : ((match.settings || {}) as Record<string, unknown>);
     const engine =
-      match.status === 'playing' && (playerIds.length >= 2 || (canHydrateSolo && playerIds.length >= 1))
-        ? createGameEngine(match.gameType, playerIds, (match.settings || {}) as Record<string, unknown>)
+      match.status === 'playing' && (enginePlayers.length >= 2 || (canHydrateSolo && enginePlayers.length >= 1))
+        ? createGameEngine(match.gameType, enginePlayers, engineSettings)
         : null;
 
-    if (engine && match.moves?.length) {
+    if (engine && match.gameType === 'mindi') {
+      const replayMoves = (match.replayData as { mindiMoves?: Array<{ player: unknown; action: string; data?: Record<string, unknown> }> } | undefined)
+        ?.mindiMoves;
+      if (replayMoves?.length) {
+        replayMatchMoves(engine, replayMoves);
+      }
+    } else if (engine && match.moves?.length) {
       replayMatchMoves(engine, match.moves);
     }
 
@@ -92,7 +120,7 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
       gameState: engine ? serializeGameState(engine) : {},
       spectators: new Set(match.spectators?.map((id) => toPlayerId(id)) || []),
       engine,
-      settings: (match.settings || {}) as Record<string, unknown>,
+      settings,
     };
 
     for (const player of match.players) {
@@ -102,6 +130,9 @@ const hydrateRoomFromDb = async (roomId: string): Promise<GameRoom | null> => {
         ready: match.status === 'playing',
         connected: false,
       });
+    }
+    if (match.gameType === 'mindi') {
+      hydrateMindiPlayers(room, settings);
     }
 
     gameSessionStore.set(room);
@@ -165,6 +196,10 @@ const emitRoomState = (
   isRejoin: boolean
 ): void => {
   const payload = buildMatchPayload(room, match);
+  const viewerId = socket.user?._id?.toString();
+  if (room.engine && isMindiRoom(room) && viewerId) {
+    payload.gameState = serializeGameState(room.engine, viewerId);
+  }
   emitCanonical(
     socket,
     isRejoin ? SOCKET_EVENTS.GAME.RECONNECTED : SOCKET_EVENTS.GAME.MATCH_FOUND,
@@ -185,6 +220,10 @@ const clearRoomTimers = (room: GameRoom): void => {
     clearTimeout(room.botPlayTimer);
     room.botPlayTimer = undefined;
   }
+  if (room.botTakeoverTimers) {
+    for (const timer of room.botTakeoverTimers.values()) clearTimeout(timer);
+    room.botTakeoverTimers.clear();
+  }
 };
 
 const finishMatch = async (
@@ -195,9 +234,31 @@ const finishMatch = async (
 ): Promise<void> => {
   clearRoomTimers(room);
   const botWon = Boolean(winnerId && isBotPlayerId(winnerId));
+  const winningPlayerIds = Array.isArray(room.engine?.getGameState().metadata?.winningPlayerIds)
+    ? (room.engine!.getGameState().metadata!.winningPlayerIds as string[])
+    : undefined;
   const rewards = botWon
     ? []
-    : await rewardService.settleMatch(room.matchId, winnerId, reason);
+    : await rewardService.settleMatch(room.matchId, winnerId, reason, winningPlayerIds);
+
+  if (isMindiRoom(room) && room.engine) {
+    const meta = room.engine.getGameState().metadata || {};
+    void matchService.patchReplayData(room.matchId, {
+      result: {
+        winner: winnerId,
+        winnerTeam: meta.winnerTeam,
+        winningPlayerIds: meta.winningPlayerIds,
+        capturedTens: meta.capturedTens,
+        tricksWon: meta.tricksWon,
+        winReason: meta.winReason,
+        isMendikot: meta.isMendikot,
+        isWhitewash: meta.isWhitewash,
+        botDifficulty: meta.botDifficulty,
+        durationMs:
+          typeof room.settings?.startedAt === 'number' ? Date.now() - Number(room.settings.startedAt) : null,
+      },
+    });
+  }
   if (botWon) {
     try {
       await matchService.updateMatchStatus(room.matchId, 'finished');
@@ -206,12 +267,20 @@ const finishMatch = async (
     }
   }
 
-  emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_OVER, {
-    winner: winnerId,
-    reason,
-    rewards,
-    gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
-  });
+  if (room.engine && isMindiRoom(room)) {
+    emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.GAME_OVER, {
+      winner: winnerId,
+      reason,
+      rewards,
+    });
+  } else {
+    emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_OVER, {
+      winner: winnerId,
+      reason,
+      rewards,
+      gameState: room.engine ? serializeGameState(room.engine) : room.gameState,
+    });
+  }
 
   gameLogger.info('game_finished', {
     roomId: room.roomId,
@@ -256,9 +325,14 @@ const startSnakeLoop = (gameNs: ReturnType<Server['of']>, room: GameRoom): void 
 
 const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
   const playerIds = Array.from(room.players.keys());
-  room.engine = createGameEngine(room.gameType, playerIds, room.settings || {});
+  const startSettings = isMindiRoom(room) ? mindiEngineSettings(room.settings || {}) : room.settings || {};
+  room.engine = createGameEngine(room.gameType, playerIds, startSettings);
   if (room.engine) {
     room.gameState = serializeGameState(room.engine);
+  }
+  if (isMindiRoom(room) && room.engine) {
+    room.settings = { ...(room.settings || {}), startedAt: Date.now(), seatOrder: playerIds };
+    void persistMindiSecrets(room, (matchId, patch) => matchService.updateSettings(matchId, patch));
   }
 
   if (JOIN_IN_PROGRESS_GAMES.has(room.gameType)) {
@@ -285,11 +359,18 @@ const startGameCountdown = (gameNs: ReturnType<Server['of']>, room: GameRoom): v
       if (room.engine) {
         room.gameState = serializeGameState(room.engine);
       }
-      emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_START, {
-        matchId: room.matchId,
-        players: playerIds,
-        gameState: room.gameState,
-      });
+      if (room.engine && isMindiRoom(room)) {
+        emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.GAME_START, {
+          matchId: room.matchId,
+          players: playerIds,
+        });
+      } else {
+        emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.GAME_START, {
+          matchId: room.matchId,
+          players: playerIds,
+          gameState: room.gameState,
+        });
+      }
       gameLogger.info('game_started', { roomId: room.roomId, matchId: room.matchId, gameType: room.gameType });
       persistRoom(room);
       startSnakeLoop(gameNs, room);
@@ -306,6 +387,15 @@ const broadcastEngineState = (
 ): void => {
   if (!room.engine) return;
   room.gameState = serializeGameState(room.engine);
+  if (isMindiRoom(room)) {
+    emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.MOVE_MADE, {
+      playerId,
+      action,
+      data: playerId ? { playerId } : {},
+      timestamp: new Date(),
+    });
+    return;
+  }
   emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
     playerId,
     action,
@@ -334,8 +424,13 @@ const roomHasBot = (room: GameRoom): boolean =>
 const humanPlayerCount = (room: GameRoom): number =>
   Array.from(room.players.keys()).filter((id) => !isBotPlayerId(id)).length;
 
-const canFillBot = (room: GameRoom): boolean =>
-  FILL_BOT_GAMES.has(room.gameType) && !room.engine && !roomHasBot(room) && humanPlayerCount(room) === 1;
+const canFillBot = (room: GameRoom): boolean => {
+  if (!FILL_BOT_GAMES.has(room.gameType) || room.engine) return false;
+  if (FILL_EMPTY_SEAT_GAMES.has(room.gameType)) {
+    return room.players.size < maxPlayersFor(room.gameType) && humanPlayerCount(room) >= 1;
+  }
+  return !roomHasBot(room) && humanPlayerCount(room) === 1;
+};
 
 const scheduleBotFill = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
   if (!canFillBot(room)) {
@@ -389,24 +484,33 @@ const fillBotIntoRoom = async (
     room.botFillTimer = undefined;
   }
 
-  const botId = gameBotId(room.gameType, room.roomId);
-  room.players.set(botId, { socketId: '', ready: true, connected: true });
-  for (const player of room.players.values()) {
-    player.ready = true;
+  const addedBots = FILL_EMPTY_SEAT_GAMES.has(room.gameType)
+    ? fillMindiBots(room)
+    : [gameBotId(room.gameType, room.roomId)];
+
+  if (!FILL_EMPTY_SEAT_GAMES.has(room.gameType)) {
+    const botId = addedBots[0];
+    if (room.players.has(botId)) return;
+    room.players.set(botId, { socketId: '', ready: true, connected: true });
+    for (const player of room.players.values()) {
+      player.ready = true;
+    }
   }
 
-  emitToRoomAndSocket(
-    gameNs,
-    room,
-    SOCKET_EVENTS.GAME.PLAYER_JOINED,
-    {
-      userId: botId,
-      username: 'Bot',
-      elo: 1000,
-      playersCount: room.players.size,
-    },
-    notifySocket
-  );
+  for (const botId of addedBots) {
+    emitToRoomAndSocket(
+      gameNs,
+      room,
+      SOCKET_EVENTS.GAME.PLAYER_JOINED,
+      {
+        userId: botId,
+        username: 'Bot',
+        elo: 1000,
+        playersCount: room.players.size,
+      },
+      notifySocket
+    );
+  }
 
   try {
     const match = await matchService.getMatch(room.matchId);
@@ -449,22 +553,44 @@ const applyEngineMove = async (
 
   const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
   if (historyChanged) {
-    emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
-      playerId,
-      username,
-      action: lastApplied?.action || (movePayload.action as string) || 'move',
-      data: persistData,
-      gameState: snapshot,
-      timestamp: new Date(),
-    });
+    const action = lastApplied?.action || (movePayload.action as string) || 'move';
+    if (isMindiRoom(room)) {
+      emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.MOVE_MADE, {
+        playerId,
+        username,
+        action,
+        data: persistData,
+        timestamp: new Date(),
+      });
+      await appendMindiReplay(
+        room,
+        { player: playerId, action, data: persistData },
+        (matchId, replayData) => matchService.patchReplayData(matchId, replayData)
+      );
+    } else {
+      emitCanonical(gameNs.to(room.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
+        playerId,
+        username,
+        action,
+        data: persistData,
+        gameState: snapshot,
+        timestamp: new Date(),
+      });
+    }
 
-    if (!isBotPlayerId(playerId)) {
+    if (!isBotPlayerId(playerId) && !isMindiRoom(room)) {
       await matchService.addMove(
         room.matchId,
         playerId,
-        lastApplied?.action || (movePayload.action as string) || 'move',
+        action,
         persistData
       );
+    } else if (!isBotPlayerId(playerId) && isMindiRoom(room)) {
+      try {
+        await matchService.addMove(room.matchId, playerId, action, persistData);
+      } catch {
+        // Bot-safe string ids and replayData already persist the authoritative log
+      }
     }
   }
 
@@ -474,20 +600,33 @@ const applyEngineMove = async (
     return true;
   }
 
-  if (!isBotPlayerId(playerId)) {
+  if (!shouldPlayAsBot(room, playerId)) {
     scheduleBotTurn(gameNs, room);
   }
   return true;
 };
 
+const shouldPlayAsBot = (room: GameRoom, playerId: string): boolean =>
+  isBotPlayerId(playerId) || isBotControlled(room, playerId);
+
 const scheduleBotTurn = (gameNs: ReturnType<Server['of']>, room: GameRoom, delay = 850): void => {
   if (!room.engine || room.engine.isGameOver() || !FILL_BOT_GAMES.has(room.gameType)) return;
   const current = room.engine.getGameState().currentPlayer;
-  if (!current || !isBotPlayerId(current)) return;
+  if (!current || !shouldPlayAsBot(room, current)) return;
   if (room.botPlayTimer) clearTimeout(room.botPlayTimer);
+  const wait = isMindiRoom(room) ? mindiBotDelay(room) : delay;
+  if (isMindiRoom(room) && isMindiEngine(room.engine)) {
+    room.engine.setBotThinking(current);
+    emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.MOVE_MADE, {
+      playerId: current,
+      action: 'bot-thinking',
+      data: {},
+      timestamp: new Date(),
+    });
+  }
   room.botPlayTimer = setTimeout(() => {
     void runBotTurn(gameNs, room);
-  }, delay);
+  }, wait);
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -501,6 +640,8 @@ const pickBotMove = (room: GameRoom, botId: string): Record<string, unknown> | n
       return pickConnectFourBotMove(room.engine, botId);
     case 'tic-tac-toe':
       return pickTicTacToeBotMove(room.engine, botId);
+    case 'mindi':
+      return pickMindiBotMove(room, botId);
     default:
       return null;
   }
@@ -513,16 +654,20 @@ const runBotTurn = async (
   for (let step = 0; step < 10; step++) {
     if (!room.engine || room.engine.isGameOver()) return;
     const botId = room.engine.getGameState().currentPlayer;
-    if (!botId || !isBotPlayerId(botId)) return;
+    if (!botId || !shouldPlayAsBot(room, botId)) return;
+
+    if (isMindiRoom(room) && isMindiEngine(room.engine)) {
+      room.engine.setBotThinking(null);
+    }
 
     const move = pickBotMove(room, botId);
     if (!move) return;
 
-    const accepted = await applyEngineMove(gameNs, room, botId, move, 'Bot');
+    const accepted = await applyEngineMove(gameNs, room, botId, move, isBotPlayerId(botId) ? 'Bot' : 'Bot');
     if (!accepted || !room.engine || room.engine.isGameOver()) return;
-    if (!isBotPlayerId(room.engine.getGameState().currentPlayer)) return;
+    if (!shouldPlayAsBot(room, room.engine.getGameState().currentPlayer)) return;
 
-    await sleep(move.action === 'roll' ? 1200 : 700);
+    await sleep(isMindiRoom(room) ? mindiBotDelay(room) : move.action === 'roll' ? 1200 : 700);
   }
 };
 
@@ -575,7 +720,7 @@ export const setupGameNamespace = (io: Server): void => {
           }
 
           const joinInProgress = JOIN_IN_PROGRESS_GAMES.has(gameType);
-          if (!joinInProgress && room.players.size !== 1) {
+          if (!joinInProgress && room.engine) {
             continue;
           }
           if (room.players.size >= maxPlayersFor(gameType)) {
@@ -723,6 +868,7 @@ export const setupGameNamespace = (io: Server): void => {
           gameState: {},
           spectators: new Set(),
           engine: null,
+          settings: data.settings || {},
         };
 
         gameSessionStore.set(room);
@@ -770,6 +916,11 @@ export const setupGameNamespace = (io: Server): void => {
             connected: true,
             disconnectedAt: undefined,
           });
+          clearBotControlled(room, userId);
+          if (room.botTakeoverTimers?.has(userId)) {
+            clearTimeout(room.botTakeoverTimers.get(userId));
+            room.botTakeoverTimers.delete(userId);
+          }
           gameLogger.info('player_reconnected', { roomId: room.roomId, userId, gameType: room.gameType });
         } else {
           await matchService.joinMatch(room.matchId, userId);
@@ -790,6 +941,9 @@ export const setupGameNamespace = (io: Server): void => {
 
         const refreshed = await matchService.getMatch(room.matchId);
         emitRoomState(socket, room, refreshed, isExistingPlayer);
+        if (isExistingPlayer && isMindiRoom(room) && room.engine && !room.engine.isGameOver()) {
+          scheduleBotTurn(gameNs, room);
+        }
 
         if (!isExistingPlayer && room.engine) {
           gameNs.to(data.roomId).emit(
@@ -964,7 +1118,7 @@ export const setupGameNamespace = (io: Server): void => {
               if (room.gameType !== 'snake-multiplayer') {
                 emitGameError(socket, {
                   code: GAME_ERROR_CODES.INVALID_ACTION,
-                  message: 'Invalid move',
+                  message: rejectReasonFromEngine(room.engine),
                   gameId: room.gameType,
                   roomId: room.roomId,
                   actionId: parsed.actionId,
@@ -1001,29 +1155,47 @@ export const setupGameNamespace = (io: Server): void => {
             const historyChanged = room.engine.getGameState().moveHistory.length > historyBefore;
 
             if (historyChanged) {
-              emitCanonical(gameNs.to(parsed.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
-                playerId: userId,
-                username: socket.user.username,
-                action: parsed.action || lastApplied?.action || 'move',
-                data: persistData,
-                gameState: snapshot,
-                actionId: parsed.actionId,
-                timestamp: new Date(),
-              });
-
-              const persist = matchService.addMove(
-                room.matchId,
-                userId,
-                parsed.action || lastApplied?.action || 'move',
-                persistData
-              );
-              if (HIGH_FREQUENCY_GAMES.has(room.gameType)) {
-                void persist.catch((error) => {
-                  gameLogger.error('mongodb_error', { op: 'addMove', error: String(error) });
+              const action = parsed.action || lastApplied?.action || 'move';
+              if (isMindiRoom(room)) {
+                emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.MOVE_MADE, {
+                  playerId: userId,
+                  username: socket.user.username,
+                  action,
+                  data: persistData,
+                  actionId: parsed.actionId,
+                  timestamp: new Date(),
                 });
+                await appendMindiReplay(
+                  room,
+                  { player: userId, action, data: persistData },
+                  (matchId, replayData) => matchService.patchReplayData(matchId, replayData)
+                );
               } else {
-                await persist;
-                void gameRedisService.saveCheckpoint(room.roomId, snapshot);
+                emitCanonical(gameNs.to(parsed.roomId), SOCKET_EVENTS.GAME.MOVE_MADE, {
+                  playerId: userId,
+                  username: socket.user.username,
+                  action,
+                  data: persistData,
+                  gameState: snapshot,
+                  actionId: parsed.actionId,
+                  timestamp: new Date(),
+                });
+              }
+
+              if (!isMindiRoom(room) || !isBotPlayerId(userId)) {
+                const persist = matchService.addMove(room.matchId, userId, action, persistData);
+                if (HIGH_FREQUENCY_GAMES.has(room.gameType)) {
+                  void persist.catch((error) => {
+                    gameLogger.error('mongodb_error', { op: 'addMove', error: String(error) });
+                  });
+                } else {
+                  try {
+                    await persist;
+                  } catch (error) {
+                    if (!isMindiRoom(room)) throw error;
+                  }
+                  void gameRedisService.saveCheckpoint(room.roomId, snapshot);
+                }
               }
             }
 
@@ -1064,9 +1236,17 @@ export const setupGameNamespace = (io: Server): void => {
       const room = gameSessionStore.get(data.roomId);
       if (!room) return;
 
-      const otherPlayers = Array.from(room.players.keys()).filter(
-        (id) => id !== socket.user!._id.toString()
-      );
+      const userId = socket.user._id.toString();
+      if (isMindiRoom(room) && room.engine && isMindiEngine(room.engine)) {
+        const seats = room.engine.getGameState().players;
+        const seat = seats.indexOf(userId);
+        const oppositeTeam = seats.filter((_, index) => seat >= 0 && index % 2 !== seat % 2);
+        const winner = oppositeTeam.find((id) => !isBotPlayerId(id)) || oppositeTeam[0] || null;
+        await finishMatch(gameNs, room, winner, 'surrender');
+        return;
+      }
+
+      const otherPlayers = Array.from(room.players.keys()).filter((id) => id !== userId);
 
       if (otherPlayers.length >= 1) {
         await finishMatch(gameNs, room, otherPlayers[0], 'surrender');
@@ -1225,6 +1405,21 @@ export const setupGameNamespace = (io: Server): void => {
           });
 
           const keepPlaying = Boolean(room.engine && !room.engine.isGameOver());
+          if (keepPlaying && isMindiRoom(room)) {
+            if (!room.botTakeoverTimers) room.botTakeoverTimers = new Map();
+            const existingTimer = room.botTakeoverTimers.get(userId);
+            if (existingTimer) clearTimeout(existingTimer);
+            room.botTakeoverTimers.set(
+              userId,
+              setTimeout(() => {
+                const current = gameSessionStore.get(roomId);
+                const slot = current?.players.get(userId);
+                if (!current || !slot || slot.connected || !current.engine || current.engine.isGameOver()) return;
+                markBotControlled(current, userId);
+                scheduleBotTurn(gameNs, current);
+              }, env.gameReconnectGraceMs)
+            );
+          }
           if (!keepPlaying) {
             gameSessionStore.scheduleReconnect(roomId, userId, env.gameReconnectGraceMs, () => {
               const current = gameSessionStore.get(roomId);
@@ -1263,6 +1458,26 @@ async function handleLeaveRoom(
   if (!socket.user) return;
 
   const userId = socket.user._id.toString();
+  if (room.engine && !room.engine.isGameOver() && isMindiRoom(room)) {
+    const slot = room.players.get(userId);
+    if (slot) {
+      slot.socketId = '';
+      slot.connected = false;
+      slot.disconnectedAt = Date.now();
+    }
+    markBotControlled(room, userId);
+    socket.leave(roomId);
+    persistRoom(room);
+    emitCanonical(gameNs.to(roomId), SOCKET_EVENTS.GAME.PLAYER_LEFT, {
+      userId: socket.user._id,
+      username: socket.user.username,
+      reason: 'replaced-by-bot',
+      temporary: true,
+    });
+    scheduleBotTurn(gameNs, room);
+    return;
+  }
+
   if (room.engine && !room.engine.isGameOver()) {
     room.engine.eliminatePlayer(userId);
     broadcastEngineState(gameNs, room, userId, 'playerLeft');

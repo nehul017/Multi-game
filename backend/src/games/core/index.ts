@@ -6,6 +6,7 @@ export { GAME_ERROR_CODES, GameError, publicGameErrorMessage } from './errors';
 export { gameLogger } from './logger';
 export {
   FILL_BOT_GAMES,
+  FILL_EMPTY_SEAT_GAMES,
   GAME_LIMITS,
   GAME_PLAYER_LIMITS,
   HIGH_FREQUENCY_GAMES,

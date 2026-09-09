@@ -19,6 +19,9 @@ import { ChessApp } from '@/games/chess-arena';
 import { BlockMasterApp } from '@/games/block-master';
 import { FruitSlotsApp } from '@/games/classic-fruit-slots';
 import { PokerApp } from '@/games/poker';
+import { MindiApp } from '@/games/mindi';
+import { PuzzleWorldApp } from '@/games/puzzle-world';
+import { JigsawWorldApp } from '@/games/jigsaw-world';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -99,6 +102,15 @@ export default function PlayRoute() {
   }
   if ((params.slug as string) === 'poker') {
     return <PokerApp variant="play" />;
+  }
+  if ((params.slug as string) === 'mindi') {
+    return <MindiApp variant="play" />;
+  }
+  if ((params.slug as string) === 'puzzle-world') {
+    return <PuzzleWorldApp variant="play" />;
+  }
+  if ((params.slug as string) === 'jigsaw-world') {
+    return <JigsawWorldApp variant="play" />;
   }
   return <GenericPlayPage />;
 }

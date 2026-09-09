@@ -1,10 +1,12 @@
 import { Chess } from '../chess';
 import { ConnectFour } from '../connect-four';
 import { Ludo } from '../ludo';
+import { Mindi } from '../mindi';
 import { QuizBattle } from '../quiz-battle';
 import { SnakeMultiplayer } from '../snake-multiplayer';
 import type { SnakeMatchSettings } from '../snake-types';
 import { TicTacToe } from '../tic-tac-toe';
+import type { MindiSettings } from '../mindi';
 import { GAME_LIMITS } from './limits';
 import { gameRegistry } from './registry';
 
@@ -44,7 +46,14 @@ export const registerBuiltInGames = (): void => {
     createEngine: (players, settings) => new SnakeMultiplayer(players, (settings || {}) as SnakeMatchSettings),
   });
 
+  gameRegistry.register({
+    ...GAME_LIMITS.mindi,
+    createEngine: (players, settings) => new Mindi(players, (settings || {}) as MindiSettings),
+  });
+
   gameRegistry.register(GAME_LIMITS['classic-fruit-slots']);
   gameRegistry.register(GAME_LIMITS.poker);
   gameRegistry.register(GAME_LIMITS['block-master']);
+  gameRegistry.register(GAME_LIMITS['puzzle-world']);
+  gameRegistry.register(GAME_LIMITS['jigsaw-world']);
 };

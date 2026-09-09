@@ -13,8 +13,11 @@ interface LudoBoardPlayer {
 
 export const isBotPlayerId = (id: string): boolean => id.startsWith('bot:');
 
-export const gameBotId = (gameType: string, roomId: string): string =>
-  `bot:${gameType}:${roomId.slice(0, 8)}`;
+export const gameBotId = (gameType: string, roomId: string, seat = 0): string =>
+  seat > 0 ? `bot:${gameType}:${roomId.slice(0, 8)}:${seat}` : `bot:${gameType}:${roomId.slice(0, 8)}`;
+
+export const mindiBotId = (roomId: string, seat: number): string =>
+  `bot:mindi:${roomId.slice(0, 8)}:${seat}`;
 
 export const ludoBotId = (roomId: string): string => gameBotId('ludo', roomId);
 

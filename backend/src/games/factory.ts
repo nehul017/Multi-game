@@ -15,8 +15,9 @@ const deepClone = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
-export const serializeGameState = (engine: GameEngine) => {
-  const state = engine.getGameState();
+export const serializeGameState = (engine: GameEngine, viewerId?: string | null) => {
+  const state =
+    viewerId === undefined ? engine.getGameState() : engine.getAuthorizedState(viewerId ?? null);
   // Deep-clone board/state so broadcasts never share live engine references
   // (Ludo/Quiz/Snake boards are objects; grid games are arrays)
   return {

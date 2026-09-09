@@ -41,6 +41,11 @@ export abstract class GameEngine {
     return { ...this.state };
   }
 
+  /** Override to hide private information from other players. */
+  getAuthorizedState(_viewerId: string | null): GameState {
+    return this.getGameState();
+  }
+
   protected addMoveToHistory(player: string, action: string, data: Record<string, unknown>): void {
     this.state.moveHistory.push({ player, action, data, timestamp: new Date() });
   }

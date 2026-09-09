@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/AppError';
 
-export const SOLO_SESSION_GAMES = new Set(['block-master', 'chess']);
-export const SCORE_LEADERBOARD_GAMES = new Set(['block-master']);
+export const SOLO_SESSION_GAMES = new Set(['block-master', 'chess', 'puzzle-world', 'jigsaw-world']);
+export const SCORE_LEADERBOARD_GAMES = new Set(['block-master', 'puzzle-world', 'jigsaw-world']);
 
 export interface SoloResultInput {
   score?: unknown;
@@ -48,7 +48,7 @@ const requireNonNegative = (label: string, value: number): number => {
 };
 
 export const isSoloSessionAllowed = (gameType: string, settings: Record<string, unknown> = {}): boolean => {
-  if (gameType === 'block-master') return true;
+  if (gameType === 'block-master' || gameType === 'puzzle-world' || gameType === 'jigsaw-world') return true;
   if (gameType === 'chess') {
     const mode = String(settings.mode || '');
     return mode === 'computer' || mode === 'local';
@@ -82,6 +82,73 @@ export const validateSoloResult = (gameType: string, input: SoloResultInput): Va
       throw new AppError('Score payload failed validation', 400);
     }
     if (score > 800 && durationMs < 1500) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    return {
+      score,
+      lines,
+      level,
+      durationMs,
+      result: 'completed',
+      reason,
+      moves,
+      captures,
+      foodEaten,
+      kills,
+      length,
+      mode,
+    };
+  }
+
+  if (gameType === 'jigsaw-world') {
+    const piecesForLevel: Record<number, number> = { 1: 12, 2: 24, 3: 40, 4: 60 };
+    const expectedPieces = piecesForLevel[level];
+    if (!expectedPieces || lines !== expectedPieces) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    const maxPlausible = level * 400 + expectedPieces * 8 * 4 + 200;
+    if (score > maxPlausible) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (score > 200 && durationMs < 2000) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (lines >= 24 && durationMs < 5000) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (lines >= 40 && durationMs < 10000) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (lines >= 60 && durationMs < 16000) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    return {
+      score,
+      lines,
+      level,
+      durationMs,
+      result: 'completed',
+      reason,
+      moves,
+      captures,
+      foodEaten,
+      kills,
+      length,
+      mode,
+    };
+  }
+
+  if (gameType === 'puzzle-world') {
+    if (lines > 12 || level > 12) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (score > lines * 800 + 1200) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (score > 250 && durationMs < 400) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (lines >= 6 && durationMs < 2500) {
       throw new AppError('Score payload failed validation', 400);
     }
     return {

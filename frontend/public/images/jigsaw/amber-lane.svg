@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Amber lane">
+  <defs>
+    <linearGradient id="alSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffb703"/>
+      <stop offset="55%" stop-color="#fb8500"/>
+      <stop offset="100%" stop-color="#9b2226"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#alSky)"/>
+  <circle cx="620" cy="90" r="46" fill="#fff3bf"/>
+  <path d="M0 360 C200 300 300 380 400 320 C520 250 640 340 800 280 V600 H0 Z" fill="#6a4c2a"/>
+  <path d="M250 600 C340 420 460 420 550 600" fill="#c9a227"/>
+  <rect x="90" y="250" width="22" height="160" fill="#4a2c14"/>
+  <ellipse cx="101" cy="230" rx="70" ry="80" fill="#dc2f02"/>
+  <rect x="200" y="280" width="18" height="140" fill="#4a2c14"/>
+  <ellipse cx="209" cy="250" rx="56" ry="70" fill="#e85d04"/>
+  <rect x="620" y="260" width="22" height="160" fill="#4a2c14"/>
+  <ellipse cx="631" cy="230" rx="74" ry="86" fill="#f48c06"/>
+  <rect x="700" y="300" width="16" height="130" fill="#4a2c14"/>
+  <ellipse cx="708" cy="270" rx="50" ry="64" fill="#dc2f02"/>
+  <circle cx="160" cy="420" r="8" fill="#e9c46a"/>
+  <circle cx="300" cy="460" r="7" fill="#f4a261"/>
+  <circle cx="520" cy="440" r="8" fill="#e76f51"/>
+  <circle cx="680" cy="470" r="6" fill="#ffba08"/>
+</svg>

@@ -270,7 +270,7 @@ class GameResultService {
       };
     }
 
-    if (match.gameType === 'block-master') {
+    if (SCORE_LEADERBOARD_GAMES.has(match.gameType)) {
       const coins = soloCoinsForScore(validated.score);
       const xp = XP_REWARDS.GAME_PLAYED + Math.min(40, Math.floor(validated.score / 250));
       const credited = await economyService.creditCoins(

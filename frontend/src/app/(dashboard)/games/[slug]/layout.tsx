@@ -15,6 +15,14 @@ const GAME_META: Record<string, Metadata> = {
     title: 'Poker Room | Games',
     description: "Play Texas Hold'em, Omaha, Omaha Hi-Lo, and 5 Card Draw on a live casino table.",
   },
+  'puzzle-world': {
+    title: 'Puzzle World | Games',
+    description: 'A growing atlas of clever rooms, riddles, and satisfying snaps.',
+  },
+  'jigsaw-world': {
+    title: 'Jigsaw World | Games',
+    description: 'Play beautiful jigsaw puzzles online. Pick a picture, choose a cut, and snap every piece home.',
+  },
 };
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {

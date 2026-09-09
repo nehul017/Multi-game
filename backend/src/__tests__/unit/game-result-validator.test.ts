@@ -7,8 +7,10 @@ import {
 import { AppError } from '../../utils/AppError';
 
 describe('solo result validator', () => {
-  it('allows block-master and chess computer/local sessions only', () => {
+  it('allows block-master, puzzle-world, jigsaw-world, and chess computer/local sessions only', () => {
     expect(isSoloSessionAllowed('block-master')).toBe(true);
+    expect(isSoloSessionAllowed('puzzle-world')).toBe(true);
+    expect(isSoloSessionAllowed('jigsaw-world')).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'computer' })).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'local' })).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'ranked' })).toBe(false);
@@ -33,6 +35,51 @@ describe('solo result validator', () => {
     ).toThrow(AppError);
     expect(() =>
       validateSoloResult('block-master', { score: 2000, lines: 2, level: 1, durationMs: 200 })
+    ).toThrow(AppError);
+  });
+
+  it('accepts a plausible puzzle-world score', () => {
+    const result = validateSoloResult('puzzle-world', {
+      score: 860,
+      lines: 3,
+      level: 3,
+      moves: 18,
+      durationMs: 40_000,
+    });
+    expect(result.result).toBe('completed');
+    expect(result.score).toBe(860);
+  });
+
+  it('rejects impossible puzzle-world scores', () => {
+    expect(() =>
+      validateSoloResult('puzzle-world', { score: 999999, lines: 1, level: 1, durationMs: 8000 })
+    ).toThrow(AppError);
+    expect(() =>
+      validateSoloResult('puzzle-world', { score: 800, lines: 1, level: 1, durationMs: 200 })
+    ).toThrow(AppError);
+  });
+
+  it('accepts a plausible jigsaw-world score', () => {
+    const result = validateSoloResult('jigsaw-world', {
+      score: 860,
+      lines: 12,
+      level: 1,
+      moves: 14,
+      durationMs: 40_000,
+    });
+    expect(result.result).toBe('completed');
+    expect(result.score).toBe(860);
+  });
+
+  it('rejects impossible jigsaw-world scores', () => {
+    expect(() =>
+      validateSoloResult('jigsaw-world', { score: 999999, lines: 12, level: 1, durationMs: 8000 })
+    ).toThrow(AppError);
+    expect(() =>
+      validateSoloResult('jigsaw-world', { score: 800, lines: 12, level: 1, durationMs: 200 })
+    ).toThrow(AppError);
+    expect(() =>
+      validateSoloResult('jigsaw-world', { score: 800, lines: 18, level: 2, durationMs: 20_000 })
     ).toThrow(AppError);
   });
 

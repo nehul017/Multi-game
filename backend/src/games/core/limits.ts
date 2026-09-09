@@ -9,6 +9,7 @@ export interface GameLimitMeta {
   maxPlayers: number;
   joinInProgress?: boolean;
   fillBot?: boolean;
+  fillEmptySeats?: boolean;
   highFrequency?: boolean;
   simultaneousTurns?: boolean;
   supportsPause?: boolean;
@@ -93,6 +94,32 @@ export const GAME_LIMITS: Record<string, GameLimitMeta> = {
     minPlayers: 1,
     maxPlayers: 1,
   },
+  'puzzle-world': {
+    gameId: 'puzzle-world',
+    gameType: 'puzzle-world',
+    name: 'Puzzle World',
+    kind: 'session',
+    minPlayers: 1,
+    maxPlayers: 1,
+  },
+  'jigsaw-world': {
+    gameId: 'jigsaw-world',
+    gameType: 'jigsaw-world',
+    name: 'Jigsaw World',
+    kind: 'session',
+    minPlayers: 1,
+    maxPlayers: 1,
+  },
+  mindi: {
+    gameId: 'mindi',
+    gameType: 'mindi',
+    name: 'Mindi Cot',
+    kind: 'match',
+    minPlayers: 4,
+    maxPlayers: 4,
+    fillBot: true,
+    fillEmptySeats: true,
+  },
 };
 
 export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = Object.fromEntries(
@@ -105,6 +132,10 @@ export const JOIN_IN_PROGRESS_GAMES = new Set(
 
 export const FILL_BOT_GAMES = new Set(
   Object.values(GAME_LIMITS).filter((meta) => meta.fillBot).map((meta) => meta.gameType)
+);
+
+export const FILL_EMPTY_SEAT_GAMES = new Set(
+  Object.values(GAME_LIMITS).filter((meta) => meta.fillEmptySeats).map((meta) => meta.gameType)
 );
 
 export const HIGH_FREQUENCY_GAMES = new Set(

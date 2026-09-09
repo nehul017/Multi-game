@@ -220,6 +220,44 @@ class MatchService {
     return match;
   }
 
+  async updateSettings(matchId: string, patch: Record<string, unknown>): Promise<IMatchDocument> {
+    const match = await matchRepository.findById(matchId);
+    if (!match) throw new AppError('Match not found', 404);
+    match.settings = { ...(match.settings || {}), ...patch };
+    await match.save();
+    return match;
+  }
+
+  async setWinners(matchId: string, winnerIds: string[]): Promise<IMatchDocument> {
+    const match = await matchRepository.findById(matchId);
+    if (!match) throw new AppError('Match not found', 404);
+
+    const winners = new Set(winnerIds.filter((id) => id && !id.startsWith('bot:')));
+    const primary = winnerIds.find((id) => !id.startsWith('bot:')) || winnerIds[0] || null;
+    match.winner = primary && !primary.startsWith('bot:') ? (primary as never) : null;
+    match.status = winners.size ? 'finished' : 'draw';
+    match.finishedAt = new Date();
+
+    for (const player of match.players) {
+      const playerId = player.userId.toString();
+      if (winners.has(playerId)) {
+        player.result = 'win';
+        await userRepository.incrementStats(playerId, 'wins');
+      } else if (!winners.size) {
+        player.result = 'draw';
+        await userRepository.incrementStats(playerId, 'draws');
+      } else {
+        player.result = 'loss';
+        await userRepository.incrementStats(playerId, 'losses');
+      }
+      await userRepository.incrementStats(playerId, 'gamesPlayed');
+    }
+
+    await match.save();
+    gameEvents.emit(EVENTS.MATCH_ENDED, { matchId, winnerId: primary });
+    return match;
+  }
+
   async getMatchResult(matchId: string) {
     const match = await this.getMatch(matchId);
     if (!['finished', 'draw', 'aborted'].includes(match.status)) {

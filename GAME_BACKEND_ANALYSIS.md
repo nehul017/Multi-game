@@ -186,6 +186,7 @@ High-frequency Coil Rush ticks are **not** written to Mongo every frame (steer i
 | Fruit Slots | `classic-fruit-slots` | `games/classic-fruit-slots/` | `games/fruit-slots/` + service | REST + socket spin | Yes (server RNG) |
 | Poker | `poker` | `games/poker/` | `games/poker/` + service | REST sit + `poker:*` | Yes |
 | Block Master | `block-master` | `games/block-master/` | Catalog only | Local | Client high score |
+| Mindi Cot | `mindi` | `games/mindi/` + Generic/MindiApp | `games/mindi/` + bot | Socket match | Yes |
 
 ~40 other slugs are catalog-only (seeded `Game` docs).
 

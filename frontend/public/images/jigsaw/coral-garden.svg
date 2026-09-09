@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Coral garden">
+  <defs>
+    <linearGradient id="crWater" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#48cae4"/>
+      <stop offset="100%" stop-color="#023e8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#crWater)"/>
+  <path d="M0 470 C120 430 220 510 340 450 C470 380 600 500 800 440 V600 H0 Z" fill="#0077b6"/>
+  <path d="M40 520 C70 430 120 430 140 530" fill="#ff6b6b"/>
+  <path d="M160 540 C190 430 250 440 260 550" fill="#f4a261"/>
+  <path d="M300 530 C340 400 410 410 430 540" fill="#e63946"/>
+  <path d="M520 540 C560 420 620 430 640 550" fill="#ffd166"/>
+  <path d="M680 520 C710 410 770 420 790 540" fill="#2a9d8f"/>
+  <ellipse cx="200" cy="560" rx="80" ry="20" fill="#d4a373"/>
+  <ellipse cx="500" cy="570" rx="110" ry="18" fill="#bc6c25"/>
+  <circle cx="180" cy="220" r="16" fill="#ffd166"/>
+  <path d="M180 220 q40 10 70 -20" stroke="#ffd166" stroke-width="6" fill="none"/>
+  <circle cx="560" cy="180" r="12" fill="#90e0ef"/>
+  <path d="M560 180 q-50 16 -80 -10" stroke="#90e0ef" stroke-width="5" fill="none"/>
+  <circle cx="420" cy="300" r="10" fill="#f72585"/>
+  <circle cx="700" cy="260" r="8" fill="#b5179e"/>
+  <path d="M80 80 q40 20 10 40" stroke="#caf0f8" stroke-width="3" fill="none" opacity=".5"/>
+  <path d="M300 60 q30 24 8 40" stroke="#caf0f8" stroke-width="3" fill="none" opacity=".4"/>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Poppy mill">
+  <defs>
+    <linearGradient id="pmSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7ec8ff"/>
+      <stop offset="55%" stop-color="#c9e8ff"/>
+      <stop offset="100%" stop-color="#f7d9a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#pmSky)"/>
+  <ellipse cx="160" cy="130" rx="70" ry="28" fill="#fff" opacity=".85"/>
+  <ellipse cx="220" cy="118" rx="50" ry="22" fill="#fff" opacity=".8"/>
+  <ellipse cx="620" cy="90" rx="80" ry="26" fill="#fff" opacity=".75"/>
+  <rect x="0" y="340" width="800" height="260" fill="#2d6a4f"/>
+  <path d="M0 340 C120 300 220 360 340 320 C480 270 600 350 800 300 V420 H0 Z" fill="#40916c"/>
+  <g fill="#d90429">
+    <circle cx="80" cy="400" r="16"/><circle cx="150" cy="430" r="14"/><circle cx="230" cy="390" r="18"/>
+    <circle cx="310" cy="450" r="15"/><circle cx="400" cy="410" r="17"/><circle cx="490" cy="440" r="16"/>
+    <circle cx="580" cy="400" r="14"/><circle cx="670" cy="430" r="18"/><circle cx="740" cy="390" r="15"/>
+    <circle cx="120" cy="500" r="13"/><circle cx="270" cy="510" r="16"/><circle cx="520" cy="500" r="14"/>
+    <circle cx="640" cy="520" r="15"/><circle cx="360" cy="530" r="12"/>
+  </g>
+  <g fill="#111">
+    <circle cx="80" cy="400" r="4"/><circle cx="150" cy="430" r="3"/><circle cx="230" cy="390" r="4"/>
+    <circle cx="310" cy="450" r="3"/><circle cx="400" cy="410" r="4"/><circle cx="490" cy="440" r="3"/>
+    <circle cx="580" cy="400" r="3"/><circle cx="670" cy="430" r="4"/><circle cx="740" cy="390" r="3"/>
+  </g>
+  <rect x="430" y="160" width="28" height="190" fill="#6c584c"/>
+  <path d="M444 150 L444 70 L520 150 L444 230 L364 150 Z" fill="#f8f1e3" stroke="#4a4036" stroke-width="6"/>
+  <circle cx="444" cy="150" r="12" fill="#d4a373"/>
+  <path d="M400 350 h100 l-20 40 h-60 z" fill="#8d6b4a"/>
+  <rect x="468" y="250" width="18" height="22" fill="#7f5539"/>
+</svg>

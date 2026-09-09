@@ -52,4 +52,19 @@ matchSchema.index({ 'players.userId': 1 });
 matchSchema.index({ createdAt: -1 });
 matchSchema.index({ gameType: 1, status: 1 });
 
+matchSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform(_doc, ret) {
+    ret.id = String(ret._id);
+    if (ret.settings && typeof ret.settings === 'object') {
+      const settings = { ...(ret.settings as Record<string, unknown>) };
+      delete settings._deckSeed;
+      delete settings.deckSeed;
+      ret.settings = settings;
+    }
+    return ret;
+  },
+});
+
 export const Match = mongoose.model<IMatchDocument>('Match', matchSchema);

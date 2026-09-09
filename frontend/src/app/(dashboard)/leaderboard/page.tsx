@@ -57,7 +57,7 @@ export default function LeaderboardPage() {
     { id: 'all', label: 'All Time' },
   ];
 
-  const scoreBased = gameFilter === 'block-master';
+  const scoreBased = gameFilter === 'block-master' || gameFilter === 'puzzle-world' || gameFilter === 'jigsaw-world';
   const rankValue = (player: LeaderboardPlayer) =>
     scoreBased ? player.score ?? player.elo : player.elo;
   const rankLabel = scoreBased ? 'Score' : 'ELO';

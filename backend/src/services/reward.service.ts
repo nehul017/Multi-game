@@ -22,7 +22,8 @@ class RewardService {
   async settleMatch(
     matchId: string,
     winnerId: string | null,
-    reason: 'finished' | 'draw' | 'surrender' = 'finished'
+    reason: 'finished' | 'draw' | 'surrender' = 'finished',
+    winningPlayerIds?: string[]
   ): Promise<MatchRewardSummary[]> {
     const match = await matchService.getMatch(matchId);
     if (['finished', 'draw', 'aborted'].includes(match.status)) {
@@ -49,8 +50,12 @@ class RewardService {
       });
     }
 
+    const teamWinners = (winningPlayerIds || []).filter((id) => id && !id.startsWith('bot:'));
+
     if (reason === 'draw' || !winnerId) {
       await matchService.setDraw(matchId);
+    } else if (teamWinners.length > 1) {
+      await matchService.setWinners(matchId, teamWinners);
     } else {
       await matchService.setWinner(matchId, winnerId);
     }
@@ -62,9 +67,13 @@ class RewardService {
       const result: 'win' | 'loss' | 'draw' =
         reason === 'draw' || !winnerId
           ? 'draw'
-          : player.userId === winnerId
-            ? 'win'
-            : 'loss';
+          : teamWinners.length
+            ? teamWinners.includes(player.userId)
+              ? 'win'
+              : 'loss'
+            : player.userId === winnerId
+              ? 'win'
+              : 'loss';
 
       const before = beforeMap.get(player.userId)!;
 

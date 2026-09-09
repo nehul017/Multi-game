@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Alpine lake">
+  <defs>
+    <linearGradient id="amSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8ecae6"/>
+      <stop offset="100%" stop-color="#e0fbfc"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#amSky)"/>
+  <polygon points="0,360 160,140 280,360" fill="#1d3557"/>
+  <polygon points="180,360 360,80 520,360" fill="#457b9d"/>
+  <polygon points="460,360 640,120 800,360" fill="#1d3557"/>
+  <polygon points="300,180 360,80 410,180" fill="#f8f9fa"/>
+  <polygon points="600,190 640,120 690,200" fill="#f8f9fa"/>
+  <rect x="0" y="360" width="800" height="240" fill="#219ebc"/>
+  <polygon points="0,360 160,520 280,360" fill="#8ecae6" opacity=".35"/>
+  <polygon points="180,360 360,540 520,360" fill="#8ecae6" opacity=".28"/>
+  <path d="M0 430 C160 400 300 460 460 420 C620 380 720 440 800 410 V600 H0 Z" fill="#126782"/>
+  <rect x="70" y="300" width="16" height="70" fill="#3d2b1f"/>
+  <path d="M40 310 C78 240 118 240 156 310 Z" fill="#2d6a4f"/>
+  <rect x="700" y="310" width="16" height="60" fill="#3d2b1f"/>
+  <path d="M670 318 C708 250 748 250 786 318 Z" fill="#2d6a4f"/>
+</svg>

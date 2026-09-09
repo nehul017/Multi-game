@@ -1,3 +1,4 @@
+import { SCORE_LEADERBOARD_GAMES } from '../games/core/result-validator';
 import { leaderboardRepository } from '../repositories/leaderboard.repository';
 import { userRepository } from '../repositories/user.repository';
 import { LeaderboardPeriod } from '../interfaces/leaderboard.interface';
@@ -72,7 +73,7 @@ class LeaderboardService {
       const entry = await leaderboardRepository.getUserEntry(userId, gameType, period);
       const nextScore = Math.max(Number(entry?.score || 0), Math.floor(score));
       await leaderboardRepository.upsertEntry(userId, gameType, period, {
-        elo: gameType === 'block-master' ? nextScore : entry?.elo || user.elo,
+        elo: SCORE_LEADERBOARD_GAMES.has(gameType) ? nextScore : entry?.elo || user.elo,
         score: nextScore,
         wins: entry?.wins || 0,
         losses: entry?.losses || 0,
@@ -81,7 +82,11 @@ class LeaderboardService {
         xp: entry?.xp || user.xp,
         level: entry?.level || user.level,
       } as never);
-      await leaderboardRepository.recalculateRanks(gameType, period, gameType === 'block-master' ? 'score' : 'elo');
+      await leaderboardRepository.recalculateRanks(
+        gameType,
+        period,
+        SCORE_LEADERBOARD_GAMES.has(gameType) ? 'score' : 'elo'
+      );
     }
   }
 

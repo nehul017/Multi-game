@@ -22,6 +22,9 @@ import { ChessApp } from '@/games/chess-arena';
 import { BlockMasterApp } from '@/games/block-master';
 import { FruitSlotsApp } from '@/games/classic-fruit-slots';
 import { PokerApp } from '@/games/poker';
+import { MindiApp } from '@/games/mindi';
+import { PuzzleWorldApp } from '@/games/puzzle-world';
+import { JigsawWorldApp } from '@/games/jigsaw-world';
 
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
@@ -33,6 +36,9 @@ const slugIcons: Record<string, string> = {
   'block-master': '🧱',
   'classic-fruit-slots': '🍒',
   poker: '♠',
+  mindi: '🃏',
+  'puzzle-world': '🧩',
+  'jigsaw-world': '🧩',
 };
 
 interface RoomItem {
@@ -74,6 +80,15 @@ export default function GameDetailRoute() {
   }
   if (slug === 'poker') {
     return <PokerApp variant="hub" />;
+  }
+  if (slug === 'mindi') {
+    return <MindiApp variant="hub" />;
+  }
+  if (slug === 'puzzle-world') {
+    return <PuzzleWorldApp variant="hub" />;
+  }
+  if (slug === 'jigsaw-world') {
+    return <JigsawWorldApp variant="hub" />;
   }
 
   return <GenericGameDetailPage slug={slug} />;

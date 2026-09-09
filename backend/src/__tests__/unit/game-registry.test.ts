@@ -14,12 +14,15 @@ describe('GameRegistry', () => {
     expect(gameRegistry.has('ludo')).toBe(true);
     expect(gameRegistry.has('quiz-battle')).toBe(true);
     expect(gameRegistry.has('snake-multiplayer')).toBe(true);
+    expect(gameRegistry.has('mindi')).toBe(true);
   });
 
   it('registers poker, slots, and local games without engines', () => {
     expect(gameRegistry.get('poker')?.kind).toBe('table');
     expect(gameRegistry.get('classic-fruit-slots')?.kind).toBe('session');
     expect(gameRegistry.get('block-master')?.kind).toBe('session');
+    expect(gameRegistry.get('puzzle-world')?.kind).toBe('session');
+    expect(gameRegistry.get('jigsaw-world')?.kind).toBe('session');
     expect(gameRegistry.createEngine('poker', ['a', 'b'])).toBeNull();
   });
 

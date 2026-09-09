@@ -42,6 +42,8 @@ export interface GameRoom {
   tickTimer?: ReturnType<typeof setInterval>;
   botFillTimer?: ReturnType<typeof setTimeout>;
   botPlayTimer?: ReturnType<typeof setTimeout>;
+  botTakeoverTimers?: Map<string, ReturnType<typeof setTimeout>>;
+  botControlled?: Set<string>;
   settings?: Record<string, unknown>;
   lifecycle?: GameLifecycle;
 }
@@ -67,6 +69,7 @@ export interface GameDefinition {
   maxPlayers: number;
   joinInProgress?: boolean;
   fillBot?: boolean;
+  fillEmptySeats?: boolean;
   highFrequency?: boolean;
   supportsPause?: boolean;
   config?: Record<string, unknown>;

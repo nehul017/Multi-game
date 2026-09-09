@@ -1,3 +1,4 @@
+import { SCORE_LEADERBOARD_GAMES } from '../games/core/result-validator';
 import { BaseRepository } from './base.repository';
 import { Leaderboard } from '../models/leaderboard.model';
 import { ILeaderboardDocument } from '../interfaces/leaderboard.interface';
@@ -9,7 +10,7 @@ class LeaderboardRepository extends BaseRepository<ILeaderboardDocument> {
   }
 
   async getLeaderboard(gameType: string, period: LeaderboardPeriod, page: number, limit: number): Promise<{ data: ILeaderboardDocument[]; total: number; page: number; pages: number }> {
-    const sort = gameType === 'block-master' ? '-score' : '-elo';
+    const sort = SCORE_LEADERBOARD_GAMES.has(gameType) ? '-score' : '-elo';
     return this.findMany({ gameType, period }, { page, limit, sort, populate: 'user' });
   }
 

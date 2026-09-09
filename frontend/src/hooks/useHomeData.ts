@@ -44,6 +44,9 @@ function toneFromSlug(slug: string, index: number): GameArtTone {
     'block-master': 'cyber',
     'classic-fruit-slots': 'ember',
     poker: 'forest',
+    mindi: 'violet',
+    'puzzle-world': 'violet',
+    'jigsaw-world': 'frost',
   };
   return mapped[slug] ?? ART_TONES[index % ART_TONES.length];
 }

@@ -4,11 +4,23 @@ import { env } from './config/env';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { setupSocketIO } from './socket';
+import { ensureMindiCatalog } from './jobs/ensure-mindi';
+import { ensureJigsawWorldCatalog } from './jobs/ensure-jigsaw-world';
 
 const startServer = async (): Promise<void> => {
   try {
     await connectDatabase();
     console.log('Database connected');
+    try {
+      await ensureMindiCatalog();
+    } catch (error) {
+      console.warn('Mindi catalog ensure failed:', error);
+    }
+    try {
+      await ensureJigsawWorldCatalog();
+    } catch (error) {
+      console.warn('Jigsaw World catalog ensure failed:', error);
+    }
 
     const redisConnected = await connectRedis();
     if (redisConnected) {

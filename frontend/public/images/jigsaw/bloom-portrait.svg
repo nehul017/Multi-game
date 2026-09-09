@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Bloom portrait">
+  <defs>
+    <linearGradient id="bpBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7d9e3"/>
+      <stop offset="50%" stop-color="#f4a261"/>
+      <stop offset="100%" stop-color="#e76f51"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bpBg)"/>
+  <circle cx="140" cy="120" r="50" fill="#e9c46a" opacity=".55"/>
+  <circle cx="700" cy="160" r="70" fill="#e63946" opacity=".28"/>
+  <circle cx="400" cy="330" r="170" fill="#f4d1c1"/>
+  <ellipse cx="400" cy="250" rx="118" ry="130" fill="#f1c7b0"/>
+  <path d="M300 220 C320 110 480 110 500 230 C520 150 280 150 300 220" fill="#3d2b1f"/>
+  <circle cx="360" cy="250" r="10" fill="#2b2d42"/>
+  <circle cx="440" cy="250" r="10" fill="#2b2d42"/>
+  <path d="M360 300 q40 24 80 0" stroke="#c77d6b" stroke-width="5" fill="none"/>
+  <ellipse cx="400" cy="278" rx="12" ry="16" fill="#e09f86"/>
+  <path d="M250 430 C300 360 500 360 550 430 C620 520 180 520 250 430" fill="#9b2335"/>
+  <circle cx="120" cy="460" r="28" fill="#d62828"/>
+  <circle cx="180" cy="500" r="22" fill="#f4a261"/>
+  <circle cx="90" cy="520" r="18" fill="#2a9d8f"/>
+  <circle cx="680" cy="450" r="30" fill="#e9c46a"/>
+  <circle cx="720" cy="510" r="24" fill="#e76f51"/>
+  <circle cx="640" cy="530" r="20" fill="#2a9d8f"/>
+</svg>

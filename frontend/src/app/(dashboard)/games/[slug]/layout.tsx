@@ -31,6 +31,10 @@ const GAME_META: Record<string, Metadata> = {
     title: 'Jigsaw World | Games',
     description: 'Play beautiful jigsaw puzzles online. Pick a picture, choose a cut, and snap every piece home.',
   },
+  'bottle-shooter-3d': {
+    title: 'Bottle Shooter 3D | Games',
+    description: 'Take aim, break glass, and master every shot.',
+  },
 };
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {

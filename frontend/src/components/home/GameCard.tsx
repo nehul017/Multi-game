@@ -30,6 +30,7 @@ export function GameCard({
   const showOnline = game.onlinePlayers > 0;
   const categoryLabel = game.genre.split(' / ')[0] || game.category;
   const typeLabel = game.isMultiplayer ? 'Multiplayer' : 'Casual';
+  const difficulty = game.tags.find((tag) => tag === 'Easy' || tag === 'Medium' || tag === 'Hard');
   const premium = featured || Boolean(game.isFeatured || game.isTrending);
 
   return (
@@ -91,7 +92,7 @@ export function GameCard({
                 <p className="text-sm text-theme-muted line-clamp-2 mt-1">{game.description}</p>
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   <Badge variant="default">{categoryLabel}</Badge>
-                  <Badge variant="info">{typeLabel}</Badge>
+                  {difficulty ? <Badge variant="warning">{difficulty}</Badge> : <Badge variant="info">{typeLabel}</Badge>}
                 </div>
               </>
             ) : (

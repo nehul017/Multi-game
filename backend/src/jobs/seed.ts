@@ -154,6 +154,16 @@ const seedDatabase = async (): Promise<void> => {
         thumbnail: '/images/games/jigsaw-world.svg',
       },
       {
+        name: 'Bottle Shooter 3D',
+        slug: 'bottle-shooter-3d',
+        description: 'Take aim, break glass, and master every shot.',
+        minPlayers: 1,
+        maxPlayers: 1,
+        category: 'shooter',
+        settings: { levels: 8, difficulty: 'medium' },
+        thumbnail: '/images/games/bottle-shooter-3d.svg',
+      },
+      {
         name: 'Cyber Strike',
         slug: 'cyber-strike',
         description: 'Breach neon megacities in fast tactical raids with live squads.',

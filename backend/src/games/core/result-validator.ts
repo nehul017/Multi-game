@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/AppError';
 
-export const SOLO_SESSION_GAMES = new Set(['block-master', 'chess', 'puzzle-world', 'jigsaw-world']);
-export const SCORE_LEADERBOARD_GAMES = new Set(['block-master', 'puzzle-world', 'jigsaw-world']);
+export const SOLO_SESSION_GAMES = new Set(['block-master', 'chess', 'puzzle-world', 'jigsaw-world', 'bottle-shooter-3d']);
+export const SCORE_LEADERBOARD_GAMES = new Set(['block-master', 'puzzle-world', 'jigsaw-world', 'bottle-shooter-3d']);
 
 export interface SoloResultInput {
   score?: unknown;
@@ -48,7 +48,14 @@ const requireNonNegative = (label: string, value: number): number => {
 };
 
 export const isSoloSessionAllowed = (gameType: string, settings: Record<string, unknown> = {}): boolean => {
-  if (gameType === 'block-master' || gameType === 'puzzle-world' || gameType === 'jigsaw-world') return true;
+  if (
+    gameType === 'block-master' ||
+    gameType === 'puzzle-world' ||
+    gameType === 'jigsaw-world' ||
+    gameType === 'bottle-shooter-3d'
+  ) {
+    return true;
+  }
   if (gameType === 'chess') {
     const mode = String(settings.mode || '');
     return mode === 'computer' || mode === 'local';
@@ -149,6 +156,35 @@ export const validateSoloResult = (gameType: string, input: SoloResultInput): Va
       throw new AppError('Score payload failed validation', 400);
     }
     if (lines >= 6 && durationMs < 2500) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    return {
+      score,
+      lines,
+      level,
+      durationMs,
+      result: 'completed',
+      reason,
+      moves,
+      captures,
+      foodEaten,
+      kills,
+      length,
+      mode,
+    };
+  }
+
+  if (gameType === 'bottle-shooter-3d') {
+    if (level > 8 || lines > 120) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (score > lines * 5500 + 2000) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (score > 200 && durationMs < 800) {
+      throw new AppError('Score payload failed validation', 400);
+    }
+    if (lines >= 8 && durationMs < 4000) {
       throw new AppError('Score payload failed validation', 400);
     }
     return {

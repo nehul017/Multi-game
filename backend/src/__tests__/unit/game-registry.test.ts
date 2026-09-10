@@ -24,6 +24,7 @@ describe('GameRegistry', () => {
     expect(gameRegistry.get('block-master')?.kind).toBe('session');
     expect(gameRegistry.get('puzzle-world')?.kind).toBe('session');
     expect(gameRegistry.get('jigsaw-world')?.kind).toBe('session');
+    expect(gameRegistry.get('bottle-shooter-3d')?.kind).toBe('session');
     expect(gameRegistry.createEngine('poker', ['a', 'b'])).toBeNull();
   });
 

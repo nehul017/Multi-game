@@ -41,6 +41,7 @@ export const GAME_ARTWORK: Record<string, string> = {
   poker: '/images/games/poker.svg',
   mindi: '/images/games/mindi.svg',
   'jigsaw-world': '/images/games/jigsaw-world.svg',
+  'bottle-shooter-3d': '/images/games/bottle-shooter-3d.svg',
   'brain-challenge': '/images/games/brain-challenge.jpg',
   'color-quest': '/images/games/color-quest.jpg',
   'pixel-builder': '/images/games/pixel-builder.jpg',

@@ -7,6 +7,8 @@ import { setupSocketIO } from './socket';
 import { ensureMindiCatalog } from './jobs/ensure-mindi';
 import { ensureJigsawWorldCatalog } from './jobs/ensure-jigsaw-world';
 import { ensureCoilRushCatalog } from './jobs/ensure-coil-rush';
+import { ensureBottleShooterCatalog } from './jobs/ensure-bottle-shooter-3d';
+import { Game } from './models/game.model';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -27,7 +29,16 @@ const startServer = async (): Promise<void> => {
     } catch (error) {
       console.warn('Coil Rush catalog ensure failed:', error);
     }
-
+    try {
+      await ensureBottleShooterCatalog();
+    } catch (error) {
+      console.warn('Bottle Shooter 3D catalog ensure failed:', error);
+    }
+    try {
+      await Game.updateMany({ slug: 'carrom' }, { $set: { isActive: false } });
+    } catch {
+      /* leftover catalog row from a removed game */
+    }
     const redisConnected = await connectRedis();
     if (redisConnected) {
       console.log('Redis client initialized');

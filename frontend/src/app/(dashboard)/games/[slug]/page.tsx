@@ -25,7 +25,7 @@ import { PokerApp } from '@/games/poker';
 import { MindiApp } from '@/games/mindi';
 import { PuzzleWorldApp } from '@/games/puzzle-world';
 import { JigsawWorldApp } from '@/games/jigsaw-world';
-
+import { BottleShooterApp } from '@/games/bottle-shooter-3d';
 const slugIcons: Record<string, string> = {
   'tic-tac-toe': '⭕',
   'connect-four': '🔴',
@@ -40,6 +40,7 @@ const slugIcons: Record<string, string> = {
   mindi: '🃏',
   'puzzle-world': '🧩',
   'jigsaw-world': '🧩',
+  'bottle-shooter-3d': '🎯',
 };
 
 interface RoomItem {
@@ -90,6 +91,9 @@ export default function GameDetailRoute() {
   }
   if (slug === 'jigsaw-world') {
     return <JigsawWorldApp variant="hub" />;
+  }
+  if (slug === 'bottle-shooter-3d') {
+    return <BottleShooterApp variant="hub" />;
   }
 
   return <GenericGameDetailPage slug={slug} />;

@@ -131,6 +131,7 @@ export const PLATFORM_GAME_SLUGS = [
   'mindi',
   'puzzle-world',
   'jigsaw-world',
+  'bottle-shooter-3d',
 ] as const;
 
 export function isPlatformGame(slug: string): boolean {
@@ -156,5 +157,6 @@ export function formatGameTitle(slug: string): string {
   if (slug === 'classic-fruit-slots') return 'Classic Fruit Slots';
   if (slug === 'poker') return 'Poker Room';
   if (slug === 'mindi') return 'Mindi Cot';
+  if (slug === 'bottle-shooter-3d') return 'Bottle Shooter 3D';
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }

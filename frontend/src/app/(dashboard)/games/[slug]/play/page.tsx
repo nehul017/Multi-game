@@ -22,6 +22,7 @@ import { PokerApp } from '@/games/poker';
 import { MindiApp } from '@/games/mindi';
 import { PuzzleWorldApp } from '@/games/puzzle-world';
 import { JigsawWorldApp } from '@/games/jigsaw-world';
+import { BottleShooterApp } from '@/games/bottle-shooter-3d';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -111,6 +112,9 @@ export default function PlayRoute() {
   }
   if ((params.slug as string) === 'jigsaw-world') {
     return <JigsawWorldApp variant="play" />;
+  }
+  if ((params.slug as string) === 'bottle-shooter-3d') {
+    return <BottleShooterApp variant="play" />;
   }
   return <GenericPlayPage />;
 }

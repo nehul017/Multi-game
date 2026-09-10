@@ -57,4 +57,5 @@ export const registerBuiltInGames = (): void => {
   gameRegistry.register(GAME_LIMITS['block-master']);
   gameRegistry.register(GAME_LIMITS['puzzle-world']);
   gameRegistry.register(GAME_LIMITS['jigsaw-world']);
+  gameRegistry.register(GAME_LIMITS['bottle-shooter-3d']);
 };

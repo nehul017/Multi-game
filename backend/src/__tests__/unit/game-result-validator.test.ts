@@ -7,10 +7,11 @@ import {
 import { AppError } from '../../utils/AppError';
 
 describe('solo result validator', () => {
-  it('allows block-master, puzzle-world, jigsaw-world, and chess computer/local sessions only', () => {
+  it('allows block-master, puzzle-world, jigsaw-world, bottle-shooter-3d, and chess computer/local sessions only', () => {
     expect(isSoloSessionAllowed('block-master')).toBe(true);
     expect(isSoloSessionAllowed('puzzle-world')).toBe(true);
     expect(isSoloSessionAllowed('jigsaw-world')).toBe(true);
+    expect(isSoloSessionAllowed('bottle-shooter-3d')).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'computer' })).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'local' })).toBe(true);
     expect(isSoloSessionAllowed('chess', { mode: 'ranked' })).toBe(false);
@@ -80,6 +81,27 @@ describe('solo result validator', () => {
     ).toThrow(AppError);
     expect(() =>
       validateSoloResult('jigsaw-world', { score: 800, lines: 18, level: 2, durationMs: 20_000 })
+    ).toThrow(AppError);
+  });
+
+  it('accepts a plausible bottle-shooter-3d score', () => {
+    const result = validateSoloResult('bottle-shooter-3d', {
+      score: 1860,
+      lines: 8,
+      level: 2,
+      moves: 14,
+      durationMs: 40_000,
+    });
+    expect(result.result).toBe('completed');
+    expect(result.score).toBe(1860);
+  });
+
+  it('rejects impossible bottle-shooter-3d scores', () => {
+    expect(() =>
+      validateSoloResult('bottle-shooter-3d', { score: 999999, lines: 2, level: 1, durationMs: 8000 })
+    ).toThrow(AppError);
+    expect(() =>
+      validateSoloResult('bottle-shooter-3d', { score: 800, lines: 1, level: 1, durationMs: 200 })
     ).toThrow(AppError);
   });
 

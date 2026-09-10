@@ -120,6 +120,14 @@ export const GAME_LIMITS: Record<string, GameLimitMeta> = {
     minPlayers: 1,
     maxPlayers: 1,
   },
+  'bottle-shooter-3d': {
+    gameId: 'bottle-shooter-3d',
+    gameType: 'bottle-shooter-3d',
+    name: 'Bottle Shooter 3D',
+    kind: 'session',
+    minPlayers: 1,
+    maxPlayers: 1,
+  },
   mindi: {
     gameId: 'mindi',
     gameType: 'mindi',

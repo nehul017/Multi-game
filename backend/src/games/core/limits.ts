@@ -66,7 +66,17 @@ export const GAME_LIMITS: Record<string, GameLimitMeta> = {
     name: 'Coil Rush',
     kind: 'match',
     minPlayers: 1,
-    maxPlayers: 8,
+    maxPlayers: 50,
+    joinInProgress: true,
+    highFrequency: true,
+  },
+  'coil-rush': {
+    gameId: 'coil-rush',
+    gameType: 'snake-multiplayer',
+    name: 'Coil Rush',
+    kind: 'match',
+    minPlayers: 1,
+    maxPlayers: 50,
     joinInProgress: true,
     highFrequency: true,
   },
@@ -123,7 +133,12 @@ export const GAME_LIMITS: Record<string, GameLimitMeta> = {
 };
 
 export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = Object.fromEntries(
-  Object.values(GAME_LIMITS).map((meta) => [meta.gameType, { min: meta.minPlayers, max: meta.maxPlayers }])
+  Object.values(GAME_LIMITS).flatMap((meta) => {
+    const limit = { min: meta.minPlayers, max: meta.maxPlayers };
+    const rows: Array<[string, { min: number; max: number }]> = [[meta.gameType, limit]];
+    if (meta.gameId !== meta.gameType) rows.push([meta.gameId, limit]);
+    return rows;
+  })
 );
 
 export const JOIN_IN_PROGRESS_GAMES = new Set(

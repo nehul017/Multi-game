@@ -6,9 +6,11 @@ export type CoilView =
   | 'missions'
   | 'profile'
   | 'settings'
-  | 'rooms';
+  | 'rooms'
+  | 'howto';
 
-export type CoilMode = 'classic' | 'time-rush' | 'survival' | 'teams' | 'boss' | 'friends';
+export type CoilMode = 'classic' | 'time-rush' | 'battle' | 'survival' | 'teams' | 'boss' | 'friends';
+export type CoilPhase = 'waiting' | 'countdown' | 'playing' | 'round_end' | 'results';
 
 export type CoilRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -21,7 +23,28 @@ export type CoilSkinCategory =
   | 'funny'
   | 'legendary';
 
-export type FoodKind = 'normal' | 'large' | 'speed' | 'shield' | 'magnet' | 'crystal';
+export type FoodKind =
+  | 'normal'
+  | 'large'
+  | 'apple'
+  | 'orange'
+  | 'berry'
+  | 'banana'
+  | 'burger'
+  | 'pizza'
+  | 'fries'
+  | 'soda'
+  | 'gem'
+  | 'star'
+  | 'orb'
+  | 'speed'
+  | 'shield'
+  | 'magnet'
+  | 'ghost'
+  | 'multiplier'
+  | 'crystal';
+
+export type CoilFxKind = 'food' | 'kill' | 'death' | 'power' | 'boost';
 
 export interface CoilSteerInput {
   angle: number;
@@ -45,12 +68,15 @@ export interface CoilFood {
 
 export interface CoilSnake {
   playerId: string;
+  name?: string;
   body: CoilPoint[];
+  length?: number;
   angle?: number;
   targetAngle?: number;
   boosting?: boolean;
   alive: boolean;
   score: number;
+  mass?: number;
   kills?: number;
   color: string;
   radius?: number;
@@ -60,12 +86,30 @@ export interface CoilSnake {
   team?: 'ember' | 'tide';
   skinId?: string;
   foodEaten?: number;
-  effects?: { speedUntil?: number; shieldUntil?: number; magnetUntil?: number };
+  combo?: number;
+  effects?: {
+    speedUntil?: number;
+    shieldUntil?: number;
+    magnetUntil?: number;
+    ghostUntil?: number;
+    multiplierUntil?: number;
+  };
   respawnAt?: number | null;
+}
+
+export interface CoilFxEvent {
+  id: string;
+  kind: CoilFxKind;
+  x: number;
+  y: number;
+  playerId: string;
+  value?: number;
+  label?: string;
 }
 
 export interface CoilBoard {
   mode?: CoilMode;
+  phase?: CoilPhase;
   worldSize?: number;
   arenaRadius?: number;
   origin?: CoilPoint;
@@ -74,6 +118,12 @@ export interface CoilBoard {
   tickRate?: number;
   elapsedMs?: number;
   timeLimitMs?: number | null;
+  countdownMs?: number;
+  resultsMs?: number;
+  roundIndex?: number;
+  tickIndex?: number;
+  online?: number;
+  events?: CoilFxEvent[];
 }
 
 export interface CoilSkin {

@@ -193,7 +193,7 @@ export const validateSoloResult = (gameType: string, input: SoloResultInput): Va
     };
   }
 
-  if (gameType === 'snake-multiplayer') {
+  if (gameType === 'snake-multiplayer' || gameType === 'coil-rush') {
     if (score > 0 && durationMs < 400) {
       throw new AppError('Score payload failed validation', 400);
     }

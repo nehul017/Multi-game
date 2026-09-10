@@ -1,6 +1,13 @@
 import type { CoilSkin } from '../types';
 
 export const COIL_SKINS: CoilSkin[] = [
+  { id: 'fire', name: 'Fire', category: 'classic', rarity: 'common', color: '#ff5a1f', accent: '#ffd166', unlock: 'Starter coil', unlocked: true },
+  { id: 'ocean', name: 'Ocean', category: 'classic', rarity: 'common', color: '#2f9bff', accent: '#90e0ef', unlock: 'Starter coil', unlocked: true },
+  { id: 'neon', name: 'Neon', category: 'classic', rarity: 'common', color: '#39ffb0', accent: '#d1fae5', unlock: 'Starter coil', unlocked: true },
+  { id: 'galaxy', name: 'Galaxy', category: 'space', rarity: 'rare', color: '#8b5cf6', accent: '#f0abfc', unlock: 'Play 1 match', unlocked: false },
+  { id: 'toxic', name: 'Toxic', category: 'classic', rarity: 'rare', color: '#84cc16', accent: '#facc15', unlock: 'Play 1 match', unlocked: false },
+  { id: 'candy', name: 'Candy', category: 'funny', rarity: 'rare', color: '#fb7185', accent: '#fde68a', unlock: 'Play 1 match', unlocked: false },
+  { id: 'gold', name: 'Gold', category: 'legendary', rarity: 'legendary', color: '#f5c518', accent: '#fff7ed', unlock: 'Best score 200', unlocked: false },
   { id: 'ember', name: 'Ember Thread', category: 'classic', rarity: 'common', color: '#ff6b35', accent: '#ffd166', unlock: 'Starter coil', unlocked: true },
   { id: 'tide', name: 'Tide Line', category: 'classic', rarity: 'common', color: '#2ec4b6', accent: '#90e0ef', unlock: 'Starter coil', unlocked: true },
   { id: 'aurora', name: 'Aurora Rib', category: 'classic', rarity: 'rare', color: '#7c5cff', accent: '#c4b5fd', unlock: 'Reach level 3', unlocked: false },
@@ -27,12 +34,13 @@ export function isSkinUnlocked(
 ): boolean {
   if (skin.unlocked) return true;
   if (skin.id === 'aurora') return ctx.level >= 3;
+  if (skin.id === 'galaxy' || skin.id === 'toxic' || skin.id === 'candy') return ctx.games >= 1;
   if (skin.id === 'citrus' || skin.id === 'fox') return ctx.games >= 1;
   if (skin.id === 'orca') return ctx.best >= 40;
   if (skin.id === 'servo') return ctx.games >= 5;
   if (skin.id === 'pulse') return ctx.kills >= 5;
   if (skin.id === 'myth') return ctx.best >= 80;
-  if (skin.id === 'nebula') return ctx.best >= 200;
+  if (skin.id === 'gold' || skin.id === 'nebula') return ctx.best >= 200;
   if (skin.id === 'crown') return ctx.level >= 10;
   return ctx.games >= 1;
 }

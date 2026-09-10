@@ -17,6 +17,8 @@ import { LeaderboardPreview } from '@/components/home/LeaderboardPreview';
 import { TournamentBanner } from '@/components/home/TournamentBanner';
 import { RecentlyPlayed } from '@/components/home/RecentlyPlayed';
 import { HomeHeroSkeleton } from '@/components/home/HomeSkeletons';
+import { HomeAtmosphere } from '@/components/home/atmosphere/HomeAtmosphere';
+import { PageTransition } from '@/components/motion/PageTransition';
 import { useHomeData } from '@/hooks/useHomeData';
 import { categoryGameCounts, filterHomeGames } from '@/data/home';
 import { recommendGames } from '@/lib/recommendations';
@@ -62,7 +64,8 @@ export function HomePage() {
 
   return (
     <AppShell>
-      <div className="min-h-screen flex flex-col overflow-x-clip">
+      <div className="min-h-screen flex flex-col overflow-x-clip relative">
+        <HomeAtmosphere />
         <a
           href="#trending"
           className="sr-only focus:not-sr-only focus:absolute focus:top-20 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-theme-card focus:text-theme-primary"
@@ -70,24 +73,28 @@ export function HomePage() {
           Skip to games
         </a>
         <HomeHeader />
-        <main id="main">
-          {showHeroSkeleton ? <HomeHeroSkeleton /> : <HeroSection game={data.featuredGame} />}
-          <TrendingGames games={trending} isLoading={showHeroSkeleton} />
-          <CategorySection categories={data.categories} counts={counts} />
-          <PopularGames games={popular} isLoading={showHeroSkeleton} />
-          <NewReleases games={releases} isLoading={showHeroSkeleton} />
-          <MultiplayerSection
-            games={multiplayerGames}
-            stats={data.multiplayer}
-            isLoading={showHeroSkeleton}
-          />
-          <RecommendedGames games={recommended} isLoading={showHeroSkeleton} />
-          <LeaderboardPreview players={data.leaderboard} />
-          {tournament && <TournamentBanner tournament={tournament} />}
-          <RecentlyPlayed games={data.recentGames} />
-          <CommunityCTA />
-        </main>
-        <Footer />
+        <PageTransition>
+          <main id="main" className="relative z-[1]">
+            {showHeroSkeleton ? <HomeHeroSkeleton /> : <HeroSection game={data.featuredGame} />}
+            <TrendingGames games={trending} isLoading={showHeroSkeleton} />
+            <CategorySection categories={data.categories} counts={counts} />
+            <PopularGames games={popular} isLoading={showHeroSkeleton} />
+            <NewReleases games={releases} isLoading={showHeroSkeleton} />
+            <MultiplayerSection
+              games={multiplayerGames}
+              stats={data.multiplayer}
+              isLoading={showHeroSkeleton}
+            />
+            <RecommendedGames games={recommended} isLoading={showHeroSkeleton} />
+            <LeaderboardPreview players={data.leaderboard} />
+            {tournament && <TournamentBanner tournament={tournament} />}
+            <RecentlyPlayed games={data.recentGames} />
+            <CommunityCTA />
+          </main>
+        </PageTransition>
+        <div className="relative z-[1]">
+          <Footer />
+        </div>
       </div>
     </AppShell>
   );

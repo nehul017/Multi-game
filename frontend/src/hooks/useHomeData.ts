@@ -75,7 +75,7 @@ function mapApiCategory(category: string, fallback: HomeGame['category']): HomeG
   return fallback || 'arcade';
 }
 
-const FEATURED_SLUGS = new Set(['chess', 'snake-multiplayer', 'ludo']);
+const FEATURED_SLUGS = new Set(['chess', 'snake-multiplayer', 'coil-rush', 'ludo']);
 
 function apiGameId(game: Game): string {
   return game.id || game._id || game.slug;
@@ -89,10 +89,10 @@ function mapApiGame(game: Game, index: number, base?: HomeGame): HomeGame {
   return {
     id: apiGameId(game),
     slug,
-    name: slug === 'snake-multiplayer' ? 'Coil Rush' : game.name || base?.name || slug,
+    name: slug === 'snake-multiplayer' || slug === 'coil-rush' ? 'Coil Rush' : game.name || base?.name || slug,
     description:
-      slug === 'snake-multiplayer'
-        ? 'Original slither battle. Steer, boost, eat pellets, and cut rival coils in a live arena.'
+      slug === 'snake-multiplayer' || slug === 'coil-rush'
+        ? 'Grow your coil, outsmart rivals, and survive the arena.'
         : game.description || base?.description || '',
     genre: base?.genre || game.category || 'Multiplayer',
     genres: base?.genres || [game.category || 'Multiplayer'],

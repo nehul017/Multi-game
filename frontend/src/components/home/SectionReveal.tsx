@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { sectionReveal, staggerContainer } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 interface SectionRevealProps {
@@ -17,15 +18,36 @@ export function SectionReveal({ children, className, id }: SectionRevealProps) {
   return (
     <section id={id} className="scroll-mt-24">
       <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-72px' }}
-        transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+        initial={reduceMotion ? false : 'hidden'}
+        whileInView="show"
+        viewport={{ once: true, margin: '-72px', amount: 0.12 }}
+        variants={reduceMotion ? undefined : sectionReveal}
         className={className}
       >
         {children}
       </motion.div>
     </section>
+  );
+}
+
+interface StaggerGridProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export function StaggerGrid({ children, className }: StaggerGridProps) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      className={className}
+      initial={reduceMotion ? false : 'hidden'}
+      whileInView="show"
+      viewport={{ once: true, margin: '-40px' }}
+      variants={reduceMotion ? undefined : staggerContainer}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -39,7 +61,7 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, href, linkLabel = 'View All →', className }: SectionHeaderProps) {
   return (
     <div className={cn('flex items-end justify-between gap-4 mb-6 md:mb-8', className)}>
-      <h2 className="font-display text-2xl sm:text-3xl font-bold text-theme-primary tracking-tight">
+      <h2 className="home-section-heading font-display text-2xl sm:text-3xl font-bold text-theme-primary tracking-tight">
         {title}
       </h2>
       {href && (

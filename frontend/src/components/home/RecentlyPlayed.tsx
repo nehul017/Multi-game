@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { GameArtwork } from '@/components/home/GameArtwork';
-import { SectionHeader, SectionReveal } from '@/components/home/SectionReveal';
+import { SectionHeader, SectionReveal, StaggerGrid } from '@/components/home/SectionReveal';
 import { formatRelativeTime } from '@/lib/utils';
+import { staggerItem } from '@/lib/motion';
 import { gamePlayHref } from '@/types/home';
 import type { RecentGame } from '@/types/home';
 
@@ -15,15 +17,21 @@ interface RecentlyPlayedProps {
 }
 
 export function RecentlyPlayed({ games }: RecentlyPlayedProps) {
+  const reduceMotion = useReducedMotion();
+
   if (!games.length) return null;
 
   return (
     <SectionReveal id="recent" className="py-6 md:py-10 pb-16 md:pb-20">
       <div className="home-container">
         <SectionHeader title="Recently Played" href="/dashboard" linkLabel="Continue in Dashboard →" />
-        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {games.map((game) => (
-            <li key={game.id} className="surface-card p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
+            <motion.div
+              key={game.id}
+              variants={reduceMotion ? undefined : staggerItem}
+              className="surface-card p-4 flex flex-col sm:flex-row gap-4 sm:items-center"
+            >
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0">
                 <GameArtwork
                   alt={`${game.name} thumbnail`}
@@ -51,9 +59,9 @@ export function RecentlyPlayed({ games }: RecentlyPlayedProps) {
                   Continue
                 </Button>
               </Link>
-            </li>
+            </motion.div>
           ))}
-        </ul>
+        </StaggerGrid>
       </div>
     </SectionReveal>
   );

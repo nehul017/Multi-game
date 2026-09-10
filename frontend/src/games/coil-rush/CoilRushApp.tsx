@@ -8,10 +8,9 @@ import { useGameStore } from '@/store/game.store';
 import { useSocketStore } from '@/store/socket.store';
 import { useGameSocket } from '@/socket/hooks';
 import { useGameClient, useGameSession } from '@/games/sdk';
-import { SOCKET_EVENTS } from '@/constants/socket';
 import { useClaimDailyLogin, useDailyLoginStatus, useWallet } from '@/hooks';
 import { toId } from '@/lib/id';
-import { COIL_BRAND } from './brand';
+import { COIL_BRAND, coilHref } from './brand';
 import { coilAudio } from './audio/audioService';
 import { coilProgress } from './progression/storage';
 import { closeRun } from './progression/rewards';
@@ -20,6 +19,7 @@ import { createCoilInput } from './net/input';
 import { coilLive } from './net/liveBoard';
 import { CoilArena } from './render/CoilArena';
 import { PlayHud } from './hud/PlayHud';
+import { CoilChat } from './hud/CoilChat';
 import { HubMenu } from './screens/HubMenu';
 import { ModesScreen } from './screens/ModesScreen';
 import { SkinsScreen } from './screens/SkinsScreen';
@@ -27,6 +27,7 @@ import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { MissionsScreen } from './screens/MissionsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { HowToPlayScreen } from './screens/HowToPlayScreen';
 import { GameOverScreen } from './screens/GameOverScreen';
 import { RoomsScreen } from './screens/RoomsScreen';
 import type { CoilMode, CoilRunStats, CoilView } from './types';
@@ -35,8 +36,8 @@ interface CoilRushAppProps {
   variant: 'hub' | 'play';
 }
 
-const VIEWS = new Set<CoilView>(['menu', 'modes', 'skins', 'leaderboard', 'missions', 'profile', 'settings', 'rooms']);
-const MODES = new Set<CoilMode>(['classic', 'time-rush', 'survival', 'teams', 'boss', 'friends']);
+const VIEWS = new Set<CoilView>(['menu', 'modes', 'skins', 'leaderboard', 'missions', 'profile', 'settings', 'rooms', 'howto']);
+const MODES = new Set<CoilMode>(['classic', 'time-rush', 'battle', 'survival', 'teams', 'boss', 'friends']);
 
 function readQuery(): { view: CoilView; mode: CoilMode; room: string } {
   if (typeof window === 'undefined') return { view: 'menu', mode: 'classic', room: '' };
@@ -66,11 +67,11 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
   const rewards = useGameStore((s) => s.gameState?.rewards);
   const players = useGameStore((s) => s.players);
   const roomId = useGameStore((s) => s.currentRoom?.id);
-  const matchId = useGameStore((s) => s.currentRoom?.gameId);
   const isMatchmaking = useGameStore((s) => s.isMatchmaking);
-  const { startMatchmaking, cancelMatchmaking, makeMove, joinRoom } = useGameSocket();
-  useGameClient('snake-multiplayer');
-  const { recordScore } = useGameSession('snake-multiplayer');
+  const isGameConnected = useSocketStore((s) => s.isGameConnected);
+  const { startMatchmaking, cancelMatchmaking, makeMove, joinRoom, leaveRoom } = useGameSocket();
+  useGameClient(COIL_BRAND.slug);
+  const { recordScore } = useGameSession(COIL_BRAND.slug);
   const { data: walletRes } = useWallet();
   const { data: dailyRes } = useDailyLoginStatus();
   const claimDaily = useClaimDailyLogin();
@@ -79,9 +80,12 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
   const [mode, setMode] = useState<CoilMode>(query.mode);
   const [skin, setSkin] = useState(coilProgress.getSkin());
   const [over, setOver] = useState<CoilRunStats | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const sessionStarted = useRef(false);
   const foodCue = useRef(0);
   const died = useRef(false);
+  const lastPhase = useRef('');
   const input = useRef(createCoilInput()).current;
 
   const myId = toId(user?.id);
@@ -105,6 +109,18 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     [startMatchmaking, joinRoom, makeMove, cancelMatchmaking, myId]
   );
 
+  const leaveArena = useCallback(() => {
+    const liveRoom = useGameStore.getState().currentRoom?.id;
+    if (liveRoom) {
+      leaveRoom(liveRoom);
+    } else {
+      cancelMatchmaking();
+    }
+    coilLive.clear();
+    coilAudio.stop();
+    useGameStore.getState().resetGame();
+  }, [leaveRoom, cancelMatchmaking]);
+
   useEffect(() => {
     if (variant !== 'play') return;
 
@@ -119,6 +135,7 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
         mode,
         botCount: mode === 'friends' ? 0 : undefined,
         skinByPlayer: myId ? { [myId]: skin } : {},
+        nameByPlayer: myId && user?.username ? { [myId]: user.username } : {},
       });
     };
 
@@ -130,16 +147,9 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     return () => {
       unsub();
       sessionStarted.current = false;
-      const roomId = useGameStore.getState().currentRoom?.id;
-      if (roomId) {
-        useSocketStore.getState().gameEmit(SOCKET_EVENTS.GAME.LEAVE_ROOM, { roomId });
-      } else {
-        useSocketStore.getState().gameEmit(SOCKET_EVENTS.GAME.CANCEL_MATCHMAKING);
-      }
-      useGameStore.getState().resetGame();
+      leaveArena();
     };
-    // Own the play session for this mount only. Do not depend on socket callback
-    // identities — those retrigger resetGame and overflow React's update depth.
+    // Own the play session for this mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
@@ -150,6 +160,19 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
       const eaten = me?.foodEaten || 0;
       if (eaten > foodCue.current) coilAudio.play('food');
       foodCue.current = eaten;
+
+      const phase = board.phase || '';
+      if (phase !== lastPhase.current) {
+        if (phase === 'countdown') coilAudio.play('countdown');
+        if (phase === 'playing') coilAudio.play('roundStart');
+        if (phase === 'results' || phase === 'round_end') coilAudio.play('roundEnd');
+        lastPhase.current = phase;
+      }
+
+      const mineEvents = (board.events || []).filter((ev) => ev.playerId === myId);
+      if (mineEvents.some((ev) => ev.kind === 'power')) coilAudio.play('powerup');
+      if (mineEvents.some((ev) => ev.kind === 'kill')) coilAudio.play('eliminate');
+
       if (!me || me.alive) {
         died.current = false;
         return;
@@ -159,7 +182,7 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
       const ranked = [...(board.snakes || [])].sort((a, b) => b.score - a.score);
       const stats = closeRun({
         score: me.score,
-        length: me.body.length,
+        length: me.length ?? me.body.length,
         rank: ranked.findIndex((s) => s.playerId === me.playerId) + 1,
         timeMs: board.elapsedMs || 0,
         foodEaten: me.foodEaten || 0,
@@ -179,14 +202,16 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
           durationMs: board.elapsedMs || 0,
           foodEaten: me.foodEaten || 0,
           kills: me.kills || 0,
-          length: me.body.length,
+          length: me.length ?? me.body.length,
           mode,
+          rank: stats.rank,
+          skin,
         },
         liveRoom?.gameId || liveRoom?.id
       );
       coilAudio.play('death');
     });
-  }, [playing, over, myId, mode, recordScore]);
+  }, [playing, over, myId, mode, recordScore, skin]);
 
   useEffect(() => {
     if (!over || !rewards) return;
@@ -203,17 +228,22 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
   }, [over, rewards]);
 
   const steer = useCallback(
-    (input: { angle: number; boost: boolean }) => {
-      const roomId = useGameStore.getState().currentRoom?.id;
-      if (!roomId) return;
-      net.steer(roomId, input);
+    (next: { angle: number; boost: boolean }) => {
+      const liveRoom = useGameStore.getState().currentRoom?.id;
+      if (!liveRoom) return;
+      net.steer(liveRoom, next);
     },
     [net]
   );
 
   const goPlay = (nextMode = mode) => {
     coilAudio.play('click');
-    router.push(`/games/${COIL_BRAND.slug}/play?mode=${nextMode}`);
+    router.push(`${coilHref('/play')}?mode=${nextMode}`);
+  };
+
+  const goGames = () => {
+    leaveArena();
+    router.push('/games');
   };
 
   const coins = walletRes?.data?.coins ?? user?.coins ?? 0;
@@ -229,6 +259,7 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
             disabled={!playing || Boolean(over)}
             input={input}
             onSteer={steer}
+            names={names}
           />
           <PlayHud
             username={user?.username}
@@ -236,12 +267,28 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
             currentUserId={myId}
             names={names}
             input={input}
+            connected={isGameConnected}
+            reconnecting={!isGameConnected && Boolean(roomId)}
+            onBack={goGames}
+            onToggleChat={() => setChatOpen((v) => !v)}
+            onToggleHelp={() => setHelpOpen((v) => !v)}
+            chatOpen={chatOpen}
           />
+          <CoilChat roomId={roomId} open={chatOpen} onClose={() => setChatOpen(false)} />
+          {helpOpen && (
+            <div className="coil-overlay coil-help-overlay">
+              <section className="coil-card coil-over">
+                <h2>Controls</h2>
+                <p className="coil-empty">Mouse or WASD to steer. Space / click / BOOST to dash. Avoid other coils.</p>
+                <button type="button" className="coil-cta" onClick={() => setHelpOpen(false)}>Got it</button>
+              </section>
+            </div>
+          )}
           {!playing && !over && (
             <div className="coil-overlay">
               <section className="coil-card coil-over">
-                <h2>{isMatchmaking ? 'Finding a current' : 'Entering the ring'}</h2>
-                <p className="coil-empty">Bots fill the arena so you can play immediately.</p>
+                <h2>{isMatchmaking ? 'Finding a current' : 'Entering the arena'}</h2>
+                <p className="coil-empty">Joining a live room or opening a new one. Bots keep the arena busy.</p>
               </section>
             </div>
           )}
@@ -259,9 +306,8 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
                 died.current = false;
                 setOver(null);
               }}
-              onHome={() => router.push(`/games/${COIL_BRAND.slug}`)}
-              onSkins={() => router.push(`/games/${COIL_BRAND.slug}?view=skins`)}
-              onLeaderboard={() => router.push(`/games/${COIL_BRAND.slug}?view=leaderboard`)}
+              onHome={goGames}
+              onLeaderboard={() => router.push(`${coilHref()}?view=leaderboard`)}
             />
           )}
         </>
@@ -300,16 +346,24 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     if (view === 'missions') return <MissionsScreen onBack={() => setView('menu')} />;
     if (view === 'profile') return <ProfileScreen onBack={() => setView('menu')} />;
     if (view === 'settings') return <SettingsScreen onBack={() => setView('menu')} />;
+    if (view === 'howto') return <HowToPlayScreen onBack={() => setView('menu')} />;
 
     return (
       <HubMenu
         username={user?.username}
         coins={coins}
         dailyReady={dailyReady}
+        mode={mode}
+        skin={skin}
         onPlay={() => goPlay(mode)}
         onOpen={setView}
         onDaily={() => dailyReady && claimDaily.mutate()}
-        onDashboard={() => router.push('/dashboard')}
+        onDashboard={goGames}
+        onMode={setMode}
+        onSkin={(id) => {
+          coilProgress.setSkin(id);
+          setSkin(id);
+        }}
       />
     );
   }, [
@@ -324,7 +378,6 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     user,
     names,
     roomId,
-    matchId,
     rewards,
     coins,
     dailyReady,
@@ -334,6 +387,9 @@ function CoilRushInner({ variant }: CoilRushAppProps) {
     isMatchmaking,
     input,
     router,
+    isGameConnected,
+    chatOpen,
+    helpOpen,
   ]);
 
   return <div className="coil-root">{body}</div>;

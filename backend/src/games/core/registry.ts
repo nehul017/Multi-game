@@ -13,6 +13,11 @@ class GameRegistry {
     }
   }
 
+  alias(aliasId: string, gameId: string): void {
+    const definition = this.games.get(gameId);
+    if (definition) this.games.set(aliasId, definition);
+  }
+
   has(gameId: string): boolean {
     return this.games.has(gameId);
   }

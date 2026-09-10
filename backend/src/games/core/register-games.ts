@@ -45,6 +45,7 @@ export const registerBuiltInGames = (): void => {
     ...GAME_LIMITS['snake-multiplayer'],
     createEngine: (players, settings) => new SnakeMultiplayer(players, (settings || {}) as SnakeMatchSettings),
   });
+  gameRegistry.alias('coil-rush', 'snake-multiplayer');
 
   gameRegistry.register({
     ...GAME_LIMITS.mindi,

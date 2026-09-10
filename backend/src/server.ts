@@ -6,6 +6,7 @@ import { connectRedis } from './config/redis';
 import { setupSocketIO } from './socket';
 import { ensureMindiCatalog } from './jobs/ensure-mindi';
 import { ensureJigsawWorldCatalog } from './jobs/ensure-jigsaw-world';
+import { ensureCoilRushCatalog } from './jobs/ensure-coil-rush';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -20,6 +21,11 @@ const startServer = async (): Promise<void> => {
       await ensureJigsawWorldCatalog();
     } catch (error) {
       console.warn('Jigsaw World catalog ensure failed:', error);
+    }
+    try {
+      await ensureCoilRushCatalog();
+    } catch (error) {
+      console.warn('Coil Rush catalog ensure failed:', error);
     }
 
     const redisConnected = await connectRedis();

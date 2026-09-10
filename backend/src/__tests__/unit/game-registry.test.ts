@@ -14,6 +14,7 @@ describe('GameRegistry', () => {
     expect(gameRegistry.has('ludo')).toBe(true);
     expect(gameRegistry.has('quiz-battle')).toBe(true);
     expect(gameRegistry.has('snake-multiplayer')).toBe(true);
+    expect(gameRegistry.has('coil-rush')).toBe(true);
     expect(gameRegistry.has('mindi')).toBe(true);
   });
 

@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Clock, Trophy, Users } from 'lucide-react';
+import { ArrowRight, Clock, Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SectionReveal } from '@/components/home/SectionReveal';
+import { AnimatedCounter } from '@/components/motion/AnimatedCounter';
 import type { HomeTournament } from '@/types/home';
 
 interface TournamentBannerProps {
@@ -26,7 +27,12 @@ export function TournamentBanner({ tournament }: TournamentBannerProps) {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href={tournament.id === 'weekly-arena' ? '/tournaments' : `/tournaments/${tournament.id}`}>
-                  <Button size="lg" className="w-full sm:w-auto" leftIcon={<Trophy className="w-4 h-4" />}>
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto home-cta"
+                    leftIcon={<Trophy className="w-4 h-4" />}
+                    rightIcon={<ArrowRight className="w-4 h-4" />}
+                  >
                     JOIN TOURNAMENT
                   </Button>
                 </Link>
@@ -39,19 +45,22 @@ export function TournamentBanner({ tournament }: TournamentBannerProps) {
             </div>
 
             <dl className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
-              <div className="home-stat-tile">
+              <div className="home-stat-tile home-stat-glow">
                 <dt className="text-xs uppercase tracking-wider text-white/60">Prize pool</dt>
                 <dd className="mt-1 font-display text-2xl font-bold text-amber-200">{tournament.prizePool}</dd>
               </div>
-              <div className="home-stat-tile">
+              <div className="home-stat-tile home-stat-glow">
                 <dt className="flex items-center gap-2 text-xs uppercase tracking-wider text-white/60">
                   <Users className="w-3.5 h-3.5" aria-hidden="true" />
                   Players
                 </dt>
                 <dd className="mt-1 font-display text-2xl font-bold text-white">
-                  {tournament.players.toLocaleString()}
+                  <AnimatedCounter value={tournament.players} />
                   {tournament.maxPlayers > 0 && (
-                    <span className="text-sm font-medium text-white/50"> / {tournament.maxPlayers.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-white/50">
+                      {' '}
+                      / {tournament.maxPlayers.toLocaleString()}
+                    </span>
                   )}
                 </dd>
               </div>

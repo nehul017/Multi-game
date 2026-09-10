@@ -71,11 +71,11 @@ const seedDatabase = async (): Promise<void> => {
       {
         name: 'Coil Rush',
         slug: 'snake-multiplayer',
-        description: 'Original slither battle. Steer, boost, eat pellets, and cut rival coils. Friends can join a live arena.',
+        description: 'Grow your coil, outsmart rivals, and survive the arena.',
         minPlayers: 1,
-        maxPlayers: 8,
+        maxPlayers: 50,
         category: 'arcade',
-        settings: { worldSize: 2400, tickRate: 50 },
+        settings: { worldSize: 3200, tickRate: 50, maxPlayers: 50, modes: ['classic', 'time-rush', 'battle'] },
         thumbnail: '/images/games/snake.jpg',
       },
       {

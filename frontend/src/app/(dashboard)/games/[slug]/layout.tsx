@@ -3,6 +3,14 @@ import type { Metadata } from 'next';
 import { formatGameTitle } from '@/types/home';
 
 const GAME_META: Record<string, Metadata> = {
+  'coil-rush': {
+    title: 'Coil Rush | Games',
+    description: 'Grow your coil, outsmart rivals, and survive the arena.',
+  },
+  'snake-multiplayer': {
+    title: 'Coil Rush | Games',
+    description: 'Grow your coil, outsmart rivals, and survive the arena.',
+  },
   'block-master': {
     title: 'Block Master | Games',
     description: 'Stack, rotate, and clear under rising pressure in Block Master.',

@@ -36,12 +36,12 @@ class MatchRepository extends BaseRepository<IMatchDocument> {
   }
 
   async findWaitingMatches(gameType: string): Promise<IMatchDocument[]> {
-    const joinablePlaying = gameType === 'snake-multiplayer';
+    const joinablePlaying = gameType === 'snake-multiplayer' || gameType === 'coil-rush';
     return this.model
       .find({
         gameType,
         status: joinablePlaying ? { $in: ['waiting', 'playing'] } : 'waiting',
-        ...(joinablePlaying ? { $expr: { $lt: [{ $size: '$players' }, 4] } } : {}),
+        ...(joinablePlaying ? { $expr: { $lt: [{ $size: '$players' }, 50] } } : {}),
       })
       .populate('players.userId', 'username avatar elo')
       .sort({ createdAt: -1 })

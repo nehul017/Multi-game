@@ -3,6 +3,7 @@ export const GAME_ARTWORK: Record<string, string> = {
   'tic-tac-toe': '/images/games/tic-tac-toe.jpg',
   'connect-four': '/images/games/connect-four.jpg',
   'snake-multiplayer': '/images/games/snake.jpg',
+  'coil-rush': '/images/games/snake.jpg',
   ludo: '/images/games/ludo.jpg',
   'quiz-battle': '/images/games/quiz.jpg',
   'cyber-strike': '/images/games/cyber-strike.jpg',

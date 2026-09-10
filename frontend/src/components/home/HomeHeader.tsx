@@ -3,7 +3,7 @@
 import { FormEvent, MouseEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import {
   Bell,
   LogOut,
@@ -40,17 +40,19 @@ function HeaderNavItem({
   active,
   onClick,
   className,
+  showUnderline = false,
 }: {
   link: NavLink;
   active: boolean;
   onClick: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   className?: string;
+  showUnderline?: boolean;
 }) {
   return (
     <Link
       href={link.href}
       className={cn(
-        'home-nav-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+        'home-nav-link home-nav-link-motion focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
         active && 'home-nav-link-active',
         className
       )}
@@ -58,6 +60,13 @@ function HeaderNavItem({
       onClick={(event) => onClick(event, link.href)}
     >
       {link.label}
+      {active && showUnderline && (
+        <motion.span
+          layoutId="home-nav-underline"
+          className="home-nav-underline"
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        />
+      )}
     </Link>
   );
 }
@@ -147,6 +156,9 @@ export function HomeHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [scrolled, setScrolled] = useState(false);
+  const isHome = pathname === '/';
+  const compactHeader = !isHome || scrolled || mobileOpen;
 
   const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
     setMobileOpen(false);
@@ -164,6 +176,13 @@ export function HomeHeader() {
       document.body.style.overflow = '';
     };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    const syncScroll = () => setScrolled(window.scrollY > 18);
+    syncScroll();
+    window.addEventListener('scroll', syncScroll, { passive: true });
+    return () => window.removeEventListener('scroll', syncScroll);
+  }, []);
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -194,7 +213,12 @@ export function HomeHeader() {
     'inline-flex items-center justify-center w-11 h-11 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-primary-500/10 motion-safe:transition-colors motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50';
 
   return (
-    <header className="sticky top-0 z-50 glass-nav">
+    <header
+      className={cn(
+        'sticky top-0 z-50',
+        compactHeader ? 'glass-nav home-header-scrolled' : 'home-header-hero'
+      )}
+    >
       <div className="home-container h-16 flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2.5 min-w-0 shrink-0" aria-label="GAMEHUB home">
           <BrandLogo size="sm" />
@@ -209,16 +233,19 @@ export function HomeHeader() {
           </span>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1" aria-label="Primary">
-          {NAV_LINKS.map((link) => (
-            <HeaderNavItem
-              key={link.href}
-              link={link}
-              active={isNavActive(pathname, link.href, section)}
-              onClick={handleNavClick}
-            />
-          ))}
-        </nav>
+        <LayoutGroup>
+          <nav className="hidden lg:flex items-center gap-1" aria-label="Primary">
+            {NAV_LINKS.map((link) => (
+              <HeaderNavItem
+                key={link.href}
+                link={link}
+                active={isNavActive(pathname, link.href, section)}
+                onClick={handleNavClick}
+                showUnderline
+              />
+            ))}
+          </nav>
+        </LayoutGroup>
 
         <div className="flex items-center gap-1 sm:gap-1.5">
           <form

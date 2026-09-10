@@ -20,6 +20,10 @@ export const coilLive = {
       listeners.delete(fn);
     };
   },
+  clear() {
+    board = {};
+    listeners.forEach((fn) => fn(board));
+  },
 };
 
 export const isCoilBoard = (value: unknown): value is CoilBoard =>

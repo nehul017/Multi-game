@@ -31,6 +31,7 @@ const slugIcons: Record<string, string> = {
   'connect-four': '🔴',
   'chess': '♟️',
   'snake-multiplayer': '🐍',
+  'coil-rush': '🐍',
   'ludo': '🎲',
   'quiz-battle': '🧠',
   'block-master': '🧱',
@@ -66,7 +67,7 @@ export default function GameDetailRoute() {
   const params = useParams();
   const slug = params.slug as string;
 
-  if (slug === 'snake-multiplayer') {
+  if (slug === 'snake-multiplayer' || slug === 'coil-rush') {
     return <CoilRushApp variant="hub" />;
   }
   if (slug === 'chess') {

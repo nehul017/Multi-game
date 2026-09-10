@@ -27,6 +27,7 @@ interface GameArtworkProps {
   className?: string;
   sizes?: string;
   zoomOnHover?: boolean;
+  featured?: boolean;
 }
 
 export function GameArtwork({
@@ -37,6 +38,7 @@ export function GameArtwork({
   className,
   sizes = '(max-width: 768px) 50vw, 20vw',
   zoomOnHover = true,
+  featured = false,
 }: GameArtworkProps) {
   const [failed, setFailed] = useState(false);
   const resolved = !failed && src && src !== FALLBACK_ARTWORK ? src : undefined;
@@ -45,11 +47,7 @@ export function GameArtwork({
     <div className={cn('absolute inset-0 overflow-hidden bg-theme-secondary', className)}>
       {!resolved && (
         <div
-          className={cn(
-            'absolute inset-0 home-art',
-            TONES[tone],
-            zoomOnHover && 'motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:group-hover:scale-[1.03]'
-          )}
+          className={cn('absolute inset-0 home-art', TONES[tone], zoomOnHover && 'home-art-zoom')}
           aria-hidden="true"
         />
       )}
@@ -62,10 +60,7 @@ export function GameArtwork({
           priority={priority}
           loading={priority ? undefined : 'lazy'}
           sizes={sizes}
-          className={cn(
-            'object-cover object-center',
-            zoomOnHover && 'motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:group-hover:scale-[1.03]'
-          )}
+          className={cn('object-cover object-center', zoomOnHover && 'home-art-zoom')}
           onError={() => setFailed(true)}
         />
       )}
@@ -76,6 +71,8 @@ export function GameArtwork({
         )}
         aria-hidden="true"
       />
+      <div className="home-art-vignette" aria-hidden="true" />
+      <div className={cn('home-art-shine', featured && 'home-art-shine-loop')} aria-hidden="true" />
     </div>
   );
 }

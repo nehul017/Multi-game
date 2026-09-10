@@ -17,6 +17,7 @@ import {
 import { createGameEngine, serializeGameState, serializeSnakeTick } from '../../games/factory';
 import { GameEngine } from '../../games/engine';
 import { SNAKE_TICK_MS } from '../../games/snake-multiplayer';
+import { canonicalCoilGameType, isCoilRushGame } from '../../games/snake-types';
 import { gameBotId, isBotPlayerId, pickLudoBotMove } from '../../games/ludo-bot';
 import { pickConnectFourBotMove } from '../../games/connect-four-bot';
 import { pickTicTacToeBotMove } from '../../games/tic-tac-toe-bot';
@@ -295,7 +296,7 @@ const finishMatch = async (
 };
 
 const startSnakeLoop = (gameNs: ReturnType<Server['of']>, room: GameRoom): void => {
-  if (room.gameType !== 'snake-multiplayer' || !room.engine) return;
+  if (!isCoilRushGame(room.gameType) || !room.engine) return;
   clearRoomTimers(room);
 
   const engine = room.engine as GameEngine & { tick?: () => void };
@@ -706,7 +707,7 @@ export const setupGameNamespace = (io: Server): void => {
       try {
         if (!socket.user) return;
 
-        const gameType = data.gameSlug;
+        const gameType = canonicalCoilGameType(data.gameSlug);
         const userId = socket.user._id.toString();
 
         if (!matchmakingQueue.has(gameType)) {
@@ -856,14 +857,15 @@ export const setupGameNamespace = (io: Server): void => {
       try {
         if (!socket.user) return;
 
-        const match = await matchService.createMatch(data.gameType, socket.user._id.toString(), data.settings);
+        const gameType = canonicalCoilGameType(data.gameType);
+        const match = await matchService.createMatch(gameType, socket.user._id.toString(), data.settings);
         const roomId = match.roomId;
 
-        const autoStart = JOIN_IN_PROGRESS_GAMES.has(data.gameType);
+        const autoStart = JOIN_IN_PROGRESS_GAMES.has(gameType);
         const room: GameRoom = {
           matchId: match._id.toString(),
           roomId,
-          gameType: data.gameType,
+          gameType,
           players: new Map([[socket.user._id.toString(), { socketId: socket.id, ready: autoStart, connected: true }]]),
           gameState: {},
           spectators: new Set(),
@@ -1092,7 +1094,7 @@ export const setupGameNamespace = (io: Server): void => {
               actionId: parsed.actionId,
             });
             if (error.code === GAME_ERROR_CODES.DUPLICATE_ACTION) return;
-            if (room.gameType === 'snake-multiplayer' && error.code === GAME_ERROR_CODES.ACTION_NOT_ALLOWED) return;
+            if (isCoilRushGame(room.gameType) && error.code === GAME_ERROR_CODES.ACTION_NOT_ALLOWED) return;
             emitGameError(socket, error);
             return;
           }
@@ -1115,7 +1117,7 @@ export const setupGameNamespace = (io: Server): void => {
             const accepted = room.engine.makeMove(userId, movePayload);
             if (!accepted) {
               gameLogger.warn('action_rejected', { roomId: room.roomId, userId, reason: 'engine_rejected' });
-              if (room.gameType !== 'snake-multiplayer') {
+              if (!isCoilRushGame(room.gameType)) {
                 emitGameError(socket, {
                   code: GAME_ERROR_CODES.INVALID_ACTION,
                   message: rejectReasonFromEngine(room.engine),
@@ -1137,7 +1139,7 @@ export const setupGameNamespace = (io: Server): void => {
             });
 
             const isSnakeSteer =
-              room.gameType === 'snake-multiplayer' &&
+              isCoilRushGame(room.gameType) &&
               (parsed.action === 'steer' || parsed.action === 'direction');
             if (isSnakeSteer) {
               return;

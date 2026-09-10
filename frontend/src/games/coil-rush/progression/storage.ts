@@ -12,7 +12,7 @@ const EMPTY: CoilLocalStats = { games: 0, food: 0, kills: 0, wins: 0 };
 export const coilProgress = {
   getSkin(): string {
     if (typeof window === 'undefined') return 'ember';
-    return window.localStorage.getItem(COIL_STORAGE.skin) || 'ember';
+    return window.localStorage.getItem(COIL_STORAGE.skin) || 'fire';
   },
   setSkin(id: string) {
     if (typeof window === 'undefined') return;

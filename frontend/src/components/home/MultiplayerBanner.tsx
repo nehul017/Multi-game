@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Radio, Swords, Users } from 'lucide-react';
+import { ArrowRight, Radio, Swords, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { GameArtwork } from '@/components/home/GameArtwork';
 import { SectionReveal } from '@/components/home/SectionReveal';
+import { AnimatedCounter } from '@/components/motion/AnimatedCounter';
 import { MULTIPLAYER_ARTWORK } from '@/data/artwork';
 import { formatPlayerCount } from '@/data/home';
 import type { HomeMultiplayerStats } from '@/types/home';
@@ -39,7 +40,12 @@ export function MultiplayerBanner({ stats }: MultiplayerBannerProps) {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href="/games" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto" leftIcon={<Swords className="w-4 h-4" />}>
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto home-cta"
+                    leftIcon={<Swords className="w-4 h-4" />}
+                    rightIcon={<ArrowRight className="w-4 h-4" />}
+                  >
                     CREATE ROOM
                   </Button>
                 </Link>
@@ -53,7 +59,7 @@ export function MultiplayerBanner({ stats }: MultiplayerBannerProps) {
 
             <div className="flex lg:items-end lg:justify-end">
               <dl className="grid grid-cols-2 gap-3 w-full max-w-md">
-                <div className="home-stat-tile">
+                <div className="home-stat-tile home-stat-glow">
                   <dt className="flex items-center gap-2 text-xs uppercase tracking-wider text-white/60">
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 motion-safe:animate-ping" />
@@ -62,16 +68,16 @@ export function MultiplayerBanner({ stats }: MultiplayerBannerProps) {
                     Online now
                   </dt>
                   <dd className="mt-2 font-display text-2xl sm:text-3xl font-bold text-white">
-                    {formatPlayerCount(stats.onlinePlayers)}
+                    <AnimatedCounter value={stats.onlinePlayers} format={formatPlayerCount} />
                   </dd>
                 </div>
-                <div className="home-stat-tile">
+                <div className="home-stat-tile home-stat-glow">
                   <dt className="flex items-center gap-2 text-xs uppercase tracking-wider text-white/60">
                     <Radio className="w-3.5 h-3.5" aria-hidden="true" />
                     Active rooms
                   </dt>
                   <dd className="mt-2 font-display text-2xl sm:text-3xl font-bold text-white">
-                    {stats.activeRooms}
+                    <AnimatedCounter value={stats.activeRooms} />
                   </dd>
                 </div>
                 <div className="home-stat-tile col-span-2">

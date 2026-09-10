@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { COIL_BRAND } from '../brand';
+import { COIL_BRAND, coilHref } from '../brand';
 import { useGameRooms } from '@/hooks';
 
 interface RoomsScreenProps {
@@ -34,14 +34,14 @@ export function RoomsScreen({ onBack, onCreate }: RoomsScreenProps) {
         {rooms.map((room) => {
           const id = String(room.roomId || room.id || room._id || '');
           const count = room.players?.length || 0;
-          const max = room.maxPlayers || 8;
+          const max = room.maxPlayers || 50;
           const live = room.status === 'playing';
           return (
             <li key={id}>
               <span>{room.name || 'Coil room'}</span>
               <em>{count}/{max} {live ? 'live' : 'open'}</em>
               {id && (
-                <Link className="coil-ghost" href={`/games/${COIL_BRAND.slug}/play?mode=friends&room=${id}`}>
+                <Link className="coil-ghost" href={`${coilHref('/play')}?mode=friends&room=${id}`}>
                   {live ? 'Join live' : 'Join'}
                 </Link>
               )}

@@ -1,10 +1,12 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
 import { Gamepad2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GameCard } from '@/components/home/GameCard';
 import { GameCardSkeleton } from '@/components/home/HomeSkeletons';
-import { SectionHeader, SectionReveal } from '@/components/home/SectionReveal';
+import { SectionHeader, SectionReveal, StaggerGrid } from '@/components/home/SectionReveal';
+import { staggerItem } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import type { HomeGame } from '@/types/home';
 
@@ -31,12 +33,15 @@ export function GameShelf({
   isLoading = false,
   emptyAction,
 }: GameShelfProps) {
+  const reduceMotion = useReducedMotion();
+  const gridClass = cn('home-game-grid', columns === 'trending' && 'home-game-grid-wide');
+
   return (
     <SectionReveal id={id} className="py-6 md:py-10">
       <div className="home-container">
         {title ? <SectionHeader title={title} href={href} /> : null}
         {isLoading ? (
-          <div className={cn('home-game-grid', columns === 'trending' && 'home-game-grid-wide')}>
+          <div className={gridClass}>
             {Array.from({ length: columns === 'trending' ? 5 : 4 }).map((_, index) => (
               <GameCardSkeleton key={`${id}-sk-${index}`} />
             ))}
@@ -49,16 +54,24 @@ export function GameShelf({
             action={emptyAction ? { label: 'Browse Games', onClick: emptyAction } : undefined}
           />
         ) : (
-          <div className={cn('home-game-grid', columns === 'trending' && 'home-game-grid-wide')}>
-            {games.map((game, index) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                badge={badge?.(game)}
-                priority={index < priorityCount}
-              />
-            ))}
-          </div>
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.28 }}
+          >
+            <StaggerGrid className={gridClass}>
+              {games.map((game, index) => (
+                <motion.div key={game.id} variants={reduceMotion ? undefined : staggerItem}>
+                  <GameCard
+                    game={game}
+                    badge={badge?.(game)}
+                    priority={index < priorityCount}
+                    featured={Boolean(game.isFeatured || game.isTrending || columns === 'trending')}
+                  />
+                </motion.div>
+              ))}
+            </StaggerGrid>
+          </motion.div>
         )}
       </div>
     </SectionReveal>

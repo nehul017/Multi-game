@@ -22,6 +22,8 @@ import {
 } from '../games/core/result-validator';
 import { IMatchDocument } from '../interfaces/match.interface';
 import type { GameRoom } from '../games/core/types';
+import { recordCoilRushRun } from './coil-rush-stats.service';
+import { isCoilRushGame } from '../games/snake-types';
 
 export interface SessionStartResult {
   success: true;
@@ -204,8 +206,20 @@ class GameResultService {
       throw new AppError('Could not save score', 500);
     }
 
-    if (SCORE_LEADERBOARD_GAMES.has(match.gameType) || match.gameType === 'snake-multiplayer') {
+    if (SCORE_LEADERBOARD_GAMES.has(match.gameType) || isCoilRushGame(match.gameType)) {
       await leaderboardService.recordHighScore(userId, match.gameType, validated.score);
+    }
+
+    if (isCoilRushGame(match.gameType)) {
+      await recordCoilRushRun(userId, {
+        score: validated.score,
+        length: validated.length,
+        kills: validated.kills,
+        durationMs: validated.durationMs,
+        rank: Number((payload as { rank?: number }).rank) || 0,
+        won: Number((payload as { rank?: number }).rank) === 1,
+        skin: typeof (payload as { skin?: string }).skin === 'string' ? (payload as { skin: string }).skin : undefined,
+      });
     }
 
     gameLogger.info('GAME_ACTION', { gameType: match.gameType, matchId, userId, action: 'score', score: validated.score });

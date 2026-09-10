@@ -88,7 +88,7 @@ function PlayerBar({
 
 export default function PlayRoute() {
   const params = useParams();
-  if ((params.slug as string) === 'snake-multiplayer') {
+  if ((params.slug as string) === 'snake-multiplayer' || (params.slug as string) === 'coil-rush') {
     return <CoilRushApp variant="play" />;
   }
   if ((params.slug as string) === 'chess') {
@@ -407,7 +407,7 @@ function GenericPlayPage() {
   const isChess = slug === 'chess';
   const isLudo = slug === 'ludo';
   const isTtt = slug === 'tic-tac-toe';
-  const isSnake = slug === 'snake-multiplayer';
+  const isSnake = slug === 'snake-multiplayer' || slug === 'coil-rush';
   const symbolMap = (gameState?.metadata?.symbols || {}) as Record<string, 'X' | 'O'>;
   const myMark: 'X' | 'O' | undefined = myId
     ? symbolMap[myId] ||

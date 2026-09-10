@@ -110,6 +110,8 @@ export interface GameCompletePayload {
   kills?: number;
   length?: number;
   mode?: string;
+  rank?: number;
+  skin?: string;
 }
 
 export interface GameSessionPayload {

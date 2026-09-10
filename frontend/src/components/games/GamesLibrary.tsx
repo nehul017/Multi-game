@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
 import { GameCategories } from './GameCategories';
 import { GamesHeader } from './GamesHeader';
 import { FeaturedGames } from './FeaturedGames';
 import { AllGames } from './AllGames';
+import { PageTransition } from '@/components/motion/PageTransition';
+import { EASE_OUT } from '@/lib/motion';
 import {
   getLibraryFeaturedGames,
   gameMatchesCategory,
@@ -24,7 +27,9 @@ export function GamesLibrary() {
   const [sort, setSort] = useState<LibrarySort>('popular');
   const category = searchParams.get('category') || 'all';
   const { data, isLoading, isError } = useHomeData();
+  const reduceMotion = useReducedMotion();
   const hasActiveFilters = Boolean(search.trim() || (category && category !== 'all'));
+  const catalogKey = `${category}:${search.trim()}:${sort}`;
 
   const filteredGames = useMemo(() => {
     const bySearch = searchGames(data.games, search);
@@ -61,7 +66,7 @@ export function GamesLibrary() {
   };
 
   return (
-    <div className="space-y-8 min-w-0 overflow-x-clip">
+    <PageTransition className="space-y-8 min-w-0 overflow-x-clip">
       <GamesHeader
         search={search}
         sort={sort}
@@ -69,14 +74,22 @@ export function GamesLibrary() {
         onSortChange={setSort}
       />
       <GameCategories selected={category} onSelect={updateCategory} games={data.games} />
-      <FeaturedGames games={featuredGames} />
-      <AllGames
-        games={filteredGames}
-        isLoading={isLoading}
-        isError={isError}
-        hasActiveFilters={hasActiveFilters}
-        onReset={resetFilters}
-      />
-    </div>
+      <motion.div
+        key={catalogKey}
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: EASE_OUT }}
+        className="space-y-8"
+      >
+        <FeaturedGames games={featuredGames} />
+        <AllGames
+          games={filteredGames}
+          isLoading={isLoading}
+          isError={isError}
+          hasActiveFilters={hasActiveFilters}
+          onReset={resetFilters}
+        />
+      </motion.div>
+    </PageTransition>
   );
 }

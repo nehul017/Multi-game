@@ -122,6 +122,7 @@ export const PLATFORM_GAME_SLUGS = [
   'connect-four',
   'chess',
   'snake-multiplayer',
+  'coil-rush',
   'ludo',
   'quiz-battle',
   'block-master',
@@ -137,10 +138,12 @@ export function isPlatformGame(slug: string): boolean {
 }
 
 export function gamePlayHref(slug: string): string {
+  if (slug === 'snake-multiplayer' || slug === 'coil-rush') return '/games/coil-rush/play';
   return isPlatformGame(slug) ? `/games/${slug}/play` : '/games';
 }
 
 export function gameDetailsHref(slug: string): string {
+  if (slug === 'snake-multiplayer' || slug === 'coil-rush') return '/games/coil-rush';
   return isPlatformGame(slug) ? `/games/${slug}` : '/games';
 }
 
@@ -149,7 +152,7 @@ export function quickPlayHref(): string {
 }
 
 export function formatGameTitle(slug: string): string {
-  if (slug === 'snake-multiplayer') return 'Coil Rush';
+  if (slug === 'snake-multiplayer' || slug === 'coil-rush') return 'Coil Rush';
   if (slug === 'classic-fruit-slots') return 'Classic Fruit Slots';
   if (slug === 'poker') return 'Poker Room';
   if (slug === 'mindi') return 'Mindi Cot';

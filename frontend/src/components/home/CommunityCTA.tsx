@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MessageCircle, Trophy, Users } from 'lucide-react';
+import { ArrowRight, MessageCircle, Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { GameArtwork } from '@/components/home/GameArtwork';
 import { SectionReveal } from '@/components/home/SectionReveal';
@@ -34,7 +34,12 @@ export function CommunityCTA() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href={isAuthenticated ? '/friends' : '/register'} className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto" leftIcon={<Users className="w-4 h-4" />}>
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto home-cta"
+                  leftIcon={<Users className="w-4 h-4" />}
+                  rightIcon={<ArrowRight className="w-4 h-4" />}
+                >
                   {isAuthenticated ? 'Find Friends' : 'Join GAMEHUB'}
                 </Button>
               </Link>

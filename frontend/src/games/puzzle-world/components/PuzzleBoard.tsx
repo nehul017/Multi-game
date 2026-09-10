@@ -1,7 +1,7 @@
 'use client';
 
 import { tileMask } from '../rooms';
-import type { GridPos, PuzzleTile } from '../types';
+import type { GridPos, PuzzleTile, RoomMood, RoomRelic } from '../types';
 import { N, E, S, W } from '../types';
 
 interface PuzzleBoardProps {
@@ -11,6 +11,8 @@ interface PuzzleBoardProps {
   lit: string[];
   selected: GridPos | null;
   disabled?: boolean;
+  mood?: RoomMood;
+  relic?: RoomRelic;
   onRotate: (x: number, y: number) => void;
 }
 
@@ -18,12 +20,22 @@ function has(mask: number, bit: number): boolean {
   return (mask & bit) !== 0;
 }
 
-export function PuzzleBoard({ tiles, cols, rows, lit, selected, disabled, onRotate }: PuzzleBoardProps) {
+export function PuzzleBoard({
+  tiles,
+  cols,
+  rows,
+  lit,
+  selected,
+  disabled,
+  mood = 'keep',
+  relic = 'crystal',
+  onRotate,
+}: PuzzleBoardProps) {
   const litSet = new Set(lit);
 
   return (
     <div
-      className="pw-board"
+      className={`pw-board is-${mood}`}
       style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
       role="grid"
       aria-label="Puzzle room"
@@ -65,7 +77,7 @@ export function PuzzleBoard({ tiles, cols, rows, lit, selected, disabled, onRota
             <span className="pw-hub" />
             {tile.role === 'start' && <span className="pw-mark pw-mark-start">IN</span>}
             {tile.role === 'goal' && <span className="pw-mark pw-mark-goal">OUT</span>}
-            {tile.gem && <span className="pw-gem" aria-hidden="true" />}
+            {tile.gem && <span className={`pw-gem is-${relic}`} aria-hidden="true" />}
           </button>
         );
       })}

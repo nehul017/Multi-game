@@ -2,6 +2,8 @@ export type TileShape = 'I' | 'L' | 'T' | 'X' | 'C';
 export type TileRole = 'path' | 'start' | 'goal' | 'empty' | 'decoy';
 export type RoomStatus = 'locked' | 'open' | 'cleared';
 export type PuzzleStatus = 'ready' | 'atlas' | 'room' | 'cleared' | 'over';
+export type RoomMood = 'dawn' | 'garden' | 'harbor' | 'keep' | 'market' | 'frost' | 'ember' | 'sky';
+export type RoomRelic = 'crystal' | 'lantern' | 'coin' | 'leaf' | 'bell';
 
 export interface GridPos {
   x: number;
@@ -29,6 +31,8 @@ export interface RoomDef {
   decoys: number;
   requires: string[];
   atlas: { x: number; y: number };
+  mood: RoomMood;
+  relic: RoomRelic;
 }
 
 export interface RoomProgress {
@@ -38,6 +42,7 @@ export interface RoomProgress {
 
 export interface PuzzleWorldSnapshot {
   status: PuzzleStatus;
+  atlas: RoomDef[];
   rooms: RoomProgress[];
   currentRoom: RoomDef | null;
   tiles: PuzzleTile[];

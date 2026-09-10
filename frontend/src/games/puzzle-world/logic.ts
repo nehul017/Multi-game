@@ -1,9 +1,9 @@
 import {
   ATLAS_COMPLETE_BONUS,
-  ATLAS_ROOMS,
   buildSolvedRoom,
   cellKey,
   connectedKeys,
+  generateAtlas,
   isRoomSolved,
   roomById,
   roomScore,
@@ -11,10 +11,11 @@ import {
   selectableTiles,
 } from './rooms';
 import { puzzleWorldStorage } from './storage';
-import type { GridPos, PuzzleTile, PuzzleWorldSnapshot, RoomProgress, PuzzleStatus } from './types';
+import type { GridPos, PuzzleTile, PuzzleWorldSnapshot, RoomDef, RoomProgress, PuzzleStatus } from './types';
 
 interface InternalState {
   status: PuzzleStatus;
+  atlas: RoomDef[];
   progress: Record<string, RoomProgress['status']>;
   currentRoomId: string | null;
   tiles: PuzzleTile[];
@@ -36,9 +37,12 @@ function cloneTiles(tiles: PuzzleTile[]): PuzzleTile[] {
   return tiles.map((tile) => ({ ...tile }));
 }
 
-function openRooms(progress: Record<string, RoomProgress['status']>): Record<string, RoomProgress['status']> {
+function openRooms(
+  rooms: RoomDef[],
+  progress: Record<string, RoomProgress['status']>
+): Record<string, RoomProgress['status']> {
   const next = { ...progress };
-  for (const room of ATLAS_ROOMS) {
+  for (const room of rooms) {
     if (next[room.id] === 'cleared') continue;
     const ready = room.requires.every((id) => next[id] === 'cleared');
     next[room.id] = ready ? 'open' : 'locked';
@@ -60,12 +64,13 @@ export class PuzzleWorldEngine {
   }
 
   getSnapshot(): PuzzleWorldSnapshot {
-    const room = this.state.currentRoomId ? roomById(this.state.currentRoomId) : null;
+    const room = this.state.currentRoomId ? roomById(this.state.atlas, this.state.currentRoomId) : null;
     const tiles = this.state.tiles;
     const lit = room ? Array.from(connectedKeys(tiles)) : [];
     return {
       status: this.state.status,
-      rooms: ATLAS_ROOMS.map((item) => ({ id: item.id, status: this.state.progress[item.id] })),
+      atlas: this.state.atlas,
+      rooms: this.state.atlas.map((item) => ({ id: item.id, status: this.state.progress[item.id] })),
       currentRoom: room,
       tiles,
       cols: room?.cols ?? 0,
@@ -98,7 +103,7 @@ export class PuzzleWorldEngine {
     if (this.state.status !== 'atlas' && this.state.status !== 'cleared') return;
     const status = this.state.progress[id];
     if (status === 'locked') return;
-    const room = roomById(id);
+    const room = roomById(this.state.atlas, id);
     const solved = buildSolvedRoom(room);
     const tiles = status === 'cleared' ? solved : scrambleRoom(room, solved);
     const pick = selectableTiles(tiles)[0] || null;
@@ -205,12 +210,12 @@ export class PuzzleWorldEngine {
     this.state.score += gained;
     this.state.roomsSolved += 1;
     this.state.progress[id] = 'cleared';
-    this.state.progress = openRooms(this.state.progress);
+    this.state.progress = openRooms(this.state.atlas, this.state.progress);
     this.state.snapTick += 1;
     this.state.status = 'cleared';
     this.lockScore();
 
-    const allClear = ATLAS_ROOMS.every((room) => this.state.progress[room.id] === 'cleared');
+    const allClear = this.state.atlas.every((room) => this.state.progress[room.id] === 'cleared');
     if (allClear) {
       this.state.score += ATLAS_COMPLETE_BONUS;
       this.lockScore();
@@ -225,9 +230,14 @@ export class PuzzleWorldEngine {
   }
 
   private fresh(status: PuzzleStatus): InternalState {
-    const progress = openRooms(Object.fromEntries(ATLAS_ROOMS.map((room) => [room.id, 'locked'])));
+    const atlas = generateAtlas((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    const progress = openRooms(
+      atlas,
+      Object.fromEntries(atlas.map((room) => [room.id, 'locked' as RoomProgress['status']]))
+    );
     return {
       status,
+      atlas,
       progress,
       currentRoomId: null,
       tiles: [],

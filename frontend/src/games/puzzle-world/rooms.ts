@@ -1,22 +1,230 @@
-import { DIRS, SHAPE_MASK, type GridPos, type PuzzleTile, type RoomDef, type TileShape } from './types';
+import {
+  DIRS,
+  SHAPE_MASK,
+  type GridPos,
+  type PuzzleTile,
+  type RoomDef,
+  type RoomMood,
+  type RoomRelic,
+  type TileShape,
+} from './types';
 
-export const ATLAS_ROOMS: RoomDef[] = [
-  { id: '1', name: 'Welcome Gate', hint: 'Tap the middle tile so the path snaps shut.', cols: 3, rows: 3, seed: 11, gems: 0, decoys: 0, requires: [], atlas: { x: 8, y: 48 } },
-  { id: '2', name: 'Cloud Step', hint: 'Bend the path down the right-hand arch.', cols: 3, rows: 3, seed: 22, gems: 0, decoys: 0, requires: ['1'], atlas: { x: 22, y: 36 } },
-  { id: '3', name: 'Pastel Court', hint: 'The path must visit the crystal.', cols: 3, rows: 3, seed: 33, gems: 1, decoys: 0, requires: ['1'], atlas: { x: 22, y: 64 } },
-  { id: '4', name: 'Blue Arch', hint: 'Two turns, one clean line.', cols: 4, rows: 4, seed: 104, gems: 0, decoys: 1, requires: ['2'], atlas: { x: 38, y: 24 } },
-  { id: '5', name: 'Pink Tower', hint: 'Climb, then cut across.', cols: 4, rows: 4, seed: 205, gems: 1, decoys: 1, requires: ['2'], atlas: { x: 38, y: 48 } },
-  { id: '6', name: 'Sky Bridge', hint: 'Don’t leave the crystal hanging.', cols: 4, rows: 4, seed: 306, gems: 1, decoys: 2, requires: ['3'], atlas: { x: 38, y: 74 } },
-  { id: '7', name: 'Lantern Lane', hint: 'A longer walk with a spare tile or two.', cols: 5, rows: 4, seed: 417, gems: 1, decoys: 2, requires: ['4'], atlas: { x: 56, y: 22 } },
-  { id: '8', name: 'Mirror Garden', hint: 'The decoys look helpful. They are not.', cols: 5, rows: 5, seed: 518, gems: 1, decoys: 3, requires: ['5'], atlas: { x: 56, y: 48 } },
-  { id: '9', name: 'Riddle Keep', hint: 'Thread both crystals before the door.', cols: 5, rows: 5, seed: 619, gems: 2, decoys: 3, requires: ['6'], atlas: { x: 56, y: 76 } },
-  { id: '10', name: 'Drift Market', hint: 'Winding stalls, one true aisle.', cols: 5, rows: 5, seed: 710, gems: 2, decoys: 4, requires: ['7'], atlas: { x: 74, y: 32 } },
-  { id: '11', name: 'High Atelier', hint: 'Almost the whole atlas is watching.', cols: 5, rows: 5, seed: 811, gems: 2, decoys: 4, requires: ['8'], atlas: { x: 74, y: 60 } },
-  { id: '12', name: 'Atlas Heart', hint: 'Close the last room. Snap the world shut.', cols: 5, rows: 5, seed: 912, gems: 2, decoys: 5, requires: ['10', '11'], atlas: { x: 90, y: 48 } },
+interface AtlasTemplate {
+  id: string;
+  cols: number;
+  rows: number;
+  gems: number;
+  decoys: number;
+  requires: string[];
+}
+
+const ATLAS_TEMPLATES: AtlasTemplate[] = [
+  { id: '1', cols: 3, rows: 3, gems: 0, decoys: 0, requires: [] },
+  { id: '2', cols: 3, rows: 3, gems: 0, decoys: 0, requires: ['1'] },
+  { id: '3', cols: 3, rows: 3, gems: 1, decoys: 0, requires: ['1'] },
+  { id: '4', cols: 4, rows: 4, gems: 0, decoys: 1, requires: ['2'] },
+  { id: '5', cols: 4, rows: 4, gems: 1, decoys: 1, requires: ['2'] },
+  { id: '6', cols: 4, rows: 4, gems: 1, decoys: 2, requires: ['3'] },
+  { id: '7', cols: 5, rows: 4, gems: 1, decoys: 2, requires: ['4'] },
+  { id: '8', cols: 5, rows: 5, gems: 1, decoys: 3, requires: ['5'] },
+  { id: '9', cols: 5, rows: 5, gems: 2, decoys: 3, requires: ['6'] },
+  { id: '10', cols: 5, rows: 5, gems: 2, decoys: 4, requires: ['7'] },
+  { id: '11', cols: 5, rows: 5, gems: 2, decoys: 4, requires: ['8'] },
+  { id: '12', cols: 5, rows: 5, gems: 2, decoys: 5, requires: ['10', '11'] },
 ];
 
-export const roomById = (id: string): RoomDef => {
-  const room = ATLAS_ROOMS.find((item) => item.id === id);
+const ATLAS_PLOTS: { x: number; y: number }[][] = [
+  [
+    { x: 8, y: 48 },
+    { x: 22, y: 36 },
+    { x: 22, y: 64 },
+    { x: 38, y: 24 },
+    { x: 38, y: 48 },
+    { x: 38, y: 74 },
+    { x: 56, y: 22 },
+    { x: 56, y: 48 },
+    { x: 56, y: 76 },
+    { x: 74, y: 32 },
+    { x: 74, y: 60 },
+    { x: 90, y: 48 },
+  ],
+  [
+    { x: 8, y: 52 },
+    { x: 22, y: 64 },
+    { x: 22, y: 36 },
+    { x: 38, y: 76 },
+    { x: 38, y: 52 },
+    { x: 38, y: 26 },
+    { x: 56, y: 78 },
+    { x: 56, y: 52 },
+    { x: 56, y: 24 },
+    { x: 74, y: 68 },
+    { x: 74, y: 40 },
+    { x: 90, y: 52 },
+  ],
+  [
+    { x: 10, y: 28 },
+    { x: 24, y: 22 },
+    { x: 22, y: 52 },
+    { x: 40, y: 18 },
+    { x: 38, y: 42 },
+    { x: 36, y: 68 },
+    { x: 58, y: 20 },
+    { x: 56, y: 46 },
+    { x: 54, y: 74 },
+    { x: 76, y: 34 },
+    { x: 74, y: 62 },
+    { x: 90, y: 48 },
+  ],
+];
+
+const PLACE_ADJ = [
+  'Amber',
+  'Cedar',
+  'Cloud',
+  'Copper',
+  'Coral',
+  'Drift',
+  'Ember',
+  'Frost',
+  'Gilded',
+  'Hidden',
+  'Ivory',
+  'Jade',
+  'Lantern',
+  'Mirror',
+  'Moonlit',
+  'Moss',
+  'Opal',
+  'Pastel',
+  'Quiet',
+  'Riddle',
+  'Saffron',
+  'Silver',
+  'Sky',
+  'Twilight',
+  'Velvet',
+  'Wandering',
+];
+
+const PLACE_NOUN = [
+  'Arcade',
+  'Archive',
+  'Atrium',
+  'Bridge',
+  'Cloister',
+  'Court',
+  'Crossing',
+  'Fountain',
+  'Gallery',
+  'Garden',
+  'Gate',
+  'Grove',
+  'Harbor',
+  'Hollow',
+  'Keep',
+  'Landing',
+  'Market',
+  'Meadow',
+  'Observatory',
+  'Orchard',
+  'Pavilion',
+  'Sanctum',
+  'Spire',
+  'Terrace',
+  'Tower',
+  'Vault',
+  'Wharf',
+  'Workshop',
+];
+
+const MOODS: RoomMood[] = ['dawn', 'garden', 'harbor', 'keep', 'market', 'frost', 'ember', 'sky'];
+const RELICS: RoomRelic[] = ['crystal', 'lantern', 'coin', 'leaf', 'bell'];
+
+export const RELIC_PLURAL: Record<RoomRelic, string> = {
+  crystal: 'crystals',
+  lantern: 'lanterns',
+  coin: 'coins',
+  leaf: 'leaves',
+  bell: 'bells',
+};
+
+function pickHint(gems: number, decoys: number, relic: RoomRelic, rng: () => number): string {
+  const relicWord = RELIC_PLURAL[relic];
+  const withRelics = [
+    `The path must visit every ${relic}.`,
+    `Don’t leave a ${relic} hanging.`,
+    `Thread the ${relicWord} before the door.`,
+  ];
+  const withDecoys = [
+    'The spare tiles look helpful. They are not.',
+    'Ignore the decoys. Follow the true aisle.',
+    'A longer walk, with a few false turns.',
+  ];
+  const simple = [
+    'Tap the middle tiles until the path snaps shut.',
+    'One clean line from door to door.',
+    'Bend the walk toward the exit.',
+    'Two turns, one true line.',
+  ];
+  const both = [
+    `Collect every ${relic}. Skip the decoys.`,
+    `Thread the ${relicWord}, then close the door.`,
+    `Winding stalls, one true aisle — and every ${relic}.`,
+  ];
+
+  const pool = gems > 0 && decoys > 0 ? both : gems > 0 ? withRelics : decoys > 0 ? withDecoys : simple;
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+function pickName(used: Set<string>, rng: () => number): string {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const name = `${PLACE_ADJ[Math.floor(rng() * PLACE_ADJ.length)]} ${PLACE_NOUN[Math.floor(rng() * PLACE_NOUN.length)]}`;
+    if (!used.has(name)) {
+      used.add(name);
+      return name;
+    }
+  }
+  const fallback = `Hidden Room ${used.size + 1}`;
+  used.add(fallback);
+  return fallback;
+}
+
+export function generateAtlas(runSeed = Date.now()): RoomDef[] {
+  const rng = mulberry32(runSeed >>> 0);
+  const used = new Set<string>();
+  const plot = ATLAS_PLOTS[Math.floor(rng() * ATLAS_PLOTS.length)];
+
+  return ATLAS_TEMPLATES.map((template, index) => {
+    const swap = template.cols !== template.rows && rng() > 0.5;
+    const gems = template.gems;
+    const decoys = template.decoys;
+    const relic = RELICS[Math.floor(rng() * RELICS.length)];
+    const point = plot[index];
+    const jitter = (value: number) => Math.max(8, Math.min(92, value + Math.floor(rng() * 7) - 3));
+
+    return {
+      id: template.id,
+      name: pickName(used, rng),
+      hint: pickHint(gems, decoys, relic, rng),
+      cols: swap ? template.rows : template.cols,
+      rows: swap ? template.cols : template.rows,
+      seed: Math.floor(rng() * 0xffffffff) || runSeed + index * 97 + 13,
+      gems,
+      decoys,
+      requires: template.requires.slice(),
+      atlas: { x: jitter(point.x), y: jitter(point.y) },
+      mood: MOODS[Math.floor(rng() * MOODS.length)],
+      relic,
+    };
+  });
+}
+
+/** Default atlas used before a run starts. A new atlas is generated on each play. */
+export const ATLAS_ROOMS: RoomDef[] = generateAtlas(20250910);
+
+export const roomById = (rooms: RoomDef[], id: string): RoomDef => {
+  const room = rooms.find((item) => item.id === id);
   if (!room) throw new Error(`Unknown Puzzle World room ${id}`);
   return room;
 };
@@ -74,11 +282,10 @@ function inBounds(x: number, y: number, cols: number, rows: number): boolean {
   return x >= 0 && y >= 0 && x < cols && y < rows;
 }
 
-function findPath(cols: number, rows: number, rng: () => number): GridPos[] {
-  const startY = Math.min(rows - 1, Math.floor(rng() * rows));
-  const start = { x: 0, y: startY };
-
+function findPath(cols: number, rows: number, rng: () => number, minLength: number): GridPos[] {
   const search = (): GridPos[] | null => {
+    const startY = Math.min(rows - 1, Math.floor(rng() * rows));
+    const start = { x: 0, y: startY };
     const stack: GridPos[] = [start];
     const parent = new Map<string, string | null>([[cellKey(start.x, start.y), null]]);
     const order = shuffle([...DIRS], rng);
@@ -108,10 +315,15 @@ function findPath(cols: number, rows: number, rng: () => number): GridPos[] {
     return null;
   };
 
-  for (let attempt = 0; attempt < 24; attempt += 1) {
+  let best: GridPos[] | null = null;
+  for (let attempt = 0; attempt < 32; attempt += 1) {
     const found = search();
-    if (found && found.length >= cols) return found;
+    if (!found) continue;
+    if (found.length >= minLength) return found;
+    if (!best || found.length > best.length) best = found;
   }
+
+  if (best && best.length >= cols) return best;
 
   const y = Math.floor(rows / 2);
   return Array.from({ length: cols }, (_, x) => ({ x, y }));
@@ -163,34 +375,6 @@ export function isRoomSolved(tiles: PuzzleTile[]): boolean {
   return tiles.filter((tile) => tile.gem).every((tile) => lit.has(cellKey(tile.x, tile.y)));
 }
 
-function buildTutorial(room: RoomDef): PuzzleTile[] {
-  if (room.id === '1') {
-    return [
-      { x: 0, y: 1, shape: 'C', rot: 1, role: 'start', gem: false, locked: true },
-      { x: 1, y: 1, shape: 'I', rot: 1, role: 'path', gem: false, locked: false },
-      { x: 2, y: 1, shape: 'C', rot: 3, role: 'goal', gem: false, locked: true },
-    ];
-  }
-
-  if (room.id === '2') {
-    return [
-      { x: 0, y: 0, shape: 'C', rot: 1, role: 'start', gem: false, locked: true },
-      { x: 1, y: 0, shape: 'I', rot: 1, role: 'path', gem: false, locked: false },
-      { x: 2, y: 0, shape: 'L', rot: 2, role: 'path', gem: false, locked: false },
-      { x: 2, y: 1, shape: 'I', rot: 0, role: 'path', gem: false, locked: false },
-      { x: 2, y: 2, shape: 'C', rot: 0, role: 'goal', gem: false, locked: true },
-    ];
-  }
-
-  return [
-    { x: 0, y: 0, shape: 'C', rot: 1, role: 'start', gem: false, locked: true },
-    { x: 1, y: 0, shape: 'L', rot: 2, role: 'path', gem: true, locked: false },
-    { x: 1, y: 1, shape: 'I', rot: 0, role: 'path', gem: false, locked: false },
-    { x: 1, y: 2, shape: 'L', rot: 0, role: 'path', gem: false, locked: false },
-    { x: 2, y: 2, shape: 'C', rot: 3, role: 'goal', gem: false, locked: true },
-  ];
-}
-
 function fillGrid(room: RoomDef, pathTiles: PuzzleTile[]): PuzzleTile[] {
   const occupied = new Set(pathTiles.map((tile) => cellKey(tile.x, tile.y)));
   const tiles = pathTiles.slice();
@@ -204,12 +388,12 @@ function fillGrid(room: RoomDef, pathTiles: PuzzleTile[]): PuzzleTile[] {
 }
 
 export function buildSolvedRoom(room: RoomDef): PuzzleTile[] {
-  if (room.id === '1' || room.id === '2' || room.id === '3') {
-    return fillGrid(room, buildTutorial(room));
-  }
-
   const rng = mulberry32(room.seed);
-  const path = findPath(room.cols, room.rows, rng);
+  const minLength = Math.min(
+    room.cols * room.rows - Math.max(0, room.decoys),
+    room.cols + room.rows - 1 + room.gems
+  );
+  const path = findPath(room.cols, room.rows, rng, minLength);
   const pathSet = new Set(path.map((pos) => cellKey(pos.x, pos.y)));
   const start = path[0];
   const goal = path[path.length - 1];

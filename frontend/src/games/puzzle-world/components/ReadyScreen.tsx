@@ -51,8 +51,8 @@ export function ReadyScreen({ highScore, onStart, error, starting }: ReadyScreen
         <p className="pw-kicker">Puzzle</p>
         <h2 id="pw-ready-title">Puzzle World</h2>
         <p className="pw-copy">
-          Open rooms across a growing atlas. Tap tiles to rotate the path. When the door meets the exit — and every
-          crystal sits on the line — the room snaps shut.
+          Every play builds a new atlas of places. Tap tiles to rotate the path. When the door meets the exit — and
+          every relic sits on the line — the room snaps shut.
         </p>
         <p className="pw-best">Best: {highScore.toLocaleString('en-US')}</p>
         {ranks.length > 0 && (

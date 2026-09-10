@@ -109,7 +109,6 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
   const rulesRef = useRef(new ChessRules());
   const startedAt = useRef(Date.now());
   const sessionStarted = useRef(false);
-  const soloBooted = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const myId = toId(user?.id);
   const net = useMemo(
@@ -188,25 +187,19 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
             : 'disconnected';
 
   useEffect(() => {
-    if (online || soloBooted.current) return;
-    soloBooted.current = true;
+    if (online) return;
     let cancelled = false;
     setSessionError(null);
-    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds })
-      .then(() => {
-        if (cancelled) return;
-        setPlaying(true);
-        startedAt.current = Date.now();
-        chessAudio.unlock();
-        chessAudio.play('start');
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        soloBooted.current = false;
-        const message = err instanceof Error ? err.message : 'Could not start game session';
-        setSessionError(message);
-        toast.error(message);
-      });
+    setPlaying(true);
+    startedAt.current = Date.now();
+    chessAudio.unlock();
+    chessAudio.play('start');
+    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds }).catch((err: unknown) => {
+      if (cancelled) return;
+      const message = err instanceof Error ? err.message : 'Could not start game session';
+      setSessionError(message);
+      toast.error(message);
+    });
     return () => {
       cancelled = true;
     };
@@ -469,23 +462,20 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
     setResult(null);
     setBotThinking(false);
     setIntro(null);
-    setPlaying(false);
+    setPlaying(true);
+    startedAt.current = Date.now();
     setSessionError(null);
-    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds })
-      .then(() => {
-        setPlaying(true);
-        startedAt.current = Date.now();
-      })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Could not start game session';
-        setSessionError(message);
-        toast.error(message);
-      });
+    chessAudio.unlock();
+    chessAudio.play('start');
+    void startSolo({ mode: playMode, difficulty, timeControl: timeSeconds }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Could not start game session';
+      setSessionError(message);
+      toast.error(message);
+    });
   };
 
   const startBotGame = () => {
     chessAudio.unlock();
-    chessAudio.play('start');
     cancelMatchmaking();
     const roomId = useGameStore.getState().currentRoom?.id;
     if (roomId) useSocketStore.getState().gameEmit(SOCKET_EVENTS.GAME.LEAVE_ROOM, { roomId });
@@ -501,12 +491,12 @@ export function ChessMatchView({ mode, timeSeconds, difficulty, room, onAnalyze 
       : result.outcome === 'loss'
         ? 'Defeat'
         : 'Drawn'
-    : sessionError
-      ? 'Session failed'
-      : !playing
-      ? isMatchmaking
-        ? 'Finding opponent'
-        : 'Getting ready'
+    : !playing
+      ? sessionError
+        ? 'Session failed'
+        : isMatchmaking
+          ? 'Finding opponent'
+          : 'Getting ready'
       : inCheck
         ? isMate
           ? 'Checkmate'

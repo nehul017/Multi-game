@@ -12,7 +12,7 @@ import { PuzzleHUD } from './components/PuzzleHUD';
 import { ReadyScreen } from './components/ReadyScreen';
 import { ResultOverlay } from './components/ResultOverlay';
 import { PuzzleWorldEngine } from './logic';
-import { ATLAS_ROOMS } from './rooms';
+import { RELIC_PLURAL } from './rooms';
 import type { PuzzleWorldSnapshot } from './types';
 
 interface PuzzleWorldAppProps {
@@ -164,7 +164,7 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
           <div className="pw-heading">
             <p className="pw-kicker">GAMEHUB</p>
             <h1>Puzzle World</h1>
-            <p className="pw-sub">A growing atlas of clever rooms, riddles, and satisfying snaps.</p>
+            <p className="pw-sub">A new atlas of places and relics every run — tap tiles until the path snaps shut.</p>
           </div>
           <div className="pw-header-actions">
             <Link href="/games">
@@ -184,7 +184,7 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
           <PuzzleHUD
             score={snap.score}
             roomsSolved={snap.roomsSolved}
-            roomCount={ATLAS_ROOMS.length}
+            roomCount={snap.atlas.length}
             moves={snap.moves}
             elapsedMs={elapsedMs}
           />
@@ -192,8 +192,8 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
 
         {snap.status === 'atlas' && (
           <section className="pw-stage">
-            <AtlasMap rooms={snap.rooms} onSelect={(id) => engine.enterRoom(id)} />
-            <p className="pw-copy pw-stage-copy">Choose an open room. Cleared rooms stay lit on the atlas.</p>
+            <AtlasMap atlas={snap.atlas} rooms={snap.rooms} onSelect={(id) => engine.enterRoom(id)} />
+            <p className="pw-copy pw-stage-copy">Choose an open room. This atlas is unique to this run.</p>
           </section>
         )}
 
@@ -203,6 +203,13 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
               <p className="pw-kicker">Room {snap.currentRoom.id}</p>
               <h2>{snap.currentRoom.name}</h2>
               <p className="pw-copy">{snap.currentRoom.hint}</p>
+              {snap.currentRoom.gems > 0 && (
+                <p className="pw-copy">
+                  Collect {snap.currentRoom.gems}{' '}
+                  {snap.currentRoom.gems > 1 ? RELIC_PLURAL[snap.currentRoom.relic] : snap.currentRoom.relic} on the
+                  path.
+                </p>
+              )}
             </div>
             <PuzzleBoard
               tiles={snap.tiles}
@@ -211,6 +218,8 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
               lit={snap.lit}
               selected={snap.selected}
               disabled={snap.status !== 'room'}
+              mood={snap.currentRoom.mood}
+              relic={snap.currentRoom.relic}
               onRotate={(x, y) => engine.rotate(x, y)}
             />
             <div className="pw-room-actions">
@@ -262,7 +271,7 @@ function PuzzleWorldInner({ variant = 'hub' }: PuzzleWorldAppProps) {
         <ResultOverlay
           score={snap.score}
           roomsSolved={snap.roomsSolved}
-          roomCount={ATLAS_ROOMS.length}
+          roomCount={snap.atlas.length}
           highScore={snap.highScore}
           isNewHigh={snap.isNewHigh}
           onPlayAgain={() => void beginRun(true)}

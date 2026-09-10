@@ -9643,6 +9643,28 @@
   box-shadow: 0 18px 40px rgba(76, 29, 149, 0.12);
 }
 
+.pw-board.is-dawn { background: linear-gradient(180deg, #fff7ed, #fed7aa); }
+.pw-board.is-garden { background: linear-gradient(180deg, #ecfdf5, #bbf7d0); }
+.pw-board.is-harbor { background: linear-gradient(180deg, #eff6ff, #bfdbfe); }
+.pw-board.is-keep { background: linear-gradient(180deg, #f5f3ff, #ddd6fe); }
+.pw-board.is-market { background: linear-gradient(180deg, #fffbeb, #fde68a); }
+.pw-board.is-frost { background: linear-gradient(180deg, #f0f9ff, #bae6fd); }
+.pw-board.is-ember { background: linear-gradient(180deg, #fff1f2, #fecdd3); }
+.pw-board.is-sky { background: linear-gradient(180deg, #eef2ff, #c7d2fe); }
+
+.pw-node.is-dawn { background: rgba(255, 237, 213, 0.92); }
+.pw-node.is-garden { background: rgba(220, 252, 231, 0.92); }
+.pw-node.is-harbor { background: rgba(219, 234, 254, 0.92); }
+.pw-node.is-keep { background: rgba(237, 233, 254, 0.92); }
+.pw-node.is-market { background: rgba(254, 243, 199, 0.92); }
+.pw-node.is-frost { background: rgba(224, 242, 254, 0.92); }
+.pw-node.is-ember { background: rgba(255, 228, 230, 0.92); }
+.pw-node.is-sky { background: rgba(224, 231, 255, 0.92); }
+
+.pw-node.is-cleared {
+  background: linear-gradient(180deg, #ddd6fe, #c4b5fd);
+}
+
 .pw-tile {
   position: relative;
   aspect-ratio: 1;
@@ -9729,6 +9751,35 @@
   transform: rotate(45deg);
   background: linear-gradient(135deg, #f9a8d4, #c084fc);
   box-shadow: 0 0 12px rgba(192, 132, 252, 0.55);
+}
+
+.pw-gem.is-lantern {
+  border-radius: 50% 50% 6px 6px;
+  transform: none;
+  top: 16%;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+}
+
+.pw-gem.is-coin {
+  border-radius: 999px;
+  transform: none;
+  background: linear-gradient(135deg, #fde68a, #d97706);
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.45);
+}
+
+.pw-gem.is-leaf {
+  border-radius: 0 70% 40% 70%;
+  transform: rotate(-20deg);
+  background: linear-gradient(135deg, #86efac, #16a34a);
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.4);
+}
+
+.pw-gem.is-bell {
+  border-radius: 50% 50% 8px 8px;
+  transform: none;
+  background: linear-gradient(180deg, #e0e7ff, #818cf8);
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.45);
 }
 
 .pw-tile.is-selected {

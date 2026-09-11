@@ -113,15 +113,15 @@ export function GameOverModal({
           )}
         </motion.div>
 
-        <h2 className="text-2xl font-bold text-theme-primary font-display mb-2 relative z-[1]">
-          {isDraw ? 'Draw!' : isWin ? 'Victory!' : 'Defeat'}
+        <h2 className="text-3xl font-bold text-theme-primary font-display mb-2 relative z-[1]">
+          {isDraw ? 'It\'s a draw' : isWin ? 'You won!' : 'You lost'}
         </h2>
         <p className="text-theme-muted mb-6 relative z-[1]">
           {isDraw
-            ? 'The game ended in a draw'
+            ? 'The match ended even'
             : isWin
-              ? 'Congratulations on your win!'
-              : 'Better luck next time!'}
+              ? 'This one is yours — play again or head back to the lobby.'
+              : 'Your opponent took the match. Rematch?'}
         </p>
 
         <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8 p-3 sm:p-4 rounded-2xl bg-theme-secondary border border-theme relative z-[1]">

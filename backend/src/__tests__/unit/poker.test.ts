@@ -22,11 +22,34 @@ import type { TableConfig, TableState } from '../../games/poker/core/game-state'
 import { evaluateFiveLow, evaluateOmahaLow } from '../../games/poker/variants/omaha-hi-lo/low-hand';
 import { getVariantRules } from '../../games/poker/variants/shared';
 import { AppError } from '../../utils/AppError';
+import { BOT_FILL_MS } from '../../utils/constants';
+import { pokerService } from '../../services/poker.service';
+import { economyService } from '../../services/economy.service';
+import { pokerPlayerSessionRepository } from '../../repositories/poker.repository';
 
 jest.mock('../../services/economy.service', () => ({
   economyService: {
-    debitCoinsAtomic: jest.fn(),
-    creditCoinsAtomic: jest.fn(),
+    debitCoinsAtomic: jest.fn().mockResolvedValue({ coins: 1600 }),
+    creditCoinsAtomic: jest.fn().mockResolvedValue({ coins: 2000 }),
+  },
+}));
+
+jest.mock('../../services/redis-lock.service', () => ({
+  redisLockService: {
+    acquireLock: jest.fn().mockResolvedValue(true),
+    releaseLock: jest.fn().mockResolvedValue(undefined),
+    setJson: jest.fn().mockResolvedValue(undefined),
+    getJson: jest.fn().mockResolvedValue(null),
+    deleteKey: jest.fn().mockResolvedValue(undefined),
+  },
+  POKER_REDIS_KEYS: {
+    table: (id: string) => `poker:table:${id}`,
+    players: (id: string) => `poker:table:${id}:players`,
+    state: (id: string) => `poker:table:${id}:state`,
+    timer: (id: string) => `poker:table:${id}:timer`,
+    lock: (id: string) => `poker:table:${id}:lock`,
+    hand: (id: string) => `poker:hand:${id}`,
+    lobby: () => 'poker:lobby',
   },
 }));
 
@@ -410,5 +433,49 @@ describe('Security and sanitization', () => {
     applyTimeout(state);
     const timed = state.players.find((player) => player.userId !== actor);
     expect(timed?.lastAction === 'check' || timed?.status === 'folded' || state.street !== 'preflop').toBe(true);
+  });
+});
+
+describe('Delayed bot fill', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.mocked(economyService.debitCoinsAtomic).mockResolvedValue({ coins: 1600 } as never);
+    jest.mocked(pokerPlayerSessionRepository.findActiveByUser).mockResolvedValue(null as never);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('does not seat bots immediately, then fills and starts after one minute', async () => {
+    const created = await pokerService.createTable('human-1', { gameType: 'omaha', name: 'Omaha wait' });
+    const seated = await pokerService.sit('human-1', 'Alice', '', created.tableId, 400);
+
+    expect(seated.players.filter((player) => player.isBot)).toHaveLength(0);
+    expect(seated.street).toBe('waiting');
+    expect(seated.botFillAt).toBeGreaterThan(Date.now());
+
+    await jest.advanceTimersByTimeAsync(BOT_FILL_MS);
+
+    const after = await pokerService.getTable(created.tableId, 'human-1');
+    expect(after.players.some((player) => player.isBot)).toBe(true);
+    expect(after.players.length).toBeGreaterThanOrEqual(2);
+    expect(after.street).not.toBe('waiting');
+    expect(after.botFillAt).toBeNull();
+  });
+
+  it('starts with a second human and never seats bots', async () => {
+    const created = await pokerService.createTable('human-1', { gameType: 'omaha', name: 'Omaha pair' });
+    await pokerService.sit('human-1', 'Alice', '', created.tableId, 400);
+    const seated = await pokerService.sit('human-2', 'Bob', '', created.tableId, 400);
+
+    expect(seated.players.every((player) => !player.isBot)).toBe(true);
+    expect(seated.street).not.toBe('waiting');
+    expect(seated.botFillAt).toBeNull();
+
+    await jest.advanceTimersByTimeAsync(BOT_FILL_MS);
+
+    const after = await pokerService.getTable(created.tableId, 'human-1');
+    expect(after.players.every((player) => !player.isBot)).toBe(true);
   });
 });

@@ -95,13 +95,10 @@ export function piecePath(edges: JigsawPiece['edges']): string {
   return `M 0 0 ${top} ${right} ${bottom} ${left} Z`;
 }
 
-export function scatterPiece(index: number, total: number, rng: () => number): { x: number; y: number } {
-  const cols = Math.min(8, Math.max(4, Math.ceil(Math.sqrt(total))));
-  const col = index % cols;
-  const row = Math.floor(index / cols);
+export function scatterPiece(_index: number, _total: number, rng: () => number): { x: number; y: number } {
   return {
-    x: (col + rng() * 0.55) / cols - 0.02,
-    y: 1.12 + row * 0.2 + rng() * 0.05,
+    x: rng(),
+    y: 1.2 + rng() * 0.08,
   };
 }
 

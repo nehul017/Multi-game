@@ -23,6 +23,7 @@ import { MindiApp } from '@/games/mindi';
 import { PuzzleWorldApp } from '@/games/puzzle-world';
 import { JigsawWorldApp } from '@/games/jigsaw-world';
 import { BottleShooterApp } from '@/games/bottle-shooter-3d';
+import { CarromApp } from '@/games/carrom';
 import { LudoBoard } from '@/components/game/LudoBoard';
 import { QuizBattleBoard } from '@/components/game/QuizBattleBoard';
 import { GameOverModal } from '@/components/game/GameOverModal';
@@ -116,6 +117,9 @@ export default function PlayRoute() {
   if ((params.slug as string) === 'bottle-shooter-3d') {
     return <BottleShooterApp variant="play" />;
   }
+  if ((params.slug as string) === 'carrom') {
+    return <CarromApp variant="play" />;
+  }
   return <GenericPlayPage />;
 }
 
@@ -176,6 +180,7 @@ function GenericPlayPage() {
     gameStatus !== 'countdown' &&
     !hasBotOpponent &&
     players.filter((p) => !toId(p.userId).startsWith('bot:')).length < 2;
+  const showFinishedBoard = gameStatus === 'finished' && !isMatchmaking && !waitingForOpponent;
 
   const requestBotFill = useCallback(() => {
     const stored =
@@ -470,7 +475,7 @@ function GenericPlayPage() {
       case 'tic-tac-toe':
         return (
           <TicTacToeBoard
-            board={board}
+            board={showFinishedBoard || gameStatus === 'playing' ? board : undefined}
             onMove={handleTttMove}
             disabled={disabled}
             isMyTurn={gameStatus === 'playing' ? isMyTurn : undefined}
@@ -480,7 +485,7 @@ function GenericPlayPage() {
       case 'connect-four':
         return (
           <ConnectFourBoard
-            board={board}
+            board={showFinishedBoard || gameStatus === 'playing' ? board : undefined}
             onMove={handleConnectFourMove}
             disabled={disabled}
             isMyTurn={gameStatus === 'playing' ? isMyTurn : undefined}
@@ -1070,7 +1075,7 @@ function GenericPlayPage() {
         </div>
 
         <GameOverModal
-          isOpen={gameStatus === 'finished'}
+          isOpen={showFinishedBoard}
           winner={gameState?.winner || null}
           currentUser={user?.id || ''}
           username={user?.username}

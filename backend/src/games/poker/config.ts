@@ -101,5 +101,5 @@ export const defaultTableConfig = (
   buyInMax: 2000,
   actionTimeoutMs: DEFAULT_ACTION_TIMEOUT_MS,
   fillBots: false,
-  ...overrides,
+  ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value !== undefined)),
 });

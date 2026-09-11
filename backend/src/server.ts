@@ -4,11 +4,10 @@ import { env } from './config/env';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { setupSocketIO } from './socket';
-import { ensureMindiCatalog } from './jobs/ensure-mindi';
+import { ensureCarromCatalog, ensureMindiCatalog } from './jobs/ensure-mindi';
 import { ensureJigsawWorldCatalog } from './jobs/ensure-jigsaw-world';
 import { ensureCoilRushCatalog } from './jobs/ensure-coil-rush';
 import { ensureBottleShooterCatalog } from './jobs/ensure-bottle-shooter-3d';
-import { Game } from './models/game.model';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -35,9 +34,9 @@ const startServer = async (): Promise<void> => {
       console.warn('Bottle Shooter 3D catalog ensure failed:', error);
     }
     try {
-      await Game.updateMany({ slug: 'carrom' }, { $set: { isActive: false } });
-    } catch {
-      /* leftover catalog row from a removed game */
+      await ensureCarromCatalog();
+    } catch (error) {
+      console.warn('Carrom catalog ensure failed:', error);
     }
     const redisConnected = await connectRedis();
     if (redisConnected) {

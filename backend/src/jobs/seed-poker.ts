@@ -17,7 +17,7 @@ const pokerGame = {
     smallBlind: 5,
     bigBlind: 10,
   },
-  thumbnail: '/images/games/poker.svg',
+  thumbnail: '/images/games/poker.jpg',
   isActive: true,
 };
 

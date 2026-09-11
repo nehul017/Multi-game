@@ -138,6 +138,15 @@ export const GAME_LIMITS: Record<string, GameLimitMeta> = {
     fillBot: true,
     fillEmptySeats: true,
   },
+  carrom: {
+    gameId: 'carrom',
+    gameType: 'carrom',
+    name: 'Carrom Classic',
+    kind: 'match',
+    minPlayers: 2,
+    maxPlayers: 2,
+    fillBot: true,
+  },
 };
 
 export const GAME_PLAYER_LIMITS: Record<string, { min: number; max: number }> = Object.fromEntries(

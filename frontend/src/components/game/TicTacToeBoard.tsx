@@ -140,7 +140,12 @@ function XMark({ ghost, isWinner, reduce }: { ghost?: boolean; isWinner?: boolea
   return (
     <motion.svg
       viewBox="0 0 100 100"
-      className="w-[62%] h-[62%] drop-shadow-[0_0_14px_rgba(124,58,237,0.35)]"
+      className={cn(
+        'w-[62%] h-[62%]',
+        isWinner
+          ? 'drop-shadow-[0_0_18px_rgba(124,58,237,0.65)]'
+          : 'drop-shadow-[0_0_14px_rgba(124,58,237,0.35)]',
+      )}
       initial={ghost ? false : { scale: 0.6, rotate: -35, opacity: 0 }}
       animate={
         ghost
@@ -166,11 +171,11 @@ function XMark({ ghost, isWinner, reduce }: { ghost?: boolean; isWinner?: boolea
         </g>
       )}
 
-      {/* Main strokes with draw animation */}
+      {/* Main strokes with draw animation — keep purple on win so gold tiles never hide the mark */}
       <motion.line
         x1="24" y1="24" x2="76" y2="76"
-        stroke={isWinner ? 'url(#ttt-gold-grad)' : 'url(#ttt-x-grad)'}
-        strokeWidth="12"
+        stroke="url(#ttt-x-grad)"
+        strokeWidth={isWinner ? 14 : 12}
         strokeLinecap="round"
         initial={ghost ? false : { pathLength: 0, opacity: 0 }}
         animate={commonAnim}
@@ -178,8 +183,8 @@ function XMark({ ghost, isWinner, reduce }: { ghost?: boolean; isWinner?: boolea
       />
       <motion.line
         x1="76" y1="24" x2="24" y2="76"
-        stroke={isWinner ? 'url(#ttt-gold-grad)' : 'url(#ttt-x-grad)'}
-        strokeWidth="12"
+        stroke="url(#ttt-x-grad)"
+        strokeWidth={isWinner ? 14 : 12}
         strokeLinecap="round"
         initial={ghost ? false : { pathLength: 0, opacity: 0 }}
         animate={commonAnim}
@@ -203,7 +208,12 @@ function OMark({ ghost, isWinner, reduce }: { ghost?: boolean; isWinner?: boolea
   return (
     <motion.svg
       viewBox="0 0 100 100"
-      className="w-[62%] h-[62%] drop-shadow-[0_0_14px_rgba(6,182,212,0.35)]"
+      className={cn(
+        'w-[62%] h-[62%]',
+        isWinner
+          ? 'drop-shadow-[0_0_18px_rgba(6,182,212,0.65)]'
+          : 'drop-shadow-[0_0_14px_rgba(6,182,212,0.35)]',
+      )}
       initial={ghost ? false : { scale: 0, rotate: -60, opacity: 0 }}
       animate={
         ghost
@@ -237,14 +247,14 @@ function OMark({ ghost, isWinner, reduce }: { ghost?: boolean; isWinner?: boolea
         />
       )}
 
-      {/* Main ring */}
+      {/* Main ring — keep cyan on win so gold tiles never hide the mark */}
       <motion.circle
         cx="50"
         cy="50"
         r="26"
         fill="none"
-        stroke={isWinner ? 'url(#ttt-gold-grad)' : 'url(#ttt-o-grad)'}
-        strokeWidth="12"
+        stroke="url(#ttt-o-grad)"
+        strokeWidth={isWinner ? 14 : 12}
         strokeLinecap="round"
         initial={ghost ? false : { pathLength: 0, opacity: 0 }}
         animate={ghost ? { pathLength: 1, opacity: 0.22 } : { pathLength: 1, opacity: 1 }}
@@ -307,15 +317,33 @@ function WinLineSVG({ line }: { line: number[] }) {
       preserveAspectRatio="none"
       aria-hidden
     >
+      <defs>
+        <linearGradient id="ttt-winline-inline" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#f59e0b" />
+          <stop offset="50%" stopColor="#fde047" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+      </defs>
       <motion.line
         x1={x1}
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke="url(#ttt-winline-grad)"
-        strokeWidth="0.14"
+        stroke="rgba(120, 53, 15, 0.45)"
+        strokeWidth="0.28"
         strokeLinecap="round"
-        filter="url(#ttt-winline-glow)"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] as const, delay: 0.1 }}
+      />
+      <motion.line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="url(#ttt-winline-inline)"
+        strokeWidth="0.18"
+        strokeLinecap="round"
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] as const, delay: 0.15 }}
@@ -440,10 +468,12 @@ function TurnBanner({
   state,
   myMark,
   currentMark,
+  winnerMark,
 }: {
-  state: 'my' | 'opponent' | 'waiting' | 'win' | 'draw' | 'local';
+  state: 'my' | 'opponent' | 'waiting' | 'win' | 'loss' | 'draw' | 'local';
   myMark?: 'X' | 'O';
   currentMark?: 'X' | 'O';
+  winnerMark?: 'X' | 'O' | null;
 }) {
   const dot = (color: string) => (
     <span className="relative flex h-2.5 w-2.5">
@@ -497,11 +527,17 @@ function TurnBanner({
         return (
           <>
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Victory</span>
+            <span>You won{winnerMark ? ` with ${winnerMark}` : ''}!</span>
+          </>
+        );
+      case 'loss':
+        return (
+          <>
+            <span>Opponent wins{winnerMark ? ` with ${winnerMark}` : ''}</span>
           </>
         );
       case 'draw':
-        return <span>Draw</span>;
+        return <span>Draw — board is full</span>;
       case 'local':
         return (
           <>
@@ -533,6 +569,7 @@ function TurnBanner({
         'ttt-banner',
         state === 'my' && 'ttt-banner-active',
         state === 'win' && 'ttt-banner-win',
+        state === 'loss' && 'ttt-banner-loss',
       )}
     >
       {content}
@@ -571,11 +608,9 @@ export function TicTacToeBoard({
   const sounds = useTttSounds();
 
   useEffect(() => {
-    if (isServerMode && externalBoard) {
-      const flat = flattenBoard(externalBoard);
-      const result = checkWinner(flat);
-      setWinningLine(result?.line ?? null);
-    }
+    if (!isServerMode) return;
+    const flat = flattenBoard(externalBoard);
+    setWinningLine(checkWinner(flat)?.line ?? null);
   }, [externalBoard, isServerMode]);
 
   useEffect(() => {
@@ -651,8 +686,10 @@ export function TicTacToeBoard({
 
   const canPlay = !disabled && !winningLine && (!isServerMode || !!isMyTurn);
 
-  const bannerState: 'my' | 'opponent' | 'waiting' | 'win' | 'draw' | 'local' = winningLine
-    ? 'win'
+  const bannerState: 'my' | 'opponent' | 'waiting' | 'win' | 'loss' | 'draw' | 'local' = winningLine
+    ? myMark && winnerMark && winnerMark !== myMark
+      ? 'loss'
+      : 'win'
     : isDraw
       ? 'draw'
       : isServerMode
@@ -674,6 +711,7 @@ export function TicTacToeBoard({
             state={bannerState}
             myMark={myMark}
             currentMark={currentMark}
+            winnerMark={winnerMark}
           />
         </AnimatePresence>
       </div>
@@ -715,7 +753,7 @@ export function TicTacToeBoard({
                 initial={false}
                 animate={
                   isDimmed
-                    ? { opacity: 0.35 }
+                    ? { opacity: 0.22 }
                     : { opacity: 1 }
                 }
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] as const }}

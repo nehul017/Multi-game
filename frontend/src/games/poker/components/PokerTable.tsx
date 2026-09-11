@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { PokerGameState } from '../types';
 import { ActionPanel } from './ActionPanel';
 import { ActionTimer } from './ActionTimer';
@@ -10,6 +10,11 @@ import { HandStrength } from './WinnerDisplay';
 import { PokerSeat } from './PokerSeat';
 import { PotDisplay } from './PotDisplay';
 import { ShowdownOverlay } from './ShowdownOverlay';
+
+function botEtaSeconds(botFillAt?: number | null): number {
+  if (!botFillAt) return 0;
+  return Math.max(0, Math.ceil((botFillAt - Date.now()) / 1000));
+}
 
 function polar(index: number, total: number, heroSeat: number, radiusX: number, radiusY: number): CSSProperties {
   const relative = ((index - heroSeat) % total + total) % total;
@@ -41,6 +46,18 @@ export function PokerTable({
 }) {
   const hero = table.players.find((player) => player.userId === myId);
   const heroSeat = hero?.seatIndex ?? 0;
+  const [botEta, setBotEta] = useState(() => botEtaSeconds(table.botFillAt));
+  const waitingForPlayers = table.street === 'waiting' || table.street === 'complete';
+  const showBotWait = waitingForPlayers && botEta > 0 && table.players.filter((player) => !player.isBot).length < 2;
+
+  useEffect(() => {
+    const tick = () => setBotEta(botEtaSeconds(table.botFillAt));
+    tick();
+    if (!table.botFillAt) return;
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [table.botFillAt]);
+
   const winners = new Set([
     ...(table.showdown?.highWinners || []),
     ...(table.showdown?.lowWinners || []),
@@ -52,7 +69,9 @@ export function PokerTable({
       ? 'You folded · watching the hand'
       : hero?.status === 'all-in'
         ? 'All-in · waiting for the board'
-        : `Waiting · ${street}`;
+        : showBotWait
+          ? `If nobody else sits, bots join in ${botEta}s`
+          : `Waiting · ${street}`;
 
   return (
     <div className="pk-table-wrap">
@@ -65,7 +84,7 @@ export function PokerTable({
             <div className="pk-felt-brand" aria-hidden>
               <span>♠ ♦ ♥ ♣</span>
               <strong>{table.name}</strong>
-              <em>{street}</em>
+              <em>{showBotWait ? `Bots in ${botEta}s` : street}</em>
             </div>
             <PotDisplay pot={table.pot} pots={table.sidePots} />
             <CommunityCards cards={table.communityCards} />

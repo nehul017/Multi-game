@@ -1,7 +1,7 @@
 import { puzzleById } from './catalog';
 import { buildEdges, hashSeed, mulberry32, puzzleScore, scatterPiece } from './pieces';
 import { jigsawStorage } from './storage';
-import { DIFFICULTIES, SNAP_CELLS, type JigsawDifficulty, type JigsawPiece, type JigsawSnapshot, type JigsawStatus } from './types';
+import { DIFFICULTIES, SNAP_CELLS, TRAY_Y, type JigsawDifficulty, type JigsawPiece, type JigsawSnapshot, type JigsawStatus } from './types';
 
 type Listener = () => void;
 
@@ -102,8 +102,8 @@ export class JigsawWorldEngine {
     if (this.status !== 'playing') return;
     const piece = this.pieces.find((item) => item.id === id);
     if (!piece || piece.placed) return;
-    piece.x = Math.min(1.55, Math.max(-0.55, x));
-    piece.y = Math.min(1.7, Math.max(-0.4, y));
+    piece.x = Math.min(1.15, Math.max(-0.2, x));
+    piece.y = Math.min(1.35, Math.max(-0.2, y));
     this.emit();
   }
 
@@ -142,6 +142,14 @@ export class JigsawWorldEngine {
       }
       this.emit();
       return 'snap';
+    }
+
+    const onBoard = piece.x >= -0.08 && piece.x <= 1 && piece.y >= -0.08 && piece.y < 1;
+    if (onBoard) {
+      piece.x = Math.min(1 - 1 / this.difficulty.cols, Math.max(0, piece.x));
+      piece.y = Math.min(1 - 1 / this.difficulty.rows, Math.max(0, piece.y));
+    } else {
+      piece.y = TRAY_Y;
     }
 
     this.emit();

@@ -21,6 +21,7 @@ import { canonicalCoilGameType, isCoilRushGame } from '../../games/snake-types';
 import { gameBotId, isBotPlayerId, pickLudoBotMove } from '../../games/ludo-bot';
 import { pickConnectFourBotMove } from '../../games/connect-four-bot';
 import { pickTicTacToeBotMove } from '../../games/tic-tac-toe-bot';
+import { carromBotDelayMs, pickCarromBotMove } from '../../games/carrom';
 import {
   appendMindiReplay,
   clearBotControlled,
@@ -615,7 +616,12 @@ const scheduleBotTurn = (gameNs: ReturnType<Server['of']>, room: GameRoom, delay
   const current = room.engine.getGameState().currentPlayer;
   if (!current || !shouldPlayAsBot(room, current)) return;
   if (room.botPlayTimer) clearTimeout(room.botPlayTimer);
-  const wait = isMindiRoom(room) ? mindiBotDelay(room) : delay;
+  const wait =
+    room.gameType === 'carrom'
+      ? carromBotDelayMs(room.engine)
+      : isMindiRoom(room)
+        ? mindiBotDelay(room)
+        : delay;
   if (isMindiRoom(room) && isMindiEngine(room.engine)) {
     room.engine.setBotThinking(current);
     emitAuthorized(gameNs, room, SOCKET_EVENTS.GAME.MOVE_MADE, {
@@ -643,6 +649,8 @@ const pickBotMove = (room: GameRoom, botId: string): Record<string, unknown> | n
       return pickTicTacToeBotMove(room.engine, botId);
     case 'mindi':
       return pickMindiBotMove(room, botId);
+    case 'carrom':
+      return pickCarromBotMove(room.engine, botId);
     default:
       return null;
   }

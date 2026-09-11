@@ -82,6 +82,7 @@ export const createTableState = (config: TableConfig): TableState => ({
   lastAggressorId: null,
   showdown: null,
   handStartedAt: null,
+  botFillAt: null,
   createdAt: Date.now(),
   status: 'open',
 });
@@ -696,6 +697,7 @@ export const sanitizeTableState = (state: TableState, viewerId?: string): Public
     blinds: { small: state.config.smallBlind, big: state.config.bigBlind },
     buyIn: { min: state.config.buyInMin, max: state.config.buyInMax },
     fillBots: state.config.fillBots,
+    botFillAt: state.botFillAt ?? null,
     status: state.status,
   };
 };

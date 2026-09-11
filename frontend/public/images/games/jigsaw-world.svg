@@ -1,46 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Jigsaw World">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Jigsaw World">
   <defs>
-    <linearGradient id="jwSky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4aa3ff"/>
-      <stop offset="100%" stop-color="#1d6fe0"/>
-    </linearGradient>
-    <linearGradient id="jwRed" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ff6b6b"/>
-      <stop offset="100%" stop-color="#d62828"/>
-    </linearGradient>
-    <linearGradient id="jwGold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffd166"/>
-      <stop offset="100%" stop-color="#f4a261"/>
+    <linearGradient id="jwCover" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#081426"/>
+      <stop offset="55%" stop-color="#0B1D36"/>
+      <stop offset="100%" stop-color="#050914"/>
     </linearGradient>
   </defs>
-  <rect width="640" height="400" fill="url(#jwSky)"/>
-  <circle cx="92" cy="78" r="46" fill="#fff" opacity=".16"/>
-  <g transform="translate(40 28)">
-    <circle cx="36" cy="36" r="34" fill="#fff8e7"/>
-    <path d="M20 20h14v14H20zM36 20h14l6 7-6 7H36zM20 36h14l7 6-7 8H20zM36 36h14v14H36z" fill="#3b82f6"/>
-    <path d="M36 20v30M20 36h30" stroke="#1d4ed8" stroke-width="2"/>
-  </g>
-  <text x="122" y="62" font-family="Arial Black, Arial, sans-serif" font-size="42" font-weight="900" fill="url(#jwRed)">Jigsaw</text>
-  <text x="292" y="62" font-family="Arial Black, Arial, sans-serif" font-size="42" font-weight="900" fill="url(#jwGold)">World</text>
-  <text x="122" y="92" font-family="Trebuchet MS, sans-serif" font-size="16" fill="#e8f4ff">Play thousands of beautiful jigsaw puzzles online!</text>
-  <g>
-    <rect x="48" y="128" width="100" height="74" rx="8" fill="#7c5a3a"/>
-    <circle cx="86" cy="158" r="16" fill="#f4d06f"/>
-    <rect x="164" y="122" width="110" height="80" rx="8" fill="#2d6a4f"/>
-    <rect x="184" y="148" width="28" height="40" fill="#fff"/>
-    <polygon points="219,148 292,168 219,188" fill="#74c69d"/>
-    <rect x="290" y="118" width="118" height="86" rx="8" fill="#3d2b56"/>
-    <rect x="318" y="148" width="36" height="36" rx="6" fill="#ffb703"/>
-    <rect x="424" y="126" width="104" height="78" rx="8" fill="#023e8a"/>
-    <polygon points="476,136 512,186 440,186" fill="#caf0f8"/>
-    <rect x="544" y="130" width="56" height="70" rx="8" fill="#f4a261"/>
-    <circle cx="572" cy="158" r="14" fill="#6d4c41"/>
-  </g>
-  <g fill="#fff" opacity=".92">
-    <path d="M86 230l18 8 8 18-8 18-18 8-18-8-8-18 8-18z"/>
-    <path d="M560 248l16 7 7 16-7 16-16 7-16-7-7-16 7-16z"/>
-    <path d="M300 318l20 6 8 16-6 14-18 8-16-6-8-16 6-14z"/>
-  </g>
-  <rect x="214" y="334" width="212" height="42" rx="21" fill="#2ecc71"/>
-  <text x="320" y="361" text-anchor="middle" font-family="Trebuchet MS, sans-serif" font-size="18" font-weight="700" fill="#fff">Play now online!</text>
+  <rect width="640" height="360" fill="url(#jwCover)"/>
+  <image href="/images/games/jigsaw-world.jpg" x="0" y="0" width="640" height="360" preserveAspectRatio="xMidYMid slice"/>
 </svg>

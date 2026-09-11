@@ -29,11 +29,15 @@ const GAME_META: Record<string, Metadata> = {
   },
   'jigsaw-world': {
     title: 'Jigsaw World | Games',
-    description: 'Play beautiful jigsaw puzzles online. Pick a picture, choose a cut, and snap every piece home.',
+    description: 'Relax. Challenge yourself. Complete cinematic worlds, one piece at a time.',
   },
   'bottle-shooter-3d': {
     title: 'Bottle Shooter 3D | Games',
     description: 'Take aim, break glass, and master every shot.',
+  },
+  carrom: {
+    title: 'Carrom Classic | Games',
+    description: 'Aim, strike, cover the queen, and play first to 5 points.',
   },
 };
 

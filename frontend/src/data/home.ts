@@ -277,17 +277,36 @@ export const HOME_GAMES: HomeGame[] = [
     playable: true,
   }),
   catalogGame({
+    id: 'carrom',
+    slug: 'carrom',
+    name: 'Carrom Classic',
+    description: 'Premium 2-player carrom. Aim, strike, cover the queen, and play to 5 points.',
+    genres: ['Arcade', 'Multiplayer', 'Board'],
+    category: 'arcade',
+    rating: 4.8,
+    onlinePlayers: 0,
+    plays: 0,
+    image: GAME_ARTWORK.carrom,
+    artTone: 'ember',
+    isNew: true,
+    isTrending: true,
+    isMultiplayer: true,
+    minPlayers: 2,
+    maxPlayers: 2,
+    playable: true,
+  }),
+  catalogGame({
     id: 'jigsaw-world',
     slug: 'jigsaw-world',
     name: 'Jigsaw World',
-    description: 'Play beautiful jigsaw puzzles online. Pick a picture, choose a cut, and snap every piece home.',
-    genres: ['Puzzle'],
+    description: 'Relax. Challenge yourself. Complete cinematic worlds, one piece at a time.',
+    genres: ['Puzzle', 'Casual'],
     category: 'puzzle',
     rating: 4.7,
     onlinePlayers: 0,
     plays: 6120,
     image: GAME_ARTWORK['jigsaw-world'],
-    artTone: 'frost',
+    artTone: 'shadow',
     isNew: true,
     isTrending: true,
     isMultiplayer: false,
@@ -860,6 +879,12 @@ export function gameMatchesCategory(game: HomeGame, category: string): boolean {
 
 export function filterGamesByCategory(games: HomeGame[], category: string): HomeGame[] {
   return games.filter((game) => gameMatchesCategory(game, category));
+}
+
+export function pinHomeGame(games: HomeGame[], slug: string, limit: number): HomeGame[] {
+  const pinned = games.filter((game) => game.slug === slug);
+  const rest = games.filter((game) => game.slug !== slug);
+  return [...pinned, ...rest].slice(0, limit);
 }
 
 export function filterHomeGames(games: HomeGame[], filter: HomeSearchFilter): HomeGame[] {

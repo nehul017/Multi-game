@@ -111,6 +111,7 @@ export interface PokerGameState {
   blinds: { small: number; big: number };
   buyIn: { min: number; max: number };
   fillBots: boolean;
+  botFillAt?: number | null;
   status: 'open' | 'playing' | 'closed';
 }
 
@@ -131,6 +132,7 @@ export interface LobbyTable {
   maxSeats: number;
   status: string;
   fillBots: boolean;
+  botFillAt?: number | null;
   pot?: number;
   street?: string;
   handNumber?: number;

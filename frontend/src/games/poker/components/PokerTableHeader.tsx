@@ -33,6 +33,9 @@ export function PokerTableHeader({
           <li>
             {table.players.length}/{table.maxSeats} seated
           </li>
+          {table.botFillAt && (table.street === 'waiting' || table.street === 'complete') ? (
+            <li>Bots join if nobody sits</li>
+          ) : null}
         </ul>
       </div>
       <div className="pk-table-header-actions">

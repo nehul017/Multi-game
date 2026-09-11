@@ -1,3 +1,5 @@
+import { Carrom } from '../carrom';
+import type { CarromSettings } from '../carrom';
 import { Chess } from '../chess';
 import { ConnectFour } from '../connect-four';
 import { Ludo } from '../ludo';
@@ -50,6 +52,11 @@ export const registerBuiltInGames = (): void => {
   gameRegistry.register({
     ...GAME_LIMITS.mindi,
     createEngine: (players, settings) => new Mindi(players, (settings || {}) as MindiSettings),
+  });
+
+  gameRegistry.register({
+    ...GAME_LIMITS.carrom,
+    createEngine: (players, settings) => new Carrom(players, (settings || {}) as CarromSettings),
   });
 
   gameRegistry.register(GAME_LIMITS['classic-fruit-slots']);

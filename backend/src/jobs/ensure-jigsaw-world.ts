@@ -3,13 +3,13 @@ import { Game } from '../models/game.model';
 const JIGSAW_CATALOG = {
   name: 'Jigsaw World',
   slug: 'jigsaw-world',
-  description: 'Play beautiful jigsaw puzzles online. Pick a picture, choose a cut, and snap every piece home.',
+  description: 'Relax. Challenge yourself. Complete cinematic worlds, one piece at a time.',
   minPlayers: 1,
   maxPlayers: 1,
   category: 'puzzle',
   isActive: true,
   settings: { puzzles: 8, difficulties: ['easy', 'medium', 'hard', 'expert'] },
-  thumbnail: '/images/games/jigsaw-world.svg',
+  thumbnail: '/images/games/jigsaw-world.jpg',
 };
 
 export const ensureJigsawWorldCatalog = async (): Promise<void> => {
@@ -18,6 +18,8 @@ export const ensureJigsawWorldCatalog = async (): Promise<void> => {
     existing.isActive = true;
     existing.minPlayers = 1;
     existing.maxPlayers = 1;
+    existing.description = JIGSAW_CATALOG.description;
+    existing.thumbnail = JIGSAW_CATALOG.thumbnail;
     await existing.save();
     return;
   }

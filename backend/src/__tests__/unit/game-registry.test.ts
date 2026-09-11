@@ -16,6 +16,7 @@ describe('GameRegistry', () => {
     expect(gameRegistry.has('snake-multiplayer')).toBe(true);
     expect(gameRegistry.has('coil-rush')).toBe(true);
     expect(gameRegistry.has('mindi')).toBe(true);
+    expect(gameRegistry.has('carrom')).toBe(true);
   });
 
   it('registers poker, slots, and local games without engines', () => {

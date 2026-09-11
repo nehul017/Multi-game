@@ -20,7 +20,7 @@ import { HomeHeroSkeleton } from '@/components/home/HomeSkeletons';
 import { HomeAtmosphere } from '@/components/home/atmosphere/HomeAtmosphere';
 import { PageTransition } from '@/components/motion/PageTransition';
 import { useHomeData } from '@/hooks/useHomeData';
-import { categoryGameCounts, filterHomeGames } from '@/data/home';
+import { categoryGameCounts, filterHomeGames, pinHomeGame } from '@/data/home';
 import { recommendGames } from '@/lib/recommendations';
 
 export function HomePage() {
@@ -28,7 +28,7 @@ export function HomePage() {
   const showHeroSkeleton = isLoading && data.games.length === 0;
 
   const trending = useMemo(
-    () => data.games.filter((game) => game.isTrending).slice(0, 5),
+    () => pinHomeGame(data.games.filter((game) => game.isTrending), 'jigsaw-world', 5),
     [data.games]
   );
 
@@ -38,7 +38,7 @@ export function HomePage() {
   );
 
   const releases = useMemo(
-    () => data.games.filter((game) => game.isNew).slice(0, 4),
+    () => pinHomeGame(data.games.filter((game) => game.isNew), 'jigsaw-world', 4),
     [data.games]
   );
 

@@ -46,7 +46,9 @@ function toneFromSlug(slug: string, index: number): GameArtTone {
     poker: 'forest',
     mindi: 'violet',
     'puzzle-world': 'violet',
-    'jigsaw-world': 'frost',
+    'jigsaw-world': 'shadow',
+    carrom: 'ember',
+    'bottle-shooter-3d': 'ember',
   };
   return mapped[slug] ?? ART_TONES[index % ART_TONES.length];
 }
@@ -75,7 +77,7 @@ function mapApiCategory(category: string, fallback: HomeGame['category']): HomeG
   return fallback || 'arcade';
 }
 
-const FEATURED_SLUGS = new Set(['chess', 'snake-multiplayer', 'coil-rush', 'ludo']);
+const FEATURED_SLUGS = new Set(['chess', 'snake-multiplayer', 'coil-rush', 'ludo', 'carrom', 'jigsaw-world']);
 
 function apiGameId(game: Game): string {
   return game.id || game._id || game.slug;

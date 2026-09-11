@@ -108,6 +108,7 @@ export interface TableState {
   lastAggressorId: string | null;
   showdown: ShowdownResult | null;
   handStartedAt: number | null;
+  botFillAt: number | null;
   createdAt: number;
   status: 'open' | 'playing' | 'closed';
 }
@@ -159,6 +160,7 @@ export interface PublicTableState {
   blinds: { small: number; big: number };
   buyIn: { min: number; max: number };
   fillBots: boolean;
+  botFillAt: number | null;
   status: 'open' | 'playing' | 'closed';
 }
 

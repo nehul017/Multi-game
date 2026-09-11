@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { AppError } from '../utils/AppError';
+import { BOT_FILL_MS } from '../utils/constants';
 import {
   BOT_ACTION_DELAY_MS,
   CASH_LOBBY_TABLES,
@@ -60,6 +61,7 @@ type TableListener = (tableId: string, state: TableState, event: PokerRuntimeEve
 
 const memoryTables = new Map<string, TableState>();
 const timers = new Map<string, NodeJS.Timeout>();
+const botFillTimers = new Map<string, NodeJS.Timeout>();
 const listeners = new Set<TableListener>();
 
 const isBotId = (userId: string): boolean => userId.startsWith('bot:');
@@ -102,6 +104,7 @@ const loadState = async (tableId: string): Promise<TableState | null> => {
   const fromRedis = await redisLockService.getJson<TableState>(POKER_REDIS_KEYS.state(tableId));
   if (fromRedis) {
     memoryTables.set(tableId, fromRedis);
+    scheduleBotFillIfNeeded(fromRedis);
     return fromRedis;
   }
   return null;
@@ -195,25 +198,79 @@ const persistAction = async (state: TableState, userId: string, action: PokerAct
   } as never);
 };
 
-const fillBotsIfNeeded = (state: TableState): void => {
-  if (!state.config.fillBots) return;
+const humanSeatedCount = (state: TableState): number =>
+  state.players.filter((player) => !player.isBot && !isBotId(player.userId) && !player.sittingOut && player.chips > 0)
+    .length;
+
+const needsBotFill = (state: TableState): boolean => {
+  if (state.street !== 'waiting' && state.street !== 'complete') return false;
+  if (humanSeatedCount(state) < 1) return false;
+  return !canStartHand(state);
+};
+
+const nextBotIndex = (state: TableState): number => {
   let botIndex = 0;
-  while (state.players.length < Math.min(state.config.maxSeats, 3)) {
+  while (state.players.some((player) => player.userId === `bot:${state.tableId}:${botIndex}`)) {
+    botIndex += 1;
+  }
+  return botIndex;
+};
+
+const seatWaitingBots = (state: TableState): string[] => {
+  const added: string[] = [];
+  const target = Math.min(state.config.maxSeats, Math.max(state.config.minSeatsToStart, 3));
+  while (state.players.filter((player) => !player.sittingOut && player.chips > 0).length < target) {
+    const botIndex = nextBotIndex(state);
     const name = BOT_NAMES[botIndex % BOT_NAMES.length];
-    sitPlayer(state, {
+    const seated = sitPlayer(state, {
       userId: `bot:${state.tableId}:${botIndex}`,
       username: name,
       chips: Math.max(state.config.buyInMin, state.config.bigBlind * 40),
       isBot: true,
     });
-    botIndex += 1;
+    added.push(seated.userId);
   }
+  state.botFillAt = null;
+  return added;
+};
+
+const fillBotsIfNeeded = (state: TableState): string[] => {
+  if (!state.config.fillBots) return [];
+  return seatWaitingBots(state);
+};
+
+const clearBotFillTimer = (tableId: string): void => {
+  const existing = botFillTimers.get(tableId);
+  if (existing) clearTimeout(existing);
+  botFillTimers.delete(tableId);
+};
+
+const scheduleBotFillIfNeeded = (state: TableState): void => {
+  if (!needsBotFill(state)) {
+    clearBotFillTimer(state.tableId);
+    state.botFillAt = null;
+    return;
+  }
+
+  const remaining = state.botFillAt ? state.botFillAt - Date.now() : 0;
+  if (botFillTimers.has(state.tableId) && remaining > 0) return;
+
+  clearBotFillTimer(state.tableId);
+  const delay = state.botFillAt ? Math.max(0, remaining) : BOT_FILL_MS;
+  state.botFillAt = Date.now() + delay;
+  botFillTimers.set(
+    state.tableId,
+    setTimeout(() => {
+      void pokerService.fillWaitingBots(state.tableId);
+    }, delay)
+  );
 };
 
 const afterMutation = async (
   state: TableState,
   events: PokerRuntimeEvent[]
 ): Promise<TableState> => {
+  scheduleBotFillIfNeeded(state);
   await persistState(state);
   events.forEach((event) => emit(state, event));
   scheduleTable(state);
@@ -245,7 +302,7 @@ class PokerService {
       minPlayers: 2,
       maxPlayers: 9,
       category: 'arcade',
-      thumbnail: '/images/games/poker.svg',
+      thumbnail: '/images/games/poker.jpg',
     };
   }
 
@@ -292,15 +349,15 @@ class PokerService {
         const live = memoryTables.get(row.tableId);
         if (live) {
           live.config.fillBots = false;
-          live.players = live.players.filter((player) => !player.isBot && !isBotId(player.userId));
+          scheduleBotFillIfNeeded(live);
         }
         continue;
       }
       const cached = await redisLockService.getJson<TableState>(POKER_REDIS_KEYS.state(row.tableId));
       if (cached) {
         cached.config.fillBots = false;
-        cached.players = cached.players.filter((player) => !player.isBot && !isBotId(player.userId));
         memoryTables.set(row.tableId, cached);
+        scheduleBotFillIfNeeded(cached);
         continue;
       }
       const restored = createTableState({
@@ -328,6 +385,7 @@ class PokerService {
         });
       }
       memoryTables.set(row.tableId, restored);
+      scheduleBotFillIfNeeded(restored);
       await redisLockService.setJson(POKER_REDIS_KEYS.state(row.tableId), restored, TABLE_TTL_SEC);
     }
   }
@@ -336,6 +394,7 @@ class PokerService {
     const timer = timers.get(tableId);
     if (timer) clearTimeout(timer);
     timers.delete(tableId);
+    clearBotFillTimer(tableId);
     memoryTables.delete(tableId);
     await pokerTableRepository.upsertSnapshot(tableId, {
       status: 'closed',
@@ -385,6 +444,7 @@ class PokerService {
         maxSeats: row.maxSeats,
         status: live?.status || row.status,
         fillBots: false,
+        botFillAt: live?.botFillAt ?? null,
         pot: live?.pot ?? 0,
         street: live?.street ?? 'waiting',
         handNumber: live?.handNumber ?? 0,
@@ -642,6 +702,33 @@ class PokerService {
     }
   }
 
+  async fillWaitingBots(tableId: string): Promise<void> {
+    try {
+      await withLock(tableId, async () => {
+        const state = await requireState(tableId);
+        clearBotFillTimer(tableId);
+        if (!needsBotFill(state)) {
+          state.botFillAt = null;
+          await persistState(state);
+          if (canStartHand(state) && (state.street === 'waiting' || state.street === 'complete')) {
+            await this.startHandLocked(state);
+          }
+          return;
+        }
+
+        const added = seatWaitingBots(state);
+        const events: PokerRuntimeEvent[] = added.map((userId) => ({ type: 'player-joined' as const, userId }));
+        events.push({ type: 'state' });
+        await afterMutation(state, events);
+        if (canStartHand(state) && (state.street === 'waiting' || state.street === 'complete')) {
+          await this.startHandLocked(state);
+        }
+      });
+    } catch (error) {
+      console.warn('[poker] bot fill failed', error);
+    }
+  }
+
   async beginNextHand(tableId: string): Promise<void> {
     try {
       await withLock(tableId, async () => {
@@ -649,7 +736,9 @@ class PokerService {
         if (!canStartHand(state) && state.street !== 'complete' && state.street !== 'waiting') return;
         if (state.street === 'complete') prepareNextHand(state);
         if (!canStartHand(state)) {
+          scheduleBotFillIfNeeded(state);
           await persistState(state);
+          emit(state, { type: 'state' });
           return;
         }
         await this.startHandLocked(state);

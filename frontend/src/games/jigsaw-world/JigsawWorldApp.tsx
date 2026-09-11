@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Eye, Lightbulb, Shuffle } from 'lucide-react';
+import { ArrowLeft, Lightbulb, Shuffle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useGameSession } from '@/games/sdk';
@@ -13,6 +13,7 @@ import { JigsawHub } from './components/JigsawHub';
 import { JigsawResult } from './components/JigsawResult';
 import { JigsawWorldEngine } from './logic';
 import type { JigsawDifficultyId, JigsawSnapshot } from './types';
+import './jigsaw.css';
 
 interface JigsawWorldAppProps {
   variant?: 'hub' | 'play';
@@ -123,40 +124,83 @@ function JigsawWorldInner({ variant = 'hub' }: JigsawWorldAppProps) {
   }, [engine, leaveBoard]);
 
   const elapsedMs = snap.status === 'playing' && startedAt.current ? (now || Date.now()) - startedAt.current : snap.elapsedMs;
+  const inPlay = snap.status === 'playing' || snap.status === 'complete';
+
+  useEffect(() => {
+    if (!inPlay) return undefined;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, [inPlay]);
 
   return (
-    <div className="jw-root" data-variant={variant}>
+    <div className={`jw-root${inPlay ? ' is-playing' : ''}`} data-variant={variant}>
+      <div className="jw-dust" aria-hidden="true" />
       {snap.status === 'hub' && (
         <JigsawHub highScore={snap.highScore} starting={starting} error={startError} onPlay={(id, difficulty) => void beginPuzzle(id, difficulty)} />
       )}
 
-      {(snap.status === 'playing' || snap.status === 'complete') && snap.puzzle && (
+      {inPlay && snap.puzzle && (
         <div className="jw-shell">
-          <header className="jw-header">
-            <div className="jw-heading">
-              <p className="jw-kicker">Jigsaw World</p>
-              <h1>{snap.puzzle.title}</h1>
-              <p className="jw-sub">{snap.puzzle.blurb}</p>
-            </div>
-            <div className="jw-header-actions">
-              <Link href="/games">
-                <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" aria-hidden="true" />}>
-                  Games
-                </Button>
+          <header className="jw-toolbar">
+            <div className="jw-toolbar-lead">
+              <Link href="/games" className="jw-toolbar-back" aria-label="Back to games">
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               </Link>
-              <Button variant="secondary" size="sm" onClick={leaveBoard}>
+              <button type="button" className="jw-toolbar-back" onClick={leaveBoard}>
                 Gallery
+              </button>
+              <div className="jw-toolbar-title">
+                <p className="jw-kicker">Jigsaw World</p>
+                <h1>{snap.puzzle.title}</h1>
+              </div>
+            </div>
+
+            <JigsawHUD
+              placed={snap.placed}
+              total={snap.total}
+              elapsedMs={elapsedMs}
+              difficulty={snap.difficulty.label}
+            />
+
+            <div className="jw-toolbar-actions">
+              <button
+                type="button"
+                className={`jw-ref ${snap.showPreview ? 'is-on' : ''}`}
+                onClick={() => engine.togglePreview()}
+                aria-pressed={snap.showPreview}
+                title={snap.showPreview ? 'Hide picture on board' : 'Show picture on board'}
+              >
+                <span style={{ backgroundImage: `url(${snap.puzzle.src})` }} />
+                <em>{snap.showPreview ? 'Hide' : 'Picture'}</em>
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Lightbulb className="w-4 h-4" aria-hidden="true" />}
+                onClick={() => engine.hint()}
+                disabled={snap.status !== 'playing'}
+              >
+                <span className="jw-btn-label">Hint</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<Shuffle className="w-4 h-4" aria-hidden="true" />}
+                onClick={() => engine.shuffleLoose()}
+                disabled={snap.status !== 'playing'}
+              >
+                <span className="jw-btn-label">Shuffle</span>
               </Button>
             </div>
           </header>
-
-          <JigsawHUD
-            title={snap.puzzle.title}
-            placed={snap.placed}
-            total={snap.total}
-            elapsedMs={elapsedMs}
-            difficulty={snap.difficulty.label}
-          />
 
           <JigsawBoard
             puzzle={snap.puzzle}
@@ -173,36 +217,6 @@ function JigsawWorldInner({ variant = 'hub' }: JigsawWorldAppProps) {
             onMove={(id, x, y) => engine.movePiece(id, x, y)}
             onDrop={dropPiece}
           />
-
-          <div className="jw-room-actions">
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Eye className="w-4 h-4" aria-hidden="true" />}
-              onClick={() => engine.togglePreview()}
-            >
-              {snap.showPreview ? 'Hide picture' : 'Show picture'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Lightbulb className="w-4 h-4" aria-hidden="true" />}
-              onClick={() => engine.hint()}
-              disabled={snap.status !== 'playing'}
-            >
-              Hint
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<Shuffle className="w-4 h-4" aria-hidden="true" />}
-              onClick={() => engine.shuffleLoose()}
-              disabled={snap.status !== 'playing'}
-            >
-              Shuffle
-            </Button>
-          </div>
-          <p className="jw-desktop-hint">Drag pieces onto the board · they snap when close · H hint · P preview · Esc gallery</p>
         </div>
       )}
 

@@ -112,7 +112,7 @@ class FruitSlotsService {
       minPlayers: 1,
       maxPlayers: 1,
       category: 'arcade',
-      thumbnail: '/images/games/classic-fruit-slots.svg',
+      thumbnail: '/images/games/classic-fruit-slots.jpg',
     };
   }
 

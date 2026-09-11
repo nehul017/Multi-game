@@ -64,6 +64,11 @@ export const DIFFICULTIES: JigsawDifficulty[] = [
 
 export const TAB = 0.22;
 export const SNAP_CELLS = 0.38;
+export const TRAY_Y = 1.2;
+
+export function isInTray(piece: Pick<JigsawPiece, 'placed' | 'y'>): boolean {
+  return !piece.placed && piece.y >= 1;
+}
 
 export const CATEGORY_LABEL: Record<JigsawCategory, string> = {
   nature: 'Nature',

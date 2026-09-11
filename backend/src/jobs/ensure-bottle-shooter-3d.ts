@@ -9,7 +9,7 @@ const BOTTLE_SHOOTER_CATALOG = {
   category: 'shooter',
   isActive: true,
   settings: { levels: 8, difficulty: 'medium' },
-  thumbnail: '/images/games/bottle-shooter-3d.svg',
+  thumbnail: '/images/games/bottle-shooter-3d.jpg',
 };
 
 export const ensureBottleShooterCatalog = async (): Promise<void> => {

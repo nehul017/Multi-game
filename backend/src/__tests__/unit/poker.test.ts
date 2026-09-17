@@ -16,6 +16,7 @@ import {
   createTableState,
   sanitizeTableState,
   sitPlayer,
+  splitUsedCards,
   startHand,
 } from '../../games/poker/core/table';
 import type { TableConfig, TableState } from '../../games/poker/core/game-state';
@@ -98,6 +99,23 @@ const config = (gameType: TableConfig['gameType'], extras: Partial<TableConfig> 
 
 const seat = (state: TableState, id: string, chips = 500, seatIndex?: number) =>
   sitPlayer(state, { userId: id, username: id, chips, seatIndex });
+
+const checkDown = (state: TableState): void => {
+  let guard = 0;
+  while (state.street !== 'complete' && state.currentPlayerId && guard < 40) {
+    const legal = getLegalActions(state, state.currentPlayerId);
+    if (legal.some((action) => action.type === 'check')) {
+      applyAction(state, state.currentPlayerId, { type: 'check' });
+    } else if (legal.some((action) => action.type === 'call')) {
+      applyAction(state, state.currentPlayerId, { type: 'call' });
+    } else {
+      break;
+    }
+    guard += 1;
+  }
+};
+
+const sortedIds = (cards?: Array<{ id: string }>) => (cards || []).map((card) => card.id).sort();
 
 describe('Deck', () => {
   it('creates 52 unique cards', () => {
@@ -195,6 +213,15 @@ describe("Texas Hold'em", () => {
     applyAction(state, state.currentPlayerId!, { type: 'check' });
     expect(['showdown', 'complete']).toContain(state.street);
     expect(state.showdown).toBeTruthy();
+    const winner = state.showdown!.pots[0].winners[0];
+    const player = state.players.find((item) => item.userId === winner.userId)!;
+    const expected = evaluateHoldEm(player.holeCards, state.communityCards);
+    expect(sortedIds(winner.winningCards)).toEqual(sortedIds(expected.cards));
+    expect(winner.category).toBe(expected.category);
+    expect(winner.handName).toBe(expected.name);
+    const publicView = sanitizeTableState(state, 'a');
+    expect(JSON.stringify(publicView.showdown)).not.toContain('highHand');
+    expect(sortedIds(publicView.showdown?.pots[0].winners[0].winningCards)).toEqual(sortedIds(expected.cards));
   });
 
   it('folds, checks, calls, raises, and all-ins', () => {
@@ -228,6 +255,7 @@ describe("Texas Hold'em", () => {
     applyAction(state, state.currentPlayerId!, { type: 'fold' });
     expect(state.showdown?.pots[0].winners[0].winType).toBe('uncontested');
     expect(state.showdown?.revealedPlayers).toHaveLength(0);
+    expect(state.showdown?.pots[0].winners[0].winningCards).toBeUndefined();
   });
 
   it('splits a tied pot', () => {
@@ -272,6 +300,24 @@ describe('Omaha', () => {
     expect(holdem.category).toBe('straight-flush');
     expect(omaha.category).not.toBe('straight-flush');
     expect(omaha.category).toBe('flush');
+  });
+
+  it('sends Omaha winning cards as exactly 2 hole and 3 community', () => {
+    const state = createTableState(config('omaha'));
+    seat(state, 'a', 400, 0);
+    seat(state, 'b', 400, 1);
+    startHand(state, () => 0.25);
+    checkDown(state);
+    expect(state.showdown).toBeTruthy();
+    const winner = state.showdown!.pots[0].winners[0];
+    const player = state.players.find((item) => item.userId === winner.userId)!;
+    const expected = evaluateOmahaHigh(player.holeCards, state.communityCards);
+    expect(sortedIds(winner.winningCards)).toEqual(sortedIds(expected.cards));
+    expect(winner.usedHoleCards).toHaveLength(2);
+    expect(winner.usedCommunityCards).toHaveLength(3);
+    const used = splitUsedCards(expected.cards, player.holeCards, state.communityCards);
+    expect(sortedIds(winner.usedHoleCards)).toEqual(sortedIds(used.usedHoleCards));
+    expect(sortedIds(winner.usedCommunityCards)).toEqual(sortedIds(used.usedCommunityCards));
   });
 
   it('enumerates C(4,2)*C(5,3) combinations', () => {
@@ -327,6 +373,28 @@ describe('Omaha Hi-Lo', () => {
       }
     }
     expect(state.showdown).toBeTruthy();
+    const highId = state.showdown!.highWinners[0];
+    if (highId) {
+      const highWinner = state.showdown!.pots
+        .flatMap((pot) => pot.winners)
+        .find((winner) => winner.userId === highId && winner.winType === 'high');
+      const player = state.players.find((item) => item.userId === highId)!;
+      const expected = evaluateOmahaHigh(player.holeCards, state.communityCards);
+      if (highWinner?.winningCards?.length) {
+        expect(sortedIds(highWinner.winningCards)).toEqual(sortedIds(expected.cards));
+      }
+    }
+    const lowId = state.showdown!.lowWinners[0];
+    if (lowId) {
+      const lowWinner = state.showdown!.pots
+        .flatMap((pot) => pot.winners)
+        .find((winner) => winner.userId === lowId && winner.winType === 'low');
+      const player = state.players.find((item) => item.userId === lowId)!;
+      const expectedLow = evaluateOmahaLow(player.holeCards, state.communityCards);
+      if (expectedLow && lowWinner) {
+        expect(sortedIds(lowWinner.lowWinningCards)).toEqual(sortedIds(expectedLow.cards));
+      }
+    }
   });
 });
 
@@ -405,7 +473,9 @@ describe('Security and sanitization', () => {
     const opponent = view.players.find((player) => player.userId === 'b');
     expect(opponent?.holeCards).toBeNull();
     expect(view.myCards).toHaveLength(2);
-    expect(JSON.stringify(view)).not.toContain(state.players.find((player) => player.userId === 'b')!.holeCards[0].id);
+    const hidden = state.players.find((item) => item.userId === 'b')!.holeCards.map((item) => item.id);
+    expect(view.players.find((item) => item.userId === 'b')?.holeCards).toBeNull();
+    expect(view.myCards.some((item) => hidden.includes(item.id))).toBe(false);
     expect((view as unknown as { deck?: unknown }).deck).toBeUndefined();
   });
 

@@ -1,5 +1,6 @@
+import { collapseClearedRows, GRAVITY_ANIM_MS, MAX_CASCADES } from './gravity';
 import { blockMasterStorage } from './storage';
-import type { ActivePiece, BlockMasterSnapshot, CellPos, GameStatus, PieceType } from './types';
+import type { ActivePiece, BlockMasterSnapshot, CellPos, GameStatus, GravityMove, PieceType } from './types';
 
 export const COLS = 10;
 export const ROWS = 20;
@@ -290,11 +291,7 @@ export function findFullRows(board: (PieceType | null)[][]): number[] {
 }
 
 export function collapseRows(board: (PieceType | null)[][], rows: number[]): (PieceType | null)[][] {
-  if (rows.length === 0) return board;
-  const skip = new Set(rows);
-  const kept = board.filter((_, index) => !skip.has(index));
-  const empty = Array.from({ length: rows.length }, () => Array<PieceType | null>(COLS).fill(null));
-  return [...empty, ...kept];
+  return collapseClearedRows(board, rows).board;
 }
 
 export function shuffleBag(random = Math.random): PieceType[] {
@@ -338,6 +335,10 @@ export class BlockMasterEngine {
   private highScore = blockMasterStorage.getHighScore();
   private isNewHigh = false;
   private clearingRows: number[] = [];
+  private falling: GravityMove[] = [];
+  private pendingBoard: (PieceType | null)[][] | null = null;
+  private gravityRemain = 0;
+  private cascadeDepth = 0;
   private clearRemain = 0;
   private dropAcc = 0;
   private bag: PieceType[] = [];
@@ -345,6 +346,7 @@ export class BlockMasterEngine {
   private dropTick = 0;
   private levelTick = 0;
   private clearTick = 0;
+  private gravityTick = 0;
   private listeners = new Set<Listener>();
 
   subscribe(listener: Listener): () => void {
@@ -368,10 +370,12 @@ export class BlockMasterEngine {
       highScore: this.highScore,
       isNewHigh: this.isNewHigh,
       clearingRows: [...this.clearingRows],
+      falling: this.falling.map((move) => ({ ...move })),
       spawnTick: this.spawnTick,
       dropTick: this.dropTick,
       levelTick: this.levelTick,
       clearTick: this.clearTick,
+      gravityTick: this.gravityTick,
     };
   }
 
@@ -467,16 +471,31 @@ export class BlockMasterEngine {
       return;
     }
 
+    if (this.falling.length > 0) {
+      this.gravityRemain -= dt;
+      if (this.gravityRemain <= 0) this.finishGravity();
+      return;
+    }
+
     this.dropAcc += dt;
     const interval = dropIntervalMs(this.level);
-    while (this.status === 'playing' && this.clearingRows.length === 0 && this.dropAcc >= interval) {
+    while (
+      this.status === 'playing' &&
+      this.clearingRows.length === 0 &&
+      this.falling.length === 0 &&
+      this.dropAcc >= interval
+    ) {
       this.dropAcc -= interval;
       this.stepGravity();
     }
   }
 
   private canControl() {
-    return this.status === 'playing' && this.clearingRows.length === 0;
+    return this.status === 'playing' && this.clearingRows.length === 0 && this.falling.length === 0;
+  }
+
+  private isResolving() {
+    return this.clearingRows.length > 0 || this.falling.length > 0;
   }
 
   private resetRun() {
@@ -489,6 +508,10 @@ export class BlockMasterEngine {
     this.lines = 0;
     this.isNewHigh = false;
     this.clearingRows = [];
+    this.falling = [];
+    this.pendingBoard = null;
+    this.gravityRemain = 0;
+    this.cascadeDepth = 0;
     this.clearRemain = 0;
     this.dropAcc = 0;
     this.bag = [];
@@ -542,25 +565,36 @@ export class BlockMasterEngine {
     }
     this.board = nextBoard;
     this.active = null;
+    this.cascadeDepth = 0;
+    this.beginResolution();
+  }
 
-    const full = findFullRows(this.board);
-    if (full.length > 0) {
-      this.clearingRows = full;
-      this.clearRemain = CLEAR_ANIM_MS;
-      this.clearTick += 1;
-      this.emit();
+  private beginResolution() {
+    if (this.status !== 'playing') return;
+    if (this.cascadeDepth >= MAX_CASCADES) {
+      this.finishResolution();
       return;
     }
 
-    this.spawnFromQueue();
+    const full = findFullRows(this.board);
+    if (full.length === 0) {
+      this.finishResolution();
+      return;
+    }
+
+    this.clearingRows = full;
+    this.clearRemain = CLEAR_ANIM_MS;
+    this.clearTick += 1;
     this.emit();
   }
 
   private finishClear() {
     const count = this.clearingRows.length;
-    this.board = collapseRows(this.board, this.clearingRows);
+    const cleared = this.clearingRows;
+    const result = collapseClearedRows(this.board, cleared);
     this.clearingRows = [];
     this.clearRemain = 0;
+    this.cascadeDepth += 1;
     this.lines += count;
     this.addScore(lineScore(count, this.level));
     const nextLevel = levelFromLines(this.lines);
@@ -568,6 +602,38 @@ export class BlockMasterEngine {
       this.level = nextLevel;
       this.levelTick += 1;
     }
+
+    this.board = this.board.map((row, y) =>
+      cleared.includes(y) ? Array<PieceType | null>(COLS).fill(null) : row.slice()
+    );
+
+    if (result.moves.length === 0) {
+      this.board = result.board;
+      this.beginResolution();
+      return;
+    }
+
+    this.falling = result.moves;
+    this.pendingBoard = result.board;
+    this.gravityRemain = GRAVITY_ANIM_MS;
+    this.gravityTick += 1;
+    this.emit();
+  }
+
+  private finishGravity() {
+    if (this.pendingBoard) {
+      this.board = this.pendingBoard;
+    }
+    this.falling = [];
+    this.pendingBoard = null;
+    this.gravityRemain = 0;
+    this.cascadeDepth += 1;
+    this.beginResolution();
+  }
+
+  private finishResolution() {
+    if (this.isResolving()) return;
+    this.cascadeDepth = 0;
     this.spawnFromQueue();
     this.emit();
   }
@@ -585,6 +651,10 @@ export class BlockMasterEngine {
     this.status = 'over';
     this.active = null;
     this.clearingRows = [];
+    this.falling = [];
+    this.pendingBoard = null;
+    this.gravityRemain = 0;
+    this.cascadeDepth = 0;
     this.clearRemain = 0;
     if (this.score > 0) {
       this.highScore = blockMasterStorage.setHighScore(this.score);

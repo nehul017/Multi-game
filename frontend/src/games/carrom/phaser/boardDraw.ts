@@ -222,8 +222,8 @@ const drawCenterRose = (ctx: CanvasRenderingContext2D, cx: number, cy: number): 
   const mid = unit(80);
   const inner = unit(27);
 
-  ctx.strokeStyle = 'rgba(96, 56, 28, 0.55)';
-  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#6b3a16';
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
   ctx.arc(cx, cy, outer, 0, Math.PI * 2);
   ctx.stroke();
@@ -233,8 +233,8 @@ const drawCenterRose = (ctx: CanvasRenderingContext2D, cx: number, cy: number): 
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.strokeStyle = 'rgba(110, 64, 32, 0.42)';
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(92, 48, 18, 0.82)';
+  ctx.lineWidth = 1.6;
   const petals = 16;
   for (let i = 0; i < petals; i++) {
     ctx.save();
@@ -321,8 +321,8 @@ export const drawCarromBoard = (): HTMLCanvasElement => {
   const a0 = toPlay(lineMin);
   const a1 = toPlay(lineMax);
 
-  ctx.strokeStyle = 'rgba(92, 52, 26, 0.62)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#6b3a16';
+  ctx.lineWidth = 2.6;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -352,8 +352,8 @@ export const drawCarromBoard = (): HTMLCanvasElement => {
   ctx.lineTo(cx, SIZE - diamondPad);
   ctx.lineTo(diamondPad, cy);
   ctx.closePath();
-  ctx.strokeStyle = 'rgba(92, 52, 26, 0.5)';
-  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#6b3a16';
+  ctx.lineWidth = 2.4;
   ctx.stroke();
 
   drawCenterRose(ctx, cx, cy);
@@ -367,8 +367,8 @@ export const drawCarromBoard = (): HTMLCanvasElement => {
   const pocketR = unit(41);
   const endY = FRAME + (o + inn) / 2;
   const endX = FRAME + (o + inn) / 2;
-  ctx.strokeStyle = 'rgba(92, 52, 26, 0.55)';
-  ctx.lineWidth = 1.7;
+  ctx.strokeStyle = '#6b3a16';
+  ctx.lineWidth = 2.3;
   drawArrow(ctx, [a0, endY], [endX, a0], pockets[0]);
   drawArrow(ctx, [a1, endY], [SIZE - endX, a0], pockets[1]);
   drawArrow(ctx, [a1, SIZE - endY], [SIZE - endX, a1], pockets[2]);

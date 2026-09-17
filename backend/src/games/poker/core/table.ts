@@ -3,6 +3,7 @@ import { AppError } from '../../../utils/AppError';
 import type { Card } from './card';
 import { createShuffledDeck, dealCards, type Rng } from './deck';
 import { compareEvaluatedHands } from './evaluator';
+import type { EvaluatedHand } from './hand';
 import {
   getLegalActions,
   applyBettingAction,
@@ -248,6 +249,61 @@ const refreshPots = (state: TableState): void => {
   state.pot = totalPot(state.sidePots);
 };
 
+export const splitUsedCards = (
+  winningCards: Card[],
+  holeCards: Card[],
+  communityCards: Card[]
+): { usedHoleCards: Card[]; usedCommunityCards: Card[] } => {
+  const holeIds = new Set(holeCards.map((card) => card.id));
+  const boardIds = new Set(communityCards.map((card) => card.id));
+  return {
+    usedHoleCards: winningCards.filter((card) => holeIds.has(card.id)),
+    usedCommunityCards: winningCards.filter((card) => boardIds.has(card.id)),
+  };
+};
+
+const toPublicShowdown = (showdown: ShowdownResult | null): ShowdownResult | null => {
+  if (!showdown) return null;
+  return {
+    ...showdown,
+    revealedPlayers: showdown.revealedPlayers.map((player) => {
+      const { highHand: _highHand, ...publicPlayer } = player;
+      return publicPlayer;
+    }),
+  };
+};
+
+const highPotWinner = (
+  player: SeatPlayer,
+  hand: EvaluatedHand,
+  share: number,
+  communityCards: Card[]
+): PotAward['winners'][number] => ({
+  userId: player.userId,
+  username: player.username,
+  share,
+  winType: 'high',
+  handName: hand.name,
+  category: hand.category,
+  winningCards: hand.cards,
+  ...splitUsedCards(hand.cards, player.holeCards, communityCards),
+});
+
+const lowPotWinner = (
+  player: SeatPlayer,
+  hand: { cards: Card[]; name: string },
+  share: number,
+  communityCards: Card[]
+): PotAward['winners'][number] => ({
+  userId: player.userId,
+  username: player.username,
+  share,
+  winType: 'low',
+  lowHandName: hand.name,
+  lowWinningCards: hand.cards,
+  ...splitUsedCards(hand.cards, player.holeCards, communityCards),
+});
+
 const awardUncontested = (state: TableState): void => {
   const winner = livePlayers(state.players)[0];
   if (!winner) return;
@@ -311,7 +367,9 @@ const resolveShowdown = (state: TableState): void => {
       handName: high.name,
       lowHandName: low?.name,
       category: high.category,
-      highHand: high,
+      winningCards: high.cards,
+      lowWinningCards: low?.cards,
+      ...splitUsedCards(high.cards, player.holeCards, state.communityCards),
     });
   }
 
@@ -333,14 +391,7 @@ const resolveShowdown = (state: TableState): void => {
         item.player.chips += shares[index];
         item.player.status = 'winner';
         highWinnerIds.add(item.player.userId);
-        return {
-          userId: item.player.userId,
-          username: item.player.username,
-          share: shares[index],
-          winType: 'high' as const,
-          handName: item.hand.name,
-          category: item.hand.category,
-        };
+        return highPotWinner(item.player, item.hand, shares[index], state.communityCards);
       });
       awards.push({ potId: pot.id, label: pot.label, amount: pot.amount, winners });
       continue;
@@ -359,14 +410,7 @@ const resolveShowdown = (state: TableState): void => {
         item.player.chips += shares[index];
         item.player.status = 'winner';
         highWinnerIds.add(item.player.userId);
-        return {
-          userId: item.player.userId,
-          username: item.player.username,
-          share: shares[index],
-          winType: 'high' as const,
-          handName: item.hand.name,
-          category: item.hand.category,
-        };
+        return highPotWinner(item.player, item.hand, shares[index], state.communityCards);
       });
       awards.push({ potId: pot.id, label: pot.label, amount: pot.amount, winners });
       continue;
@@ -383,26 +427,13 @@ const resolveShowdown = (state: TableState): void => {
         item.player.chips += highShares[index];
         item.player.status = 'winner';
         highWinnerIds.add(item.player.userId);
-        return {
-          userId: item.player.userId,
-          username: item.player.username,
-          share: highShares[index],
-          winType: 'high' as const,
-          handName: item.hand.name,
-          category: item.hand.category,
-        };
+        return highPotWinner(item.player, item.hand, highShares[index], state.communityCards);
       }),
       ...lowWinners.map((item, index) => {
         item.player.chips += lowShares[index];
         item.player.status = 'winner';
         lowWinnerIds.add(item.player.userId);
-        return {
-          userId: item.player.userId,
-          username: item.player.username,
-          share: lowShares[index],
-          winType: 'low' as const,
-          lowHandName: item.hand.name,
-        };
+        return lowPotWinner(item.player, item.hand, lowShares[index], state.communityCards);
       }),
     ];
     awards.push({ potId: pot.id, label: pot.label, amount: pot.amount, winners });
@@ -692,7 +723,7 @@ export const sanitizeTableState = (state: TableState, viewerId?: string): Public
     actionDeadline: state.actionDeadline,
     myCards: viewer?.holeCards || [],
     allowedActions: viewerId ? getLegalActions(state, viewerId) : [],
-    showdown: state.showdown,
+    showdown: toPublicShowdown(state.showdown),
     maxSeats: state.config.maxSeats,
     blinds: { small: state.config.smallBlind, big: state.config.bigBlind },
     buyIn: { min: state.config.buyInMin, max: state.config.buyInMax },

@@ -24,5 +24,5 @@ export const pickCarromBotMove = (
 export const carromBotDelayMs = (engine: GameEngine | null): number => {
   const board = engine?.getGameState().board as CarromBoardState | undefined;
   const duration = board?.lastShot?.durationMs ?? 900;
-  return Math.min(14000, Math.max(700, duration + 280));
+  return Math.min(8000, Math.max(420, duration * 0.48 + 260));
 };

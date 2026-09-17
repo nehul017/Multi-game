@@ -25,6 +25,7 @@ interface PlayingCardProps {
   hidden?: boolean;
   small?: boolean;
   board?: boolean;
+  featured?: boolean;
   selected?: boolean;
   winner?: boolean;
   mucked?: boolean;
@@ -37,6 +38,7 @@ export function PlayingCard({
   hidden,
   small,
   board,
+  featured,
   selected,
   winner,
   mucked,
@@ -49,7 +51,7 @@ export function PlayingCard({
   return (
     <button
       type="button"
-      className={`pk-card ${small ? 'is-small' : ''} ${board ? 'is-board' : ''} ${selected ? 'is-selected' : ''} ${winner ? 'is-winner' : ''} ${mucked ? 'is-mucked' : ''} ${face ? 'is-face' : 'is-back'}`}
+      className={`pk-card ${small ? 'is-small' : ''} ${board ? 'is-board' : ''} ${featured ? 'is-featured' : ''} ${selected ? 'is-selected' : ''} ${winner ? 'is-winner' : ''} ${mucked ? 'is-mucked' : ''} ${face ? 'is-face' : 'is-back'}`}
       style={{ animationDelay: `${delay}ms` }}
       onClick={onClick}
       disabled={!onClick}

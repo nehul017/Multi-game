@@ -3,7 +3,7 @@ import type { PokerGameType, TableConfig } from './core/game-state';
 export const POKER_GAME_ID = 'poker';
 
 export const DEFAULT_ACTION_TIMEOUT_MS = 15_000;
-export const HAND_PAUSE_MS = 4_000;
+export const HAND_PAUSE_MS = 8_000;
 export const BOT_ACTION_DELAY_MS = 900;
 
 export const POKER_VARIANTS: Record<

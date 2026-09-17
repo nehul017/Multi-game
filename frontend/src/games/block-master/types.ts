@@ -14,6 +14,13 @@ export interface CellPos {
   y: number;
 }
 
+export interface GravityMove {
+  x: number;
+  fromY: number;
+  toY: number;
+  type: PieceType;
+}
+
 export interface BlockMasterSnapshot {
   status: GameStatus;
   board: (PieceType | null)[][];
@@ -27,8 +34,10 @@ export interface BlockMasterSnapshot {
   highScore: number;
   isNewHigh: boolean;
   clearingRows: number[];
+  falling: GravityMove[];
   spawnTick: number;
   dropTick: number;
   levelTick: number;
   clearTick: number;
+  gravityTick: number;
 }

@@ -200,7 +200,8 @@ export class CarromScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!this.simPieces) return;
-    const steps = Math.min(4, Math.max(1, Math.round((delta / 1000) / (1 / 120))));
+    const playbackScale = 2.25;
+    const steps = Math.min(12, Math.max(1, Math.round((delta / 1000) / (1 / 120) * playbackScale)));
     for (let i = 0; i < steps; i++) {
       const report = stepWorld(this.simPieces);
       this.simSteps += 1;
@@ -312,14 +313,32 @@ export class CarromScene extends Phaser.Scene {
     const view = this.toView(striker.x, striker.y);
     const viewAngle = this.myColor === 'black' ? aim.angle + Math.PI : aim.angle;
     g.clear();
-    const dots = 18;
+    const reach = 56 + aim.power * 250;
+    const endX = view.x + Math.cos(viewAngle) * reach;
+    const endY = view.y + Math.sin(viewAngle) * reach;
+
+    g.lineStyle(7, 0x2a1608, 0.28);
+    g.beginPath();
+    g.moveTo(view.x, view.y);
+    g.lineTo(endX, endY);
+    g.strokePath();
+    g.lineStyle(2.8, 0x1d4ed8, 0.92);
+    g.beginPath();
+    g.moveTo(view.x, view.y);
+    g.lineTo(endX, endY);
+    g.strokePath();
+
+    const dots = 16;
     for (let i = 1; i <= dots; i++) {
       const t = i / dots;
-      const x = view.x + Math.cos(viewAngle) * t * 260;
-      const y = view.y + Math.sin(viewAngle) * t * 260;
-      const alpha = 1 - t * 0.7;
-      g.fillStyle(i < 3 ? 0x7ecbff : 0xffffff, alpha);
-      g.fillCircle(x, y, i === 1 ? 4.2 : 2.4);
+      const x = view.x + Math.cos(viewAngle) * t * reach;
+      const y = view.y + Math.sin(viewAngle) * t * reach;
+      const alpha = 1 - t * 0.35;
+      const r = i === 1 ? 5.2 : 3.1;
+      g.fillStyle(0x1a1208, alpha * 0.55);
+      g.fillCircle(x + 0.6, y + 0.8, r + 1.1);
+      g.fillStyle(i < 3 ? 0x93c5fd : 0x1d4ed8, alpha);
+      g.fillCircle(x, y, r);
     }
     this.glow?.setVisible(true).setPosition(view.x, view.y).setDisplaySize(86, 86).setAlpha(0.28 + aim.power * 0.35);
     this.callbacks?.onAim(aim.power, aim.angle, true);

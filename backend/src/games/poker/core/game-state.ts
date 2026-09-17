@@ -64,6 +64,10 @@ export interface PotAward {
     handName?: string;
     lowHandName?: string;
     category?: string;
+    winningCards?: Card[];
+    lowWinningCards?: Card[];
+    usedHoleCards?: Card[];
+    usedCommunityCards?: Card[];
   }>;
 }
 
@@ -74,6 +78,10 @@ export interface RevealedPlayer {
   handName?: string;
   lowHandName?: string;
   category?: string;
+  winningCards?: Card[];
+  lowWinningCards?: Card[];
+  usedHoleCards?: Card[];
+  usedCommunityCards?: Card[];
   highHand?: EvaluatedHand;
 }
 

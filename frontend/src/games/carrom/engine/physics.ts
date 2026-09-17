@@ -9,14 +9,14 @@ export const BASELINE = 118;
 export const STRIKER_MIN = 156;
 export const STRIKER_MAX = 844;
 export const DT = 1 / 120;
-export const FRICTION = 0.9892;
-export const REST_SPEED = 6.5;
+export const FRICTION = 0.9858;
+export const REST_SPEED = 10;
 export const WALL_REST = 0.58;
 export const COIN_REST = 0.84;
 export const COIN_MASS = 1;
 export const STRIKER_MASS = 1.72;
 export const MIN_POWER = 0.08;
-export const MAX_SPEED = 1680;
+export const MAX_SPEED = 2320;
 export const MAX_STEPS = 2400;
 
 export const POCKETS = [

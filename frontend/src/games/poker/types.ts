@@ -64,6 +64,23 @@ export interface ShowdownWinner {
   handName?: string;
   lowHandName?: string;
   category?: string;
+  winningCards?: PokerCard[];
+  lowWinningCards?: PokerCard[];
+  usedHoleCards?: PokerCard[];
+  usedCommunityCards?: PokerCard[];
+}
+
+export interface RevealedPlayer {
+  userId: string;
+  username: string;
+  holeCards: PokerCard[];
+  handName?: string;
+  lowHandName?: string;
+  category?: string;
+  winningCards?: PokerCard[];
+  lowWinningCards?: PokerCard[];
+  usedHoleCards?: PokerCard[];
+  usedCommunityCards?: PokerCard[];
 }
 
 export interface ShowdownResult {
@@ -73,14 +90,7 @@ export interface ShowdownResult {
     amount: number;
     winners: ShowdownWinner[];
   }>;
-  revealedPlayers: Array<{
-    userId: string;
-    username: string;
-    holeCards: PokerCard[];
-    handName?: string;
-    lowHandName?: string;
-    category?: string;
-  }>;
+  revealedPlayers: RevealedPlayer[];
   highWinners: string[];
   lowWinners: string[];
 }

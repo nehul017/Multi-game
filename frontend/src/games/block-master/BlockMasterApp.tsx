@@ -56,6 +56,7 @@ function BlockMasterInner({ variant = 'hub' }: BlockMasterAppProps) {
     const prev = prevSnap.current;
     if (snap.clearTick !== prev.clearTick) playBlockMasterCue('clear');
     if (snap.dropTick !== prev.dropTick) playBlockMasterCue('drop');
+    if (snap.gravityTick !== prev.gravityTick) playBlockMasterCue('drop');
     if (snap.levelTick !== prev.levelTick) playBlockMasterCue('level');
     if (snap.status === 'over' && prev.status !== 'over') {
       playBlockMasterCue('over');
@@ -224,6 +225,7 @@ function BlockMasterInner({ variant = 'hub' }: BlockMasterAppProps) {
   }, [engine, runKey, stopRepeat, beginRun]);
 
   const playing = snap.status === 'playing';
+  const resolving = snap.clearingRows.length > 0 || snap.falling.length > 0;
   const showControls = playing || snap.status === 'paused';
 
   return (
@@ -276,8 +278,10 @@ function BlockMasterInner({ variant = 'hub' }: BlockMasterAppProps) {
               board={snap.board}
               active={snap.active}
               clearingRows={snap.clearingRows}
+              falling={snap.falling}
               spawnTick={snap.spawnTick}
               dropTick={snap.dropTick}
+              gravityTick={snap.gravityTick}
             />
             <GameStats
               score={snap.score}
@@ -295,7 +299,7 @@ function BlockMasterInner({ variant = 'hub' }: BlockMasterAppProps) {
 
         {showControls && (
           <GameControls
-            disabled={!playing}
+            disabled={!playing || resolving}
             canHold={snap.canHold}
             onLeft={() => engine.move(-1)}
             onRight={() => engine.move(1)}

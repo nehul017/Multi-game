@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { PokerGameState } from '../types';
+import { buildWinningHandView, isShowdownStreet } from '../winningHand';
 import { ActionPanel } from './ActionPanel';
 import { ActionTimer } from './ActionTimer';
 import { ChipStack } from './ChipStack';
@@ -9,7 +10,7 @@ import { CommunityCards } from './CommunityCards';
 import { HandStrength } from './WinnerDisplay';
 import { PokerSeat } from './PokerSeat';
 import { PotDisplay } from './PotDisplay';
-import { ShowdownOverlay } from './ShowdownOverlay';
+import { WinningHandModal } from './WinningHandModal';
 
 function botEtaSeconds(botFillAt?: number | null): number {
   if (!botFillAt) return 0;
@@ -62,6 +63,35 @@ export function PokerTable({
     ...(table.showdown?.highWinners || []),
     ...(table.showdown?.lowWinners || []),
   ]);
+  const resultView = useMemo(
+    () =>
+      buildWinningHandView({
+        showdown: table.showdown,
+        players: table.players,
+        myId,
+        communityCards: table.communityCards,
+        handId: table.handId,
+        handNumber: table.handNumber,
+      }),
+    [table.showdown, table.players, table.communityCards, table.handId, table.handNumber, myId]
+  );
+  const resultKey = resultView?.resultKey ?? null;
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDismissedKey((current) => {
+      if (!resultKey) return null;
+      return current === resultKey ? current : null;
+    });
+  }, [resultKey]);
+
+  const dismissResult = useCallback(() => {
+    if (resultKey) setDismissedKey(resultKey);
+  }, [resultKey]);
+
+  const showWinningModal = Boolean(
+    isShowdownStreet(table.street, table.phase) && resultView && dismissedKey !== resultKey
+  );
   const myReveal = table.showdown?.revealedPlayers.find((player) => player.userId === myId);
   const street = table.street.replace('-', ' ');
   const idleLabel =
@@ -130,9 +160,13 @@ export function PokerTable({
         onAction={onAction}
         onDraw={onDraw}
       />
-      {(table.street === 'showdown' || table.street === 'complete' || table.phase === 'payout') && (
-        <ShowdownOverlay showdown={table.showdown} />
-      )}
+      <WinningHandModal
+        open={showWinningModal}
+        view={resultView}
+        gameType={table.gameType}
+        communityCards={table.communityCards}
+        onContinue={dismissResult}
+      />
     </div>
   );
 }

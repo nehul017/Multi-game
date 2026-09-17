@@ -272,3 +272,4 @@ After seeding, use these credentials:
 ## License
 
 MIT
+# stock-market-platform
